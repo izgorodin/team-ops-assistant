@@ -1,0 +1,14 @@
+{
+  "$schema": "https://code.claude.com/schemas/settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(pyright:*)",
+      "Bash(pip:*)",
+      "Bash(git:*)"
+    ],
+    "deny": []
+  },
+  "env": {}
+}

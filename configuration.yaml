@@ -1,0 +1,73 @@
+# Team Ops Assistant Configuration
+# Non-secret configuration values
+
+app:
+  name: "Team Ops Assistant"
+  version: "0.1.0"
+  
+# MongoDB database name
+database:
+  name: "team_ops"
+  
+# Timezone settings
+timezone:
+  # Default timezone when none can be determined
+  default: "UTC"
+  
+  # Team timezones to show in conversions
+  team_timezones:
+    - "America/Los_Angeles"  # Pacific
+    - "America/New_York"     # Eastern  
+    - "Europe/London"        # UK
+    - "Europe/Berlin"        # Central Europe
+    - "Asia/Tokyo"           # Japan
+    - "Australia/Sydney"     # Australia
+    
+  # Cities for "Pick City" fallback (timezone selection)
+  team_cities:
+    - name: "Los Angeles"
+      tz: "America/Los_Angeles"
+    - name: "New York"
+      tz: "America/New_York"
+    - name: "London"
+      tz: "Europe/London"
+    - name: "Berlin"
+      tz: "Europe/Berlin"
+    - name: "Tokyo"
+      tz: "Asia/Tokyo"
+    - name: "Sydney"
+      tz: "Australia/Sydney"
+
+# Timezone confidence settings
+confidence:
+  # Minimum confidence threshold to use a timezone without asking
+  threshold: 0.7
+  # Confidence assigned when user verifies via web flow
+  verified: 1.0
+  # Confidence assigned when user picks a city
+  city_pick: 0.85
+  # Confidence decay per day of inactivity (not used in MVP)
+  decay_per_day: 0.01
+  
+# Deduplication settings  
+dedupe:
+  # TTL for dedupe events in seconds (7 days)
+  ttl_seconds: 604800
+  # Throttle: minimum seconds between responses in same chat
+  throttle_seconds: 2
+  
+# LLM settings
+llm:
+  # Together AI model
+  model: "Qwen/Qwen3-Next-80B-A3B-Instruct"
+  # Use LLM only as fallback when rules-based parsing fails
+  fallback_only: true
+  # Maximum tokens in response
+  max_tokens: 256
+  # Temperature for generation
+  temperature: 0.3
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

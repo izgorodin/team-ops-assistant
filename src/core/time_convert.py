@@ -1,0 +1,214 @@
+"""Timezone conversion utilities.
+
+Converts times between timezones for display.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, NamedTuple
+from zoneinfo import ZoneInfo
+
+if TYPE_CHECKING:
+    from src.core.models import ParsedTime
+
+
+class ConvertedTime(NamedTuple):
+    """A time converted to a specific timezone."""
+
+    timezone: str
+    hour: int
+    minute: int
+    formatted: str  # e.g., "14:30 PST"
+    is_next_day: bool  # True if conversion crossed into next day
+    is_prev_day: bool  # True if conversion crossed into previous day
+
+
+def convert_to_timezone(
+    parsed_time: ParsedTime,
+    source_tz: str,
+    target_tz: str,
+    reference_date: datetime | None = None,
+) -> ConvertedTime:
+    """Convert a parsed time from source timezone to target timezone.
+
+    Args:
+        parsed_time: The parsed time to convert.
+        source_tz: Source IANA timezone.
+        target_tz: Target IANA timezone.
+        reference_date: Reference date for the conversion (default: today).
+
+    Returns:
+        ConvertedTime with the converted time details.
+    """
+    if reference_date is None:
+        reference_date = datetime.now(ZoneInfo(source_tz))
+
+    # Build source datetime
+    source_dt = datetime(
+        year=reference_date.year,
+        month=reference_date.month,
+        day=reference_date.day,
+        hour=parsed_time.hour,
+        minute=parsed_time.minute,
+        tzinfo=ZoneInfo(source_tz),
+    )
+
+    # Handle tomorrow flag
+    if parsed_time.is_tomorrow:
+        source_dt = source_dt + timedelta(days=1)
+
+    # Convert to target timezone
+    target_dt = source_dt.astimezone(ZoneInfo(target_tz))
+
+    # Determine if day changed
+    source_date = source_dt.date()
+    target_date = target_dt.date()
+    is_next_day = target_date > source_date
+    is_prev_day = target_date < source_date
+
+    # Format the time
+    formatted = format_time_with_tz(target_dt.hour, target_dt.minute, target_tz, is_next_day)
+
+    return ConvertedTime(
+        timezone=target_tz,
+        hour=target_dt.hour,
+        minute=target_dt.minute,
+        formatted=formatted,
+        is_next_day=is_next_day,
+        is_prev_day=is_prev_day,
+    )
+
+
+def convert_to_timezones(
+    parsed_time: ParsedTime,
+    source_tz: str,
+    target_tzs: list[str],
+    reference_date: datetime | None = None,
+) -> list[ConvertedTime]:
+    """Convert a parsed time to multiple target timezones.
+
+    Args:
+        parsed_time: The parsed time to convert.
+        source_tz: Source IANA timezone.
+        target_tzs: List of target IANA timezones.
+        reference_date: Reference date for the conversion.
+
+    Returns:
+        List of ConvertedTime for each target timezone.
+    """
+    results: list[ConvertedTime] = []
+
+    for target_tz in target_tzs:
+        if target_tz != source_tz:  # Skip if same as source
+            results.append(convert_to_timezone(parsed_time, source_tz, target_tz, reference_date))
+
+    return results
+
+
+def format_time_with_tz(hour: int, minute: int, timezone: str, is_next_day: bool = False) -> str:
+    """Format a time with timezone abbreviation.
+
+    Args:
+        hour: Hour (0-23).
+        minute: Minute (0-59).
+        timezone: IANA timezone.
+        is_next_day: Whether this is the next day.
+
+    Returns:
+        Formatted string like "14:30 CET" or "09:00 PST (+1 day)".
+    """
+    time_str = f"{hour:02d}:{minute:02d}"
+    tz_abbrev = get_timezone_abbreviation(timezone)
+
+    if is_next_day:
+        return f"{time_str} {tz_abbrev} (+1 day)"
+    return f"{time_str} {tz_abbrev}"
+
+
+def get_timezone_abbreviation(timezone: str) -> str:
+    """Get a short abbreviation for a timezone.
+
+    Args:
+        timezone: IANA timezone identifier.
+
+    Returns:
+        Short abbreviation (e.g., "PST", "CET").
+    """
+    # Common mappings
+    abbreviations: dict[str, str] = {
+        "America/Los_Angeles": "PT",
+        "America/New_York": "ET",
+        "America/Chicago": "CT",
+        "America/Denver": "MT",
+        "Europe/London": "UK",
+        "Europe/Berlin": "CET",
+        "Europe/Paris": "CET",
+        "Asia/Tokyo": "JST",
+        "Australia/Sydney": "AEST",
+        "UTC": "UTC",
+    }
+
+    if timezone in abbreviations:
+        return abbreviations[timezone]
+
+    # Extract city name as fallback
+    if "/" in timezone:
+        return timezone.split("/")[-1].replace("_", " ")
+
+    return timezone
+
+
+def format_conversion_response(
+    original_text: str,
+    source_tz: str,
+    conversions: list[ConvertedTime],
+) -> str:
+    """Format a multi-timezone conversion response.
+
+    Args:
+        original_text: The original time text from the message.
+        source_tz: Source timezone.
+        conversions: List of converted times.
+
+    Returns:
+        Formatted response string.
+    """
+    if not conversions:
+        return ""
+
+    source_abbrev = get_timezone_abbreviation(source_tz)
+    lines = [f"🕐 {original_text} ({source_abbrev}):"]
+
+    for conv in conversions:
+        lines.append(f"  → {conv.formatted}")
+
+    return "\n".join(lines)
+
+
+def is_valid_iana_timezone(timezone: str) -> bool:
+    """Check if a timezone string is a valid IANA timezone.
+
+    Args:
+        timezone: Timezone string to validate.
+
+    Returns:
+        True if valid IANA timezone.
+    """
+    try:
+        ZoneInfo(timezone)
+        return True
+    except (KeyError, ValueError):
+        return False
+
+
+def get_current_time_in_timezone(timezone: str) -> datetime:
+    """Get the current time in a specific timezone.
+
+    Args:
+        timezone: IANA timezone.
+
+    Returns:
+        Current datetime in that timezone.
+    """
+    return datetime.now(ZoneInfo(timezone))

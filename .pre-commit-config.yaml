@@ -1,0 +1,45 @@
+# Pre-commit hooks - ОБЯЗАТЕЛЬНЫ перед каждым коммитом
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # Ruff - lint + format
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Pyright - strict type checking
+  - repo: https://github.com/RobertCraiwordan/pyright-python
+    rev: v1.1.391
+    hooks:
+      - id: pyright
+        additional_dependencies:
+          - pydantic>=2.0
+          - quart
+          - motor
+          - httpx
+
+  # Basic checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Pytest - tests must pass
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest --tb=short -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]  # Run on push, not every commit

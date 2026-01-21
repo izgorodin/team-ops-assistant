@@ -1,0 +1,143 @@
+"""Core domain models for Team Ops Assistant.
+
+Platform-agnostic data structures used across all connectors.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class Platform(str, Enum):
+    """Supported messaging platforms."""
+
+    TELEGRAM = "telegram"
+    DISCORD = "discord"
+    WHATSAPP = "whatsapp"
+
+
+class NormalizedEvent(BaseModel, frozen=True):
+    """Platform-agnostic representation of an incoming message event.
+
+    All platform connectors normalize their inbound payloads to this format.
+    Frozen: immutable after creation - prevents accidental mutation.
+    """
+
+    platform: Platform
+    event_id: str = Field(description="Unique event ID for deduplication")
+    chat_id: str = Field(description="Chat/channel/group ID")
+    user_id: str = Field(description="User/author ID")
+    username: str | None = Field(default=None, description="Username if available")
+    display_name: str | None = Field(default=None, description="Display name if available")
+    text: str = Field(description="Message text content")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    reply_to_message_id: str | None = Field(
+        default=None, description="ID of message being replied to"
+    )
+    raw_payload: dict | None = Field(
+        default=None, description="Original platform payload for debugging"
+    )
+
+
+class OutboundMessage(BaseModel, frozen=True):
+    """Platform-agnostic representation of an outgoing message.
+
+    The core handler returns these, and platform outbound adapters convert them.
+    Frozen: immutable after creation.
+    """
+
+    platform: Platform
+    chat_id: str
+    text: str
+    reply_to_message_id: str | None = None
+    parse_mode: Literal["plain", "markdown", "html"] = "plain"
+
+
+class ParsedTime(BaseModel, frozen=True):
+    """A time reference extracted from message text. Frozen: immutable."""
+
+    original_text: str = Field(description="The original time string from the message")
+    hour: int = Field(ge=0, le=23)
+    minute: int = Field(default=0, ge=0, le=59)
+    timezone_hint: str | None = Field(
+        default=None, description="Timezone mentioned in message (e.g., 'PST', 'Tokyo')"
+    )
+    is_tomorrow: bool = Field(default=False, description="Whether the time is for tomorrow")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Parsing confidence")
+
+
+class TimezoneSource(str, Enum):
+    """How a user's timezone was determined."""
+
+    WEB_VERIFIED = "web_verified"  # User verified via web flow
+    CITY_PICK = "city_pick"  # User selected a city
+    MESSAGE_EXPLICIT = "message_explicit"  # User stated timezone in message
+    INFERRED = "inferred"  # Inferred from context
+    DEFAULT = "default"  # Fallback to default
+
+
+class UserTzState(BaseModel):
+    """User timezone state stored in MongoDB.
+
+    Indexed by (platform, user_id).
+    """
+
+    platform: Platform
+    user_id: str
+    tz_iana: str | None = Field(default=None, description="IANA timezone identifier")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    source: TimezoneSource = TimezoneSource.DEFAULT
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_verified_at: datetime | None = None
+
+
+class ChatState(BaseModel):
+    """Chat/channel state stored in MongoDB.
+
+    Indexed by (platform, chat_id).
+    """
+
+    platform: Platform
+    chat_id: str
+    default_tz: str | None = Field(default=None, description="Default timezone for this chat")
+    active_timezones: list[str] = Field(
+        default_factory=list, description="Timezones of active participants"
+    )
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DedupeEvent(BaseModel, frozen=True):
+    """Deduplication record stored in MongoDB.
+
+    Indexed by (platform, event_id) with TTL on created_at. Frozen.
+    """
+
+    platform: Platform
+    event_id: str
+    chat_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HandlerResult(BaseModel):
+    """Result from the core message handler."""
+
+    should_respond: bool = True
+    messages: list[OutboundMessage] = Field(default_factory=list)
+    ask_timezone: bool = False
+    verify_url: str | None = None
+
+
+class VerifyToken(BaseModel, frozen=True):
+    """Token for timezone verification flow. Frozen."""
+
+    platform: Platform
+    user_id: str
+    chat_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
