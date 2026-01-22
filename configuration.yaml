@@ -56,10 +56,12 @@ dedupe:
   # Throttle: minimum seconds between responses in same chat
   throttle_seconds: 2
   
-# LLM settings
+# LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
-  # Together AI model
-  model: "Qwen/Qwen3-Next-80B-A3B-Instruct"
+  # NVIDIA NIM model
+  model: "qwen/qwen3-next-80b-a3b-instruct"
+  # NVIDIA API base URL
+  base_url: "https://integrate.api.nvidia.com/v1"
   # Use LLM only as fallback when rules-based parsing fails
   fallback_only: true
   # Maximum tokens in response

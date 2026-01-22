@@ -13,8 +13,10 @@ from typing import Any
 
 from quart import Quart, Response, jsonify, request
 
+from src.connectors.discord.outbound import close_discord_outbound
 from src.connectors.telegram.inbound import normalize_telegram_update
 from src.connectors.telegram.outbound import close_telegram_outbound, send_messages
+from src.connectors.whatsapp.outbound import close_whatsapp_outbound
 from src.core.handler import MessageHandler
 from src.settings import get_settings
 from src.storage.mongo import get_storage
@@ -77,6 +79,8 @@ def create_app() -> Quart:
 
         # Close outbound connectors
         await close_telegram_outbound()
+        await close_discord_outbound()
+        await close_whatsapp_outbound()
 
         # Close MongoDB
         storage = get_storage()

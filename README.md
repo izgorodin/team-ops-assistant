@@ -69,7 +69,7 @@ docs/                   # Documentation
 
 ## AI-Assisted Development
 
-This project uses centralized AI configuration via [AGENTS.md](https://agents.md) standard:
+This project uses centralized AI configuration via [AGENTS.md](./AGENTS.md) standard:
 
 | File | Purpose |
 |------|---------|

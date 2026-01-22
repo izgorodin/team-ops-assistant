@@ -53,7 +53,8 @@ class DedupeConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
-    model: str = "Qwen/Qwen3-Next-80B-A3B-Instruct"
+    model: str = "qwen/qwen3-next-80b-a3b-instruct"
+    base_url: str = "https://integrate.api.nvidia.com/v1"
     fallback_only: bool = True
     max_tokens: int = 256
     temperature: float = 0.3
@@ -104,6 +105,7 @@ class Settings:
         self.whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
         self.whatsapp_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
         self.together_api_key: str = os.getenv("TOGETHER_API_KEY", "")
+        self.nvidia_api_key: str = os.getenv("NVIDIA_API_KEY", "")
         self.app_secret_key: str = os.getenv("APP_SECRET_KEY", "dev-secret-key")
         self.app_host: str = os.getenv("APP_HOST", "0.0.0.0")
         self.app_port: int = int(os.getenv("APP_PORT", "8000"))

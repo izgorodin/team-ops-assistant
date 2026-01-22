@@ -70,22 +70,47 @@
   - README.md (updated with comprehensive docs)
 
 **Validation:**
-- [ ] run.sh executes successfully
-- [ ] pytest passes offline
-- [ ] ruff check passes
-- [ ] pyright check passes
+- [x] run.sh executes successfully
+- [x] pytest passes offline (68 tests)
+- [x] ruff check passes
+- [x] pyright check passes
+
+---
+
+## 2026-01-22: Local Testing & Configuration
+
+**Completed:**
+- [x] Quality gates audit and validation
+- [x] Fixed graceful shutdown (added Discord/WhatsApp close calls)
+- [x] Fixed README.md broken link
+- [x] Translated Russian comment in .pre-commit-config.yaml
+- [x] Created docs/VISION.md (3-layer architecture vision)
+- [x] Created journal/03_audit_report.md
+
+**Configuration:**
+- [x] NVIDIA NIM API configured (OpenAI-compatible)
+  - Model: qwen/qwen3-next-80b-a3b-instruct
+  - Base URL: https://integrate.api.nvidia.com/v1
+- [x] MongoDB Atlas connected (M0 Free, AWS Paris)
+- [x] Telegram Bot token configured
+- [x] .env file created with all credentials
+
+**Local Testing Results:**
+- [x] Core time parsing works
+- [x] Time conversion works (PST → ET, UK, JST)
+- [x] NVIDIA LLM API responds correctly
+- [x] MongoDB connection successful
+- [x] Health endpoint returns {"status":"ok"}
+- [x] Telegram webhook processes messages
 
 ---
 
 ## Next Steps
 
-1. Validate all quality gates pass
-2. Test local server startup
-3. Set up Telegram webhook for testing
-4. Complete Discord integration (optional)
-5. Complete WhatsApp integration (optional)
-6. Add LLM fallback implementation
-7. Deploy to Render
+1. Deploy to Render
+2. Set up Telegram webhook with public URL
+3. Test end-to-end with real Telegram messages
+4. Create PR for review
 
 ---
 
@@ -94,3 +119,4 @@
 - All network calls are mocked in tests for offline execution
 - LLM integration is interface-only in MVP; rules handle 90%+ of cases
 - Discord and WhatsApp are intentionally skeleton implementations per spec
+- NVIDIA API replaces Together AI for LLM (same model, different provider)
