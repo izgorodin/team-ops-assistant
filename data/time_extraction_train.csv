@@ -1,0 +1,792 @@
+phrase,times,notes
+03/04/2026 5pm,17:00,ambiguous date format (edge: MM/DD vs DD/MM)
+3:45 AM workout,03:45,english early
+3pm EST,15:00,with tz
+3pm PST,15:00,with timezone
+5pm-ish,17:00,approximate suffix
+9 AM,09:00,
+9:00 AM,09:00,
+9am-11am,09:00;11:00,range simple
+About 7pm,19:00,approximate
+Brunch 11am,11:00,restaurant
+Call 3pm,15:00,short action
+Call me at 11am IST,11:00,with tz IST
+Call me at 2:30 PM,14:30,english pm
+Call mom at 7pm,19:00,informal
+Deadline 5pm sharp,17:00,label + time
+Due by 5pm,17:00,deadline
+I can do 2pm or 4pm,14:00;16:00,multiple options english
+I have an appointment at 9:30am (GMT+1) and 5:30pm (JST),09:30;17:30,multiple tz complex
+I'll be on at 04:00 AM,04:00,AM explicitly
+I'll do 6pm-8pm (EST),18:00;20:00,range + tz
+I'll join 4pm CET and 6pm GMT,16:00;18:00,multiple tz english
+I'll join at 6am,06:00,english AM specified
+I'll join at 6pm,18:00,english PM specified
+Is 10am good?,10:00,bare time question
+Let's catch up at 4pm GMT,16:00,with timezone note - local convert not applied
+Let's chat at 5:30pm EST,17:30,with timezone
+Let's do 5pm on Friday,17:00,english
+Let's do 7am,07:00,short time english
+Let's do 7am (your time),07:00,parenthetical local
+Let's do 7pm PST,19:00,with timezone
+Let's meet at 3pm,15:00,
+Let's meet at 5pm ישראלי זמן,17:00,mixed English+Hebrew tz note
+Let's meet at 8am tomorrow,08:00,english am
+Let's schedule 03:00 AM PST,03:00,AM with tz
+Let's talk at 12 pm,12:00,
+Let's talk at 12am,00:00,
+Meet at 7pm,19:00,english bare pm
+Meet at 8am sharp,08:00,sharp
+Meeting at 3:30pm,15:30,
+Meeting at 3pm (15:00),15:00,parenthetical time
+My bus is at 6:45am,06:45,transport casual
+See you 6pm,18:00,
+Table for 2 at 7pm,19:00,restaurant
+We meet at 12:30 pm PST,12:30,with timezone
+What about 3pm?,15:00,bare time question
+a las 3pm,15:00,spanish informal
+"a las 3pm, ¿te va?",15:00,spanish
+around 3pm,15:00,approximate english
+arrive by 07:00am tomorrow,07:00,date+time english
+arrive by 7:30pm,19:30,
+breakfast 8 AM,08:00,
+call 5pm GMT and 7pm CET,17:00;19:00,multiple tz (edge: same instante?)
+call at 11 am IST,11:00,with tz (IST)
+call at 11am GMT+1,11:00,with timezone offset
+call at 4 pm EST,16:00,with timezone
+call at 5pm EST,17:00,with timezone
+call at 7AM (London),07:00,AM + city tz
+conference 3pm CET,15:00,with tz textual
+flight departs at 6:30 AM,06:30,
+in the afternoon at 3pm,15:00,english afternoon
+meet at 12:00am,00:00,explicit am
+meet at 12:00pm,12:00,explicit pm
+meet at 9:15am,09:15,
+meeting 12am,00:00,explicit am
+meeting 12pm,12:00,explicit pm
+meeting at 10am - tentative,10:00,tentative (edge)
+meeting at 4pm-6pm,16:00;18:00,range with hyphen
+meeting at 8am/10am window,08:00;10:00,window (edge: range type)
+party at 11pm,23:00,
+reminder at 6:45pm,18:45,
+see you at 3pm sharp,15:00,sharp
+set alarm for 6am,06:00,alarm english
+set meeting 09:15am-10:00am,09:15;10:00,range am
+tomorrow 6pm,18:00,date+time english
+звонок в 3pm по МСК,15:00,mixed RU+EN+tz
+14h30 meeting,14:30,European h format
+Book call at noon,12:00,meeting informal
+I'll call around noonish,12:00,approximate english
+I'll call at 2400,00:00,24:00 normalized to 00:00 (edge)
+I'll call at 6 and 8,06:00;08:00,multiple options english
+I'll call at fifteen hundred hours,15:00,military time textual
+I'll call at five,05:00,ambiguous textual -> assume 05:00 unless PM noted (edge)
+I'll call at nine thirty,09:30,textual english
+Meeting at noon,12:00,english noon
+call at quarter past six,18:15,phrase english
+call me at five pm,17:00,explicit pm
+meeting 10 o'clock sharp,10:00,sharp phrasing
+A las 12 del mediodía,12:00,spanish noon
+Chinese: 下午3点见,15:00,chinese
+Encontro às 14h30,14:30,portuguese
+French: Rendez-vous à 18h,18:00,french informal
+Hindi: मिलते हैं 10 बजे,10:00,hindi
+Japanese: 午後3時に会いましょう,15:00,japanese (non-latin)
+Korean: 오후 4시에 만나요,16:00,korean
+Português: Encontro às 14h30,14:30,portuguese
+RDV à 14h,14:00,french informal
+Rendez-vous à midi,12:00,french noon
+Reunião às 9,09:00,portuguese
+Swedish: kl 9 på morgonen,09:00,swedish
+Turkish: Saat 9'da buluşalım,09:00,turkish
+Zoom в 3?,15:00,short question
+rendez-vous à 15h,15:00,french 'h' format
+rendez-vous à midi,12:00,french noon
+à 14h30 on se retrouve,14:30,french
+à 9 heures,09:00,french textual
+Без четверти восемь,07:45,russian phrase
+Половина третьего,14:30,russian phrase
+Приблизительно в 9 утра,09:00,approximate russian
+Созвон завтра часиков в 5?,17:00,russian colloquial
+Четверть на шесть,05:45,russian phrase
+без пятнадцати семь,06:45,russian idiom (edge)
+буду в 6 вечера,18:00,russian evening
+буду примерно в 17,17:00,approximate russian
+в 10 часов ровно,10:00,sharp russian
+в 12 дня,12:00,russian noon
+в 12 ночи,00:00,russian midnight phrasing
+в 14,14:00,russian short hour
+в 14 часов,14:00,russian phrasing
+в 1500,15:00,military numeric russian
+в 2 часа ночи,02:00,russian night
+в 3 ночи,03:00,russian night (assume AM)
+в 4 утра,04:00,russian early
+в 5 утра,05:00,russian early
+в 6 утра установлю будильник,06:00,alarm russian
+в 7 вечера,19:00,russian evening
+в 8 вечера,20:00,russian evening
+в 8 утра ровно,08:00,sharp russian
+в 9 утра,09:00,russian morning
+в обед,12:00,russian noon informal
+в полдень,12:00,russian noon
+в полночь,00:00,russian midnight
+в половине шестого,05:30,russian 'half past' variant
+в полшестого,05:30,russian idiomatic 'half to six' (edge: language-specific)
+в пятнадцать тридцать,15:30,textual russian (edge)
+в пять часов вечера,17:00,textual russian
+в районе 9 утра,09:00,approximate russian morning
+в районе четверти третьего,15:15,phrase russian
+в четверть до девяти,08:45,russian phrase 'quarter to'
+в четверть после шести,18:15,phrase russian
+встретимся в полночь,00:00,russian midnight
+встреча 22,22:00,bare hour russian
+встреча в три,15:00,ambiguous - assume PM
+встреча завтра в 10,10:00,date+time russian
+встречаемся в три дня,15:00,russian phrase assume PM
+давай в 8 утра,08:00,russian morning
+договоримся на полдень,12:00,russian noon textual
+доступен с 9 до 11 утра,09:00;11:00,range russian morning
+завтра в 6 вечера,18:00,date+time russian
+звонок в 11 по IST,11:00,with tz russian
+звонок в 1500 часов,15:00,military russian
+звонок в пятнадцать часов,15:00,military time russian
+к трём,15:00,russian colloquial - assume PM
+могу в 10 или в 12,10:00;12:00,multiple options russian
+могу в 9 или в 11,09:00;11:00,multiple options russian
+можно в 11 или в 13,11:00;13:00,multiple options russian
+о 9 ранку,09:00,ukrainian morning
+перенеси на 7 утра,07:00,russian morning
+по телефону в 10 утра,10:00,russian morning
+позвоню в 6 и в 20,06:00;20:00,multiple options russian (edge: ambiguous 6)
+позвоню в девять тридцать,09:30,textual russian
+позвоню в полдень,12:00,russian noon
+позвоню около 7,07:00,approx russian
+полдень,12:00,russian noon
+полдень завтра,12:00,date+noon russian
+половина восьмого,19:30,russian phrase assume PM
+половина девятого,20:30,russian half past (assume pm)
+приблизительно в 5,17:00,russian approximate
+с 10 до 14,10:00;14:00,range russian
+с 18 до 20,18:00;20:00,range russian evening
+с 7 до 9 утра,07:00;09:00,range russian morning
+с 8 до 12,08:00;12:00,range russian
+с 9 до 11,09:00;11:00,range simple russian
+созвон в 9 утра,09:00,russian morning
+увидимся в половине восьмого,19:30,russian phrase 'half past'
+увидимся в четверть пятого,16:15,russian phrase 'quarter past'
+четверть до пяти,16:45,phrase russian
+четверть четвертого дня,15:15,russian phrase (edge)
+զանգը երեկոյան ժամը 8-ին,20:00,armenian evening
+ժամը 9,09:00,armenian bare hour
+ժամը երեքին,15:00,armenian colloquial assume PM
+կհանդիպենք կեսօրին,12:00,armenian noon
+նե՞ղենք ժամը 7,19:00,armenian bare pm
+אשוחח ב-9 בבוקר,09:00,hebrew morning
+בצהריים נדבר,12:00,hebrew noon
+בשעה 3 נתראה,15:00,hebrew
+الساعة 10 صباحًا,10:00,arabic morning
+الساعة 3 مساءً,15:00,arabic PM
+मिलते हैं सुबह 10 बजे,10:00,hindi
+上映は19:00から,19:00,japanese event
+下午 4 点见,16:00,chinese
+下午3点,15:00,chinese afternoon (edge: non-latin)
+下午9点见,21:00,chinese evening
+会議は午後3時です,15:00,japanese formal
+午前9時に会いましょう,09:00,japanese morning (edge)
+午後3時,15:00,japanese 'pm' (edge: non-latin)
+午後5時に会いましょう,17:00,japanese evening
+放映は20:00です,20:00,chinese event
+演出は21:30,21:30,japanese
+演出は22:00,22:00,chinese
+미팅 오후 3시에,15:00,korean
+회의는 14:00에 시작됩니다,14:00,korean formal
+10 o'clock,10:00,alternative phrasing
+14:00hrs,14:00,with suffix
+15:00Z,15:00,UTC Z
+3 p.m.,15:00,
+A la 1 de la tarde,13:00,spanish afternoon
+Around noon,12:00,approximate mapped to 12:00
+At 12:00Z,12:00,UTC
+Complete by noon,12:00,deadline
+German: Halb drei passt?,14:30,german colloquial
+Halb drei passt mir,14:30,german half past
+Halb neun passt,08:30,german colloquial
+Half past seven,19:30,english evening assumed
+Half past ten,10:30,english phrase
+I'll attend at 1000 BST,10:00,short tz label BST
+I'll be free 6,06:00,ambiguous bare hour assume 06:00
+I'll be free at midnight,00:00,english midnight
+I'll be there at 1500,15:00,military numeric
+I'll be there at 17,17:00,bare hour
+I'll be there at 19,19:00,bare hour
+I'll be there at fifteen hundred,15:00,military textual
+I'll join at 6,06:00,ambiguous prefer AM (edge)
+I'll wake at seven,07:00,word-number
+Kello 9 aamulla,09:00,finnish morning
+Let's do 4 o'clock pm,16:00,textual with pm
+Let's meet 6-ish,18:00,approximate assume pm (edge)
+Let's meet at fifteen thirty,15:30,textual english
+Let's meet at five in the afternoon,17:00,textual english
+Let's meet at half past two,14:30,english colloquial
+Let's start at 6,18:00,english bare assume PM
+Meet at noon,12:00,
+Meet me at midnight,00:00,
+Quarter to five works for me,16:45,english phrase
+See you at half past nine,09:30,phrase variant
+See you at midnight,00:00,
+See you at noon,12:00,english noon
+See you at quarter past three,15:15,phrase variant
+Vi sees kl 18,18:00,norwegian
+Vi ses kl 15,15:00,danish
+We meet at 5ish,17:00,approximate assume PM
+We'll meet 10 to 12,10:00;12:00,range ambiguous -> treat as hours
+We'll meet in the afternoon,15:00,approximate mapping
+We'll talk at 2 this afternoon,14:00,english afternoon textual
+Zoom at 6?,18:00,informal question assume pm
+about midnight,00:00,approximate english
+appointment at 8,08:00,bare hour
+around 3-ish,15:00,english colloquial (approx)
+around quarter past four,16:15,phrase english
+arrive 14,14:00,short hour
+at 0700 hours,07:00,military format textual
+at 1900 hours,19:00,military format textual
+at noon,12:00,
+between 14 and 16,14:00;16:00,range english
+catch up 18.00,18:00,dot separator
+early morning at 6,06:00,english morning
+from 9 to 5,09:00;17:00,range english
+half past eight,20:30,phrase english (edge: ambiguous translation)
+half past four works,16:30,english phrase
+half past seven,19:30,phrase english
+meet at fifteen hundred,15:00,military english textual
+midnight-ish,00:00,approximate (edge phrasing)
+noon,12:00,
+noon-ish,12:00,approximate (edge phrasing)
+quarter past five,17:15,phrase english
+quarter past three in the afternoon,15:15,phrase english
+quarter to five,16:45,phrase english
+quarter to five?,16:45,english phrase
+quarter to nine,08:45,phrase english
+te llamo a las 8,20:00,spanish evening textual
+ten o'clock,10:00,text numbers
+this evening at 8,20:00,english evening bare
+tomorrow at ten,10:00,date+time english textual
+treffen um 9 Uhr,09:00,german textual
+um 14 Uhr treffen wir uns,14:00,german
+we'll meet on Monday at 10,10:00,date+time
+we'll start at 00.00,00:00,dot midnight
+zwei Uhr nachmittags,14:00,german textual afternoon
+10-14,10:00;14:00,range dash
+13:30-14:30,13:30;14:30,range with dash
+14-30 GMT,14:30,dash + tz
+14:00-15:00,14:00;15:00,range
+2026-01-22 13:45+03:00,13:45,ISO with offset
+2026-01-22T13:45:00Z,13:45,ISO Z
+2026-01-22T15:00,15:00,ISO datetime
+2026-01-22T15:00+03:00,15:00,ISO datetime with offset
+3:00-4:00,15:00;16:00,range ambiguous assume PM
+Delivery window 10:00-14:00,10:00;14:00,logistics range
+Downtime 01:00-02:00,01:00;02:00,downtime range
+From 2026-01-22 09:00 to 11:00,09:00;11:00,range with datetime
+Fulfillment window 09:00-17:00,09:00;17:00,logistics window
+I am free 9:00-12:00; 14:00-16:00,09:00;12:00;14:00;16:00,multiple ranges (edge)
+I'll be available 08:00-10:30,08:00;10:30,range with minutes
+"I'll be late, maybe 18:30-19:00",18:30;19:00,approx range
+Launch window 00:00-02:00,00:00;02:00,window
+Let's do 10:00-11:00 and 15:00-16:00,10:00;11:00;15:00;16:00,multiple ranges
+Let's do 13:00-15:30 (break 14:00-14:15),13:00;15:30,complex schedule with break (edge)
+Lunch break 12:00-13:00,12:00;13:00,break range
+Maintenance 22:00-23:30 UTC,22:00;23:30,utc range
+Patch window 02:00-03:00,02:00;03:00,ops range
+Range 14:00-15:00,14:00;15:00,range
+Retry window 01:30-02:30,01:30;02:30,retry window
+See you on 2026-01-23 at 10:00,10:00,date+time explicit
+Set meeting 09:00-11:00,09:00;11:00,range
+Support window 09:00-17:00,09:00;17:00,support hours
+Testing window 09:00-17:00,09:00;17:00,testing range
+We'll meet 2026-01-22 18:30,18:30,datetime with date
+Window 03:00-05:00 UTC,03:00;05:00,utc range
+available 15:00-17:00 GMT+1,15:00;17:00,range + tz
+call 09:00-11:00 local,09:00;11:00,range local
+call 11:30-12:30 PST,11:30;12:30,range + tz
+call me at lunchtime (13:00-14:00),13:00;14:00,range inside parentheses
+conference 2026-01-22T09:00Z,09:00,ISO Z
+let's aim for 12:00-13:30,12:00;13:30,range mixed
+meeting 8:00-9:00,08:00;09:00,range english hyphen
+буду доступен 08:00-10:00 и 15:00-16:00,08:00;10:00;15:00;16:00,multiple ranges
+в 9:15-10:00,09:15;10:00,range russian
+встреча 13:30-14:30,13:30;14:30,range russian
+I'll be free after noon,12:00+,relative after (edge)
+07:45,07:45,HH:MM
+09:00 local,09:00,local shorthand
+09:05,09:05,HH:MM
+10:00 CET,10:00,with timezone
+14:00 GMT,14:00,with timezone
+14:00 local time,14:00,local tz note
+14:30 CET,14:30,with timezone
+15:15,15:15,HH:MM
+At 14:30:00 we'll start,14:30,with seconds
+Conference call 16:00,16:00,english HH:MM
+Dinner 19:00 PST,19:00,with timezone tag
+From 09:00 to 11:00,09:00;11:00,range english
+I'll be free after 17:00,17:00+,relative after (ambiguous)
+I'll be free before 18:00,18:00-,relative before (edge)
+I'll be there at 20:00 (IST),20:00,parenthetical tz english
+I'll call at 08:00+02:00,08:00,with offset (edge if converting to UTC)
+I'll call at 09:00 (GMT+2) / 07:00 (UTC),09:00;07:00,multiple tz conversion in text (edge)
+I'll call at lunchtime (12:30),12:30,parenthetical time
+Let's book 14:00 slot,14:00,slot booking
+Let's do 07:05,07:05,
+Let's do 11:15,11:15,english HH:MM
+Let's meet 07:00 or 19:00,07:00;19:00,multiple options english
+Let's meet 12:15 CET and 14:15 GMT,12:15;14:15,multiple tz
+Let's meet at 15:00 (UTC),15:00,parenthetical tz
+Let's meet at 17:00 tomorrow,17:00,date+time english
+Let's plan 17:45 UTC-3,17:45,with negative offset
+Let's schedule for 12:00 (office) and 20:00 (home),12:00;20:00,contextual times
+Let's set for 14:00 (office time),14:00,parenthetical office
+Lunch at 12:00 CET,12:00,with timezone
+Meet 6:00,06:00,
+Meet @ 21:15,21:15,
+Meet at 23:59,23:59,HH:MM edge
+Meet at 24:00,00:00,edge midnight written 24:00 -> normalize
+Meeting 14:00 GMT+2,14:00,with timezone offset
+Meeting at (14:00),14:00,parentheses
+Meeting at 00:30,00:30,midnight
+Meeting at 09:00 (GMT+1),09:00,with tz offset label
+Meeting at 14:30,14:30,
+Reserve at 18:10,18:10,HH:MM english
+Schedule for 18:20,18:20,
+See you at 09:00,09:00,
+Standup 09:30,09:30,short english
+Standup 09:30 CET,09:30,short + tz
+We have a call at 08:00 and another at 18:00,08:00;18:00,multiple times english
+We'll meet at 09:00 UTC and 11:00 CET,09:00;11:00,multiple tz labels
+alarm 06:00,06:00,alarm time
+around 07:30,07:30,approximate english
+arrive 07:00+02:00,07:00,with numeric offset
+arrive by 07:00,07:00,
+arrive by 23:59:59,23:59,seconds truncated
+between 10 and 11:30,10:00;11:30,range mixed
+between 10:00 and 11:30,10:00;11:30,range explicit
+call 17:00 CET,17:00,short + tz
+call 17:00 local,17:00,local tz
+call at 23:00 PST (next day),23:00,with tz and next-day note (edge)
+flight departs 06:30,06:30,HH:MM
+from 08:00 to 12:00,08:00;12:00,range
+let's meet 3:00,15:00,ambiguous assume PM
+meet at 12:00 PST and 20:00 CET,12:00;20:00,multiple tz mix
+meeting 14:00 UK,14:00,with timezone label
+meeting 2026/01/22 15:00,15:00,ISO-like slashes (edge date+time)
+meeting 21:00 CET,21:00,with tz
+nos vemos a las 09:00,09:00,spanish HH:MM
+on Monday at 09:00,09:00,date+time english
+remind me at 07:00,07:00,english reminder
+reunión a las 14:30,14:30,spanish HH:MM
+tomorrow at 10:00,10:00,date+time english
+um 21:00 Uhr,21:00,german HH:MM
+we start at 00:00,00:00,
+we'll sync at 00:00 UTC,00:00,midnight UTC
+we'll sync at 08:00 and 20:00,08:00;20:00,multiple times english
+webinar at 09:00 UTC,09:00,with timezone UTC
+Встреча в 18:10,18:10,HH:MM russian
+буду в 18:30,18:30,russian HH:MM
+в 00:05,00:05,russian after midnight
+в 00:30 буду дома,00:30,russian after midnight
+в 11:45 утра,11:45,russian morning
+в 12:30 по МСК,12:30,with timezone russian
+в 21:00 по МСК и 19:00 по Лондону,21:00;19:00,multiple tz russian
+встретимся в 6:30 вечера,18:30,russian with am/pm phrasing
+встретимся к 15:00,15:00,russian with preposition
+встреча 12:00 по МСК и 10:00 по Лондону,12:00;10:00,multiple tz russian
+встреча 15:00 по локальному времени,15:00,russian local
+встреча в 12:00 UTC+3,12:00,with timezone offset russian
+встречаемся в 13:00,13:00,russian HH:MM
+давай в 14:30,14:30,
+договоримся на 21:00,21:00,russian HH:MM
+завтра в 15:45,15:45,date+time russian
+звонок в 03:15,03:15,russian early morning
+звонок в 13:45 GMT,13:45,with timezone russian
+звонок в 16:45,16:45,russian
+звонок в 18:00,18:00,russian HH:MM
+наберу тебя в 19:05,19:05,russian
+назначено на 9:00 утра,09:00,russian morning
+напомни в 09:00,09:00,russian reminder
+начинаем в 08:00,08:00,russian HH:MM
+ночью в 01:00,01:00,russian night
+позвоню в 00:15,00:15,russian after midnight
+понедельник в 9:00,09:00,date+time russian
+послезавтра в 09:00,09:00,date+time russian
+примерно в 7:30,07:30,approximate russian
+приходи в 9:30,09:30,russian HH:MM
+с 13:15 до 14:00,13:15;14:00,range russian
+с 9:30 до 12:45,09:30;12:45,range russian
+смена начнётся в 22:00,22:00,russian shift
+созвон в 14:20,14:20,russian HH:MM
+созвон в 16:00 по МСК,16:00,with timezone russian
+у нас созвон в 09:00 и в 21:00,09:00;21:00,multiple times russian
+զանգել վաղ առավոտը 06:00,06:00,armenian early morning
+ժամը 12:00 ըստ տեղական ժամանակի,12:00,armenian local tz
+ժամը 23:15,23:15,armenian night
+մենք կհանդիպենք ժամը 16:00,16:00,armenian HH:MM
+միջոցառումը ժամը 19:30-ին է,19:30,armenian HH:MM
+պետք է զանգահարեմ ժամը 08:30,08:30,armenian morning
+ցտեսություն ժամը 21:00,21:00,armenian evening
+אתקשר ב-22:15,22:15,hebrew evening
+בלילה בשעה 03:45,03:45,hebrew night
+הפגישה ב-13:30 לפי שעון ישראל,13:30,hebrew with tz note
+זמין ב-10:00,10:00,hebrew HH:MM
+זמן הפגישה 09:15 UTC,09:15,hebrew with UTC
+טיסתנו 06:50,06:50,hebrew HH:MM
+ניפגש ב-15:00,15:00,hebrew HH:MM
+سأتصل الساعة 08:00,08:00,arabic HH:MM
+13 GMT,13:00,bare + tz
+9 PST,09:00,bare + tz
+9.00 PST,09:00,dot + tz
+Call me at 9 PST,09:00,with tz
+Let's meet 12 noon CET,12:00,with timezone
+around midnight GMT+3,00:00,approximate + tz (edge)
+call at 7 (GMT) and 9 (CET),07:00;09:00,multiple tz ambiguous local anchors (edge)
+call at noon CET,12:00,english noon + tz
+Call +44 20 7946 0958,,negative - phone english
+Call center 24/7 - see schedule,,negative - mentions schedule but no time
+Call in an hour,,negative - relative time
+Meeting in 30 mins,,negative - relative time without absolute
+call 0800 service,,negative - service number
+call 911,,negative - emergency number
+call me at extension 301,,negative - extension
+call on v1,,negative - version
+meeting Feb 14th,,negative - date mention
+I owe you £20,,negative - price
+O której godzinie?,,negative - question without time
+screen 2560×1440,,negative - resolution unicode x
+£5.00,,negative - price
+Версия 2.0,,negative - version russian
+Версия v6,,negative - version russian
+Версия приложения 3.5.1,,negative - version
+Задача #123,,negative - task russian
+Заказ 12345 уже отправлен,,negative - order number
+Комната 303,,negative - room russian
+"Координаты: 55.7558, 37.6173",,negative - coordinates
+Матч 3:2,,negative - sports score (already similar but keep) (edge)
+Ошибка 500,,negative - error russian
+Пожалуйста проверь тикет #404,,negative - ticket number
+Псалтирь 23:1,,negative - bible verse russian
+Скидка 20% до конца недели,,negative - percentage
+Тикет #404,,negative - ticket russian
+Цена 15.00EUR,,negative - price
+версия 3.0.1,,negative - version
+кол-во 5,,negative - quantity russian
+номер заказа 999,,negative - order russian
+сервер 10.0.0.12,,negative - IP
+сервер 172.16.0.1,,negative - IP
+страница 45,,negative - page russian
+страница 78,,negative - page
+через 3 часа,,negative - relative duration
+"€14,99",,negative - price euro locale
+€20,,negative - price
+€9.50,,negative - price
+€9.99,,negative - price
+"₽1.000,00",,negative - price locale
+₽500,,negative - price
+$14.99,,negative - price
+$20.00 for the book,,negative - price
+10 apples,,negative - quantity
+10.0.0.5:8080 connection,,negative - ip with port
+127.0.0.1:5000,,negative - localhost port
+16 by 9,,negative - aspect expressed
+192.0.2.1,,negative - IP
+192.168.1.1,,negative - IP
+1920x1080 image,,negative - resolution format
+20260121T121530Z started,,negative - compact ISO
+3rd place,,negative - ordinal
+3rd quarter results,,negative - ordinal context
+5 apples,,negative
+503 Service,,negative - http code fragment
+ASIN B08XYZ,,negative - asin
+Apartment 4A,,negative - apartment
+Apollo 13,,negative - mission name
+Balance 1000.00,,negative - finance
+Batch 400,,negative - batch
+Bug #456,,negative - bug number
+Build #234 failed,,negative - build id
+CNY 700,,negative - currency
+Callsign 12:15Z,,negative - code with trailing Z (edge)
+Catch-22,,negative - book/movie title
+Chapter 4:2,,negative - chapter:verse
+Commit 7a9c2d4,,negative - commit hash
+Connection to 127.0.0.1,,negative - IP
+Cost $14.99,,negative - price
+Countdown 30s,,negative - countdown
+Delay 500ms,,negative - delay
+Discount 10%,,negative - percentage
+Discount 15% until Sunday,,negative - percentage english
+Distance 10km,,negative - distance
+District 9,,negative - movie title
+EAN 4006381333931,,negative - ean
+END_OF_FILE_MARKER,,
+EUR 850,,negative - currency
+Episode 5,,negative - episode
+Error 404,,negative - error code
+Error 500,,negative - error code
+Error 500 Internal Server Error,,negative - http error
+Error code 400,,negative - error code
+Error code 503,,negative - error code
+EventID: 20260121-121530,,negative - event id
+Exchange rate 1.12,,negative - rate
+Floor 3,,negative - floor
+Floor 5,,negative - floor
+"GPS 37.6173 N, 55.7558 E",,negative - coordinates formatted
+Gate 24,,negative - gate
+Gate B12,,negative - gate
+Genesis 1:1,,negative - bible verse
+HTTP 200,,negative - http code
+HTTP 200 OK,,negative - http status
+HTTP 301,,negative - http code
+HTTP 500 returned,,negative - http status
+HTTP/1.1 404 Not Found,,negative - http response
+Height 6'1,,negative - height
+Humidity 40%,,negative - weather
+I got 5 points,,negative - score
+I have 3 cats,,negative
+I need 3 copies,,negative - quantity
+I'll be late,,negative - vague
+INR 7500,,negative - currency
+IP 10.0.0.1 is blocked,,negative - IP
+IPv6 ::1,,negative - IPv6 loopback
+IPv6 fe80::1,,negative - IPv6 contains colons (edge non-time)
+ISSN 1234-5678,,negative - issn
+Interest 3.2%,,negative - finance
+Invoice #5555,,negative - invoice
+Issue #500,,negative - issue number
+Issue #500 needs attention,,negative - ticket english
+JPY 10000,,negative - currency
+Label12:00value,,negative - colon inside token
+Level 2 parking,,negative - parking
+Limit 50mph,,negative - speed limit
+Lot 55,,negative - lot
+Lot number 123A,,negative - lot
+MAC 00:1A:2B:3C:4D:5E,,negative - mac
+Next week,,negative - vague
+Ocean's 11,,negative - movie title
+Off 25% until Friday,,negative - percentage
+Order #567 is delayed,,negative - order english
+Order 1001 shipped,,negative - order id
+Order 12:15X,,negative - order id
+PR #123,,negative - pull request
+PR #42 merged,,negative - pr
+Page 15 has the error,,negative - page english
+Page 45 of 200,,negative - page
+Paragraph 4,,negative - doc part
+Pieces 20,,negative - quantity
+Ping 192.168.0.1,,negative - IP
+Platform 9,,negative - platform
+Port 22,,negative - network port
+Port 22 closed,,negative - port status
+Port 443,,negative - network port
+Port 8080,,negative - network port
+Port 8080 is open,,negative - network port
+Precipitation 2mm,,negative - weather
+Pressure 1013 hPa,,negative - weather
+Price 19.99 EUR,,negative - price
+Qty 30,,negative - quantity
+ROI 12%,,negative - finance
+Rate 4.5% APR,,negative - rate
+Ratio 16:9,,negative - aspect ratio (looks like time)
+Release 2026.1.0,,negative - release numbering
+Response 200 OK,,negative - http response
+Response 301 Moved Permanently,,negative - http code
+Result 2:1,,negative - score
+Room 405 booked,,negative - room
+S01E05,,negative - tv notation
+SHA-1: 7a9c2d4e5f6a,,negative - commit
+SKU 12345,,negative - sku
+SN: 987654,,negative - serial
+SSH on port 22,,negative - service/port
+Season 2,,negative - season
+Seat 12B assigned,,negative - seat
+Seat 14A,,negative - seat
+Section 3.2,,negative - doc section
+See you later,,negative - vague
+Serial 000123,,negative - serial
+Service on 443,,negative - port referenced
+Set 6:4,,negative - tennis set score (edge)
+Speed 100km/h,,negative - speed
+Status 200,,negative - http status
+Status 404,,negative - http status
+Status 404 found,,negative - http status
+Status: 204,,negative - http code short
+Task #789,,negative - task number
+Tax 7% applied,,negative - tax
+Temp 75F,,negative - temp
+Temp 98.6,,negative - temperature
+Temperature 23.5C,,negative - temp
+Terminal 5,,negative - terminal
+Ticket #1234,,negative - ticket number
+Ticket #404,,negative - ticket number
+Ticket 9876,,negative - ticket
+Timeout 30s,,negative - timeout
+Timer 15m,,negative - timer duration
+Tomorrow morning,,negative - vague date without time
+Total 1000 units,,negative - quantity
+UPC 036000291452,,negative - upc
+USD 1000,,negative - currency
+UV index 5,,negative - weather
+Unit 22,,negative - unit
+VAT 20%,,negative - vat
+VIN 1HGCM82633A004352,,negative - vehicle id
+Verse 1:5,,negative - verse
+Version 2.1.3 released,,negative - software version
+Visibility 10km,,negative - weather
+Wait 10s,,negative - duration seconds
+Wait 5 minutes,,negative - duration
+Weight 180lbs,,negative - weight
+Wind 10 km/h,,negative - weather
+[fe80::1ff:fe23:4567:890a],,negative - ipv6
+api v3,,negative - api version
+approx 30 minutes,,negative - approximate duration
+backup_20260121_1215.tar.gz,,negative - backup name
+budget $3000,,negative - amount
+budget 1500,,negative - amount
+build 10.0.1,,negative - build
+build 1234,,negative - build id
+build 192.168.0.5,,negative - IP
+build-20260121.121530,,negative - build id
+chapter 5,,negative - chapter
+contact v4,,negative - version
+deadline Feb 14,,negative - date not time
+dimension 1200x627,,negative - social media res
+duration: 45m,,negative - minutes unit
+duration_ms: 30000,,negative - ms duration
+15-0 volley,,negative - volleyball scoring
+15-12-2026 12:15:30 entry,,negative - EU-style datetime
+2026-01-21 12:15,,negative - ISO without seconds
+"2026-01-21 12:15:30, PID=1234",,negative - log with pid
+2026-01-21 12:15:30.123456,,negative - high-precision ISO
+2026-01-21 12:15:30.999 UTC action,,negative - fractional seconds
+2026-01-21T12:15:30-05:00 something,,negative - offset negative
+2026-01-21T12:15:30Z - connection from 10.0.0.1,,negative - connection log
+2026-01-21T12:15:30Z server started,,negative - ISO Z timestamp
+2026-01-21_12-15-30.dump,,negative - dump file
+3-2 (pen),,negative - soccer penalty score
+45-30 tennis,,negative - tennis notation
+EOL 2027-06-30,,negative - end of life
+Episode 03 - 12:15,,negative - media position
+IPO date 2026-03-15,,negative - ipo date
+ISBN 978-3-16-148410-0,,negative - isbn
+ISO8601 2026-01-21T12:15:30Z example,,negative - ISO8601
+Lap 1 - 3:45,,negative - lap time (edge)
+Log 2026-01-22 12:15:30,,negative - full log timestamp
+MAC: 01-23-45-67-89-ab,,negative - mac dash
+MOU signed 2026-01-20,,negative - mou
+Match 2-1,,negative - sports score short
+Match ended 2-1,,negative - score
+NDA expires 2026-12-31,,negative - nda date
+Point 21-19,,negative - badminton
+Processed on 2026-01-21 12:15:30,,negative - processed log
+Result 4-3,,negative - result
+Result 6-4,,negative - result
+Score 25-23 final,,negative - sports score english
+Series 4-2,,negative - best-of series
+Set 3-2,,negative - tennis set
+Set 3-2 in tennis,,negative - set score
+Timestamp 2026-01-22 12:15:30,,negative - full timestamp (edge)
+Won 4-3 in sets,,negative - sports
+access_log: 2026-01-21 12:15:30 GET /,,negative - web log
+audit 2026-01-21T12:15:30Z,,negative - audit ISO
+backup-2026-01-20-030000.log,,negative - filename with timestamp
+best before 2026-12-31,,negative - best before
+build 2026-01-21-121530,,negative - build tag
+cancel by 2026-02-01,,negative - cancel date
+created_at: 2026-01-21T12:15:30Z,,negative - created time
+deadline 2024-12-31,,negative - date
+dividend record date 2026-02-01,,negative - finance date
+event 2021-09-01,,negative - date
+ex-dividend 2026-02-02,,negative - ex-dividend date
+expiry 2026-10-01,,negative - expiry date
+grant 2026-01-15,,negative - grant date
+invoice 2026-01-21,,negative - invoice with date
+kernel: [2026-01-21 12:15:30] panic,,negative - kernel like log
+last_modified: 2026-01-21 12:15:30,,negative - file metadata
+log.2026-01-21.121530.gz,,negative - rotated log
+"log: 2026-01-21 12:15:30, INFO",,negative - log line
+logged 2026-01-21 12:15:30 by user,,negative - log example
+logs from 2026-01-21 12:15:30,,negative - ISO timestamp
+manifest 2026-01-20,,negative - manifest
+mfg 2024-05-12,,negative - manufacture date
+opt-in ends 2026-01-31,,negative - opt-in
+pages 10-12,,negative - page range
+range 10-20,,negative - numeric range
+renewal 2026-01-01,,negative - renewal date
+report_2026-01-21T12-15-30.csv,,negative - report filename
+room 10-14,,negative - room range
+schema 2026-01-01,,negative - schema version date
+score 10-1,,negative - sports score
+score 3-2,,negative - score
+serial 00-11-22,,negative - serial format
+snapshot@2026-01-21T12:15:30Z,,negative - tag with ISO
+support until 2028-01-01,,negative - support end
+systemd[1]: 2026-01-21T12:15:30Z started,,negative - systemd log
+timestamp: 2026-01-21T12:15:30Z,,negative - labeled timestamp
+use by 2027-01-01,,negative - use by
+warranty until 2026-12-31,,negative - warranty end
+won 2-1,,negative - sports score
+won 5-0,,negative - sports score
+won 6-4 6-3,,negative - tennis result
+Позвони по 8-800-555-35-35,,negative - phone number
+remind me 3 hours before,,negative - relative duration
+Ch. 12:15,,negative - chapter:verse reference (edge)
+Duration 12:15,,negative - duration (mm:ss) (edge)
+Final 12:15,,negative - match result
+John 3:16,,negative - bible verse (chapter:verse)
+Length 00:45,,negative - duration in minutes:seconds (edge)
+"Log 12:15:30,456",,negative - timestamp with ms (edge)
+Score 12:15,,negative - sports score (edge)
+Split 1:23,,negative - split/duration (edge)
+Timecode 01:23:45:12,,negative - media timecode not clock time (edge)
+Track 03:15,,negative - music duration mm:ss not clock time (edge)
+sometime after 15:00,,negative - relative start (ambiguous)
+Счёт 12:15,,negative - sports score / result (looks like HH:MM but context = score) (edge)
+"ETA 1500Z",15:00,military Z
+"Departs 0745 local",07:45,military no colon
+"Shift starts 2200",22:00,military shift
+"at 0700 hours",07:00,military format
+"at 1900 hours",19:00,military format
+"I'll be there at 1500",15:00,military numeric
+"meet at fifteen hundred",15:00,military textual
+"Jestem wolny o 12:30",12:30,polish
+"Spotkanie o 17:00",17:00,polish
+"Bel me om 9 uur",09:00,dutch
+"Afspraak om 15:00 uur",15:00,dutch
+"Bus leaves 07:42",07:42,transport
+"Train departs 18:05",18:05,transport
+"Ferry leaves 09:00",09:00,transport
+"Shuttle departs 07:15",07:15,transport
+"Shift ends 06:00",06:00,shift
+"Overnight shift 23:00",23:00,shift
+"o 9 ранку",09:00,ukrainian morning
+"Θα σε πάρω στις 9 το πρωί",09:00,greek morning
+"शाम 7 बजे",19:00,hindi evening
+"मिलते हैं 10 बजे",10:00,hindi
+"Flight BA123 at 14:20",14:20,transport flight
+"Boarding 13:50",13:50,transport
+"Gate closes 14:10",14:10,transport
+"Appt 10:45",10:45,medical shorthand
+"Happy hour 5-7pm",17:00;19:00,range informal
+"Open 9-5",09:00;17:00,range work
+"Kickoff 20:45",20:45,sports
+"Showtime 21:15",21:15,cinema
+"Wrap-up 16:45",16:45,conference
+"Standup 10:15",10:15,agile
+"Interview 10:00",10:00,hr
+"Pickup 15:15",15:15,personal
+"Delivery 10-12",10:00;12:00,range delivery
+"Tech arrives 8-12",08:00;12:00,range window
+"Homework due 23:59",23:59,deadline
+"Kitchen closes 22:30",22:30,restaurant
+"Reservation 20:00",20:00,restaurant
+"Order by 11am for same-day",11:00,ecommerce
+"Sale ends 23:59",23:59,ecommerce
+"Auction closes 21:00",21:00,auction
+"Registration ends 17:00",17:00,deadline
+"School ends 15:30",15:30,education

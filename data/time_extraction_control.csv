@@ -1,0 +1,260 @@
+phrase,times,notes
+"Encontro às 14h30",14:30,portuguese HHhMM
+"Reunião amanhã às 9",09:00,portuguese morning
+"Ci vediamo alle 20:00",20:00,italian HH:MM
+"Pranzo alle 13",13:00,italian bare
+"Lezione alle 10:30",10:30,italian morning
+"Afspraak om 15:00 uur",15:00,dutch HH:MM
+"Bel me om 9 uur",09:00,dutch bare
+"Spotkanie o 17:00",17:00,polish HH:MM
+"Jestem wolny o 12:30",12:30,polish HH:MM
+"Toplantı 14:00'te",14:00,turkish HH:MM
+"Saat 9'da buluşalım",09:00,turkish bare
+"Akşam 8'de",20:00,turkish evening
+"Möte kl 13:00",13:00,swedish HH:MM
+"kl 9 på morgonen",09:00,swedish morning
+"call at 1p.m.",13:00,english no space pm
+"meet @ 2:30pm",14:30,english @ format
+"Deadline 5pm",17:00,english bare label
+"ETA 1500Z",15:00,military Z
+"Departs 0745 local",07:45,military local note
+"Shift starts 2200",22:00,military no colon
+"Train 18:05",18:05,transport context
+"Bus leaves 07:42",07:42,transport context
+"Flight BA123 at 14:20",14:20,transport
+"Boarding 13:50",13:50,transport
+"Gate closes 14:10",14:10,transport
+"Surgery at 08:00am",08:00,medical
+"Appt 10:45",10:45,medical/appt shorthand
+"Dentist 3:30 pm",15:30,medical
+"Check-in 15:00",15:00,hotel
+"Check-out 11:00",11:00,hotel
+"Breakfast 7-10am",07:00;10:00,range shorthand
+"Happy hour 5-7pm",17:00;19:00,range informal
+"Open 9-5",09:00;17:00,range very informal ambiguous -> assume 9am-5pm
+"aberto das 9h às 18h",09:00;18:00,portuguese range
+"aperto 09:00-13:00 e 15:00-19:00",09:00;13:00;15:00;19:00,italian split range
+"otwarte 10-18",10:00;18:00,polish range
+"Game starts 19:30",19:30,sports start time
+"Kickoff 20:45",20:45,sports start
+"Puck drop 7pm",19:00,sports
+"Doors open 18:30",18:30,event
+"Curtain 19:00",19:00,theater
+"Showtime 21:15",21:15,cinema
+"Movie at 4:20",16:20,cinema ambiguous assume pm
+"Session 10:00am",10:00,conference
+"Break 10:30-10:45",10:30;10:45,conference range
+"Lunch 12:30-13:30",12:30;13:30,conference range
+"Wrap-up 16:45",16:45,conference
+"Webinar 15:00 UTC",15:00,tz UTC
+"Stream 10am PST",10:00,tz PST
+"Live at 2pm EST",14:00,tz EST
+"Drop 11am GMT",11:00,tz GMT
+"Launch 00:00 UTC",00:00,tz midnight
+"Maintenance 02:00-04:00 UTC",02:00;04:00,range UTC
+"Downtime 23:00-01:00",23:00;01:00,range overnight
+"Release v1.0 at 12:00",12:00,tech release
+"Deploy 18:00",18:00,tech
+"Standup 10:15",10:15,agile
+"Retro 16:00",16:00,agile
+"Planning 11am",11:00,agile
+"Sync 9:30",09:30,agile
+"1on1 14:00",14:00,meeting shorthand
+"Interview 10:00",10:00,hr
+"Screening 15:30",15:30,hr
+"Coffee 3pm",15:00,informal
+"Drinks 6pm",18:00,informal
+"Dinner 7:30pm",19:30,informal
+"Party 9pm",21:00,informal
+"Brunch 11am",11:00,informal
+"Gym 6am",06:00,personal
+"Yoga 7:15am",07:15,personal
+"Pickup 15:15",15:15,personal
+"Delivery 10-12",10:00;12:00,range delivery
+"Tech arrives 8-12",08:00;12:00,range window
+"Window 1pm-5pm",13:00;17:00,range
+"Slot 10:00",10:00,booking
+"Reminder 09:00",09:00,bot command
+"Alarm 07:00",07:00,bot command
+"Timer 15:00",15:00,ambiguous timer vs time -> assume time for now
+"Wake up 6:30",06:30,personal
+"Sleep 23:00",23:00,personal
+"Nap 20m",,negative - duration minutes
+"Timer 5m",,negative - duration
+"Wait 10s",,negative - duration
+"Ratio 4:3",,negative - aspect ratio
+"Score 0-0",,negative - score
+"Result 3-1",,negative - score
+"Win 2:0",,negative - score
+"Loss 1:2",,negative - score
+"Draw 1:1",,negative - score
+"Set 6-4",,negative - tennis
+"Game 15:40",,negative - tennis points context (looks like time)
+"Deuce",,negative - tennis
+"Advantage",,negative - tennis
+"Height 6'1\"",,negative - imperial height
+"Weight 180lbs",,negative - weight
+"Temp 98.6",,negative - temperature
+"Fever 101.5",,negative - temperature
+"Coordinates 12:34:56",,negative - geo
+"Lat 51.50",,negative - geo
+"Long 0.12",,negative - geo
+"IP 192.168.1.254",,negative - IP
+"Subnet /24",,negative - network
+"Port 8080",,negative - network
+"Error 404",,negative - http code
+"Status 200",,negative - status code
+"Version 2.1.5",,negative - version
+"Build 1024",,negative - build number
+"Patch 1.2",,negative - version
+"CVE-2023-1234",,negative - security id
+"ISO 9001",,negative - standard
+"IEEE 802.11",,negative - standard
+"Model X",,negative - product
+"iPhone 15",,negative - product
+"Windows 11",,negative - product
+"PS5",,negative - console
+"Xbox 360",,negative - console
+"Price $19.99",,negative - price
+"Cost £50",,negative - price
+"Offer €25",,negative - price
+"Discount 10%",,negative - percentage not time
+"Rate 5.5%",,negative - percentage
+"Tax 20%",,negative - percentage
+"Tip 15%",,negative - percentage
+"Speed 100km/h",,negative - speed
+"Limit 50mph",,negative - speed
+"Pace 5:30/km",,negative - running pace (looks like time) (edge)
+"Splits 4:15",,negative - pace (edge)
+"Time 2:05:10",,negative - marathon time duration (edge)
+"PB 19:45",,negative - personal best duration (edge)
+"WR 9.58",,negative - record duration
+"Track 1 - 3:45",,negative - music track duration
+"Album length 45:00",,negative - duration
+"Side A 22:15",,negative - duration
+"Chapter 3:5",,negative - book references
+"Page 42",,negative - page
+"Line 16",,negative - line
+"Corinthians 13:4",,negative - bible
+"Quran 2:255",,negative - religious text ref (edge)
+"Surah 1:1",,negative - religious text
+"Torah Gen 1:1",,negative - religious text
+"Act 3 Scene 1",,negative - play ref
+"Rule 14.2",,negative - legal rule
+"Article 5",,negative - legal
+"Clause 3(b)",,negative - legal
+"Ticket #5678",,negative - id
+"Case ID 12345",,negative - id
+"Room 101",,negative - room
+"Floor 3",,negative - floor
+"Seat 14A",,negative - seat
+"Row 5",,negative - row
+"Gate 24",,negative - gate
+"Terminal 5",,negative - terminal
+"Platform 9 3/4",,negative - platform
+"Chanel 5",,negative - product
+"Studio 54",,negative - place
+"Area 51",,negative - place
+"Apollo 13",,negative - mission
+"Catch-22",,negative - book title
+"Ocean's 11",,negative - movie title
+"District 9",,negative - movie title
+"Fantastic 4",,negative - movie group
+"Fab 5",,negative - group
+"Top 10",,negative - list
+"Bottom 3",,negative - list
+"Grade A",,negative - grade
+"Level 99",,negative - game level
+"Rank #1",,negative - rank
+"Prestige 10",,negative - game rank
+"K/D 2.5",,negative - ratio
+"Winrate 55%",,negative - stat
+"Accuracy 98%",,negative - stat
+"Συνάντηση στις 14:00",14:00,greek HH:MM
+"Θα σε πάρω στις 9 το πρωί",09:00,greek morning
+"Møte kl 10:30",10:30,norwegian HH:MM
+"Vi sees kl 18",18:00,norwegian bare
+"Mødes kl 14:00",14:00,danish HH:MM
+"Tapaaminen klo 16:00",16:00,finnish HH:MM
+"Kello 9 aamulla",09:00,finnish morning
+"Pertemuan jam 15:00",15:00,indonesian HH:MM
+"मिलते हैं 10 बजे",10:00,hindi bare
+"शाम 7 बजे",19:00,hindi evening
+"Întâlnire la 13:00",13:00,romanian HH:MM
+"Setkání v 11:00",11:00,czech HH:MM
+"Stretnutie o 14:30",14:30,slovak HH:MM
+"Зустріч о 16:00",16:00,ukrainian HH:MM
+"о 9 ранку",09:00,ukrainian morning
+"Сустрэча а 15:00",15:00,belarusian HH:MM
+"Sastanak u 17:00",17:00,serbian HH:MM
+"Susret u 12:30",12:30,croatian HH:MM
+"Сбор в 08:30",08:30,bulgarian HH:MM
+"Sestanek ob 10:00",10:00,slovenian HH:MM
+"Q1 earnings call 09:00 ET",09:00,finance call
+"Market opens 09:30",09:30,finance
+"Trading closes 16:00",16:00,finance
+"Dividend ex-date 5pm",17:00,finance
+"Shipment ETA 14:00",14:00,logistics
+"Pickup window 10:00-14:00",10:00;14:00,logistics range
+"Dock appointment 06:00",06:00,logistics early
+"Warehouse closes 22:00",22:00,logistics
+"Class starts 08:30",08:30,education
+"Lecture 10:00-11:30",10:00;11:30,education range
+"Tutorial 14:00",14:00,education
+"Exam 09:00",09:00,education
+"Office hours 15:00-17:00",15:00;17:00,education range
+"Seminar 13:30",13:30,education
+"Lab 16:00-18:00",16:00;18:00,education range
+"Graduation 11:00",11:00,education
+"PTA meeting 19:00",19:00,education
+"School ends 15:30",15:30,education
+"Recess 10:15-10:30",10:15;10:30,education range
+"Homework due 23:59",23:59,deadline
+"Submission closes midnight",00:00,deadline
+"Registration ends 17:00",17:00,deadline
+"Early bird until 12:00",12:00,deadline
+"Last call 01:30",01:30,bar/event
+"Kitchen closes 22:30",22:30,restaurant
+"Reservation 20:00",20:00,restaurant
+"Table for 2 at 7pm",19:00,restaurant
+"Seating 18:30",18:30,restaurant
+"Order by 11am for same-day",11:00,ecommerce
+"Sale ends 23:59",23:59,ecommerce
+"Flash sale 12:00-14:00",12:00;14:00,ecommerce range
+"Auction closes 21:00",21:00,auction
+"Bidding starts 10:00",10:00,auction
+"Lot 15",,negative - auction lot number
+"Bid $500",,negative - auction bid
+"Invoice NET30",,negative - payment terms
+"PO #12345",,negative - purchase order
+"SKU 1234-5678",,negative - product code
+"UPC 012345678901",,negative - barcode
+"ASIN B08XYZ",,negative - amazon id
+"ISBN 978-3-16",,negative - book id
+"DOI 10.1000/xyz",,negative - doi
+"ISSN 1234-5678",,negative - journal id
+"Patent US1234567",,negative - patent
+"Trademark ®",,negative - trademark
+"Copyright ©2024",,negative - copyright
+"Serial #ABC123",,negative - serial
+"Batch 2024-01",,negative - batch id
+"Lot 2024-Q1",,negative - lot id
+"Ref 12:34:56",,negative - reference number with colons (edge)
+"Code 12:00",,negative - code that looks like time (edge)
+"PIN 1234",,negative - pin
+"OTP 567890",,negative - otp
+"2FA code",,negative - 2fa
+"CVV 123",,negative - card cvv
+"Exp 12/25",,negative - expiry date
+"Card 4111",,negative - card last digits
+"Account #987654",,negative - account
+"Routing 021000021",,negative - routing number
+"SWIFT BOFAUS3N",,negative - swift code
+"IBAN DE89",,negative - iban
+"BIC COBADEFF",,negative - bic
+"Tax ID 12-3456789",,negative - tax id
+"EIN 12-3456789",,negative - ein
+"SSN XXX-XX-1234",,negative - ssn pattern
+"NIF 12345678A",,negative - spanish tax id
+"PESEL 12345678901",,negative - polish id
+"CURP ABC123",,negative - mexican id

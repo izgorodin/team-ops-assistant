@@ -55,19 +55,30 @@ dedupe:
   ttl_seconds: 604800
   # Throttle: minimum seconds between responses in same chat
   throttle_seconds: 2
+
+# ML Classifier settings
+classifier:
+  # Probability thresholds for time detection
+  # p > high_threshold → confident YES (skip to extraction)
+  # p < low_threshold → confident NO (skip message)
+  # low ≤ p ≤ high → uncertain → LLM fallback
+  # Trade-off: narrow zone = more errors, wide zone = more LLM calls
+  # 0.40/0.60 gives ~25% uncertain but minimal false pos/neg
+  low_threshold: 0.40
+  high_threshold: 0.60
   
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
-  # NVIDIA NIM model
-  model: "qwen/qwen3-next-80b-a3b-instruct"
+  # Fast small model for time detection fallback
+  model: "meta/llama-3.1-8b-instruct"
   # NVIDIA API base URL
   base_url: "https://integrate.api.nvidia.com/v1"
   # Use LLM only as fallback when rules-based parsing fails
   fallback_only: true
   # Maximum tokens in response
-  max_tokens: 256
-  # Temperature for generation
-  temperature: 0.3
+  max_tokens: 150
+  # Temperature for generation (low for deterministic)
+  temperature: 0.1
 
 # Logging
 logging:

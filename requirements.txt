@@ -33,6 +33,9 @@ together>=1.0.0,<2.0.0
 # python-dateutil - date parsing utilities
 python-dateutil>=2.8.0,<3.0.0
 
+# scikit-learn - ML classifier for time detection
+scikit-learn>=1.4.0,<2.0.0
+
 # pytz - timezone handling
 pytz>=2024.1
 

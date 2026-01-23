@@ -50,6 +50,17 @@ class DedupeConfig(BaseModel):
     throttle_seconds: int = 2
 
 
+class ClassifierConfig(BaseModel):
+    """ML classifier configuration."""
+
+    # Probability thresholds for time detection
+    # p > high_threshold → confident YES
+    # p < low_threshold → confident NO
+    # low_threshold ≤ p ≤ high_threshold → uncertain → LLM fallback
+    low_threshold: float = 0.40
+    high_threshold: float = 0.60
+
+
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
@@ -88,6 +99,7 @@ class Configuration(BaseModel):
     timezone: TimezoneConfig = Field(default_factory=TimezoneConfig)
     confidence: ConfidenceConfig = Field(default_factory=ConfidenceConfig)
     dedupe: DedupeConfig = Field(default_factory=DedupeConfig)
+    classifier: ClassifierConfig = Field(default_factory=ClassifierConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
