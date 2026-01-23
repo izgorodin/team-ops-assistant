@@ -35,12 +35,42 @@ class TimezoneConfig(BaseModel):
 
 
 class ConfidenceConfig(BaseModel):
-    """Confidence threshold configuration."""
+    """Confidence threshold configuration.
 
-    threshold: float = 0.7
-    verified: float = 1.0
-    city_pick: float = 0.85
-    decay_per_day: float = 0.01
+    Confidence values represent certainty about timezone source:
+    - 1.0: Web-verified (user explicitly confirmed)
+    - 0.9: Explicit in message (e.g., "3pm PST")
+    - 0.85: City picker selection
+    - 0.7: Threshold for requiring verification
+    - 0.6: Inferred from context
+    - 0.5: Chat default (fallback)
+    """
+
+    threshold: float = 0.7  # Below this, prompt for verification
+    verified: float = 1.0  # Web-verified timezone
+    city_pick: float = 0.85  # User selected from city picker
+    message_explicit: float = 0.9  # Timezone explicit in message (e.g., "PST")
+    inferred: float = 0.6  # Inferred from user history
+    chat_default: float = 0.5  # Chat-level default timezone
+    decay_per_day: float = 0.01  # Confidence decay for stale data
+
+
+class TimeParsingConfidenceConfig(BaseModel):
+    """Confidence values for different time parsing patterns."""
+
+    hhmm_ampm: float = 0.95
+    european_hhmm: float = 0.9
+    military: float = 0.9
+    plain_hhmm: float = 0.95
+    h_ampm: float = 0.9
+    range: float = 0.85
+    at_h: float = 0.7
+
+
+class TimeParsingConfig(BaseModel):
+    """Time parsing configuration."""
+
+    confidence: TimeParsingConfidenceConfig = Field(default_factory=TimeParsingConfidenceConfig)
 
 
 class DedupeConfig(BaseModel):
@@ -50,25 +80,74 @@ class DedupeConfig(BaseModel):
     throttle_seconds: int = 2
 
 
+class TfidfConfig(BaseModel):
+    """TF-IDF vectorizer configuration."""
+
+    ngram_range: list[int] = Field(default_factory=lambda: [1, 3])
+    min_df: int = 2
+    max_df: float = 0.95
+
+
+class LogisticRegressionConfig(BaseModel):
+    """Logistic regression configuration."""
+
+    max_iter: int = 1000
+    random_state: int = 42
+
+
 class ClassifierConfig(BaseModel):
     """ML classifier configuration."""
 
     # Probability thresholds for time detection
-    # p > high_threshold → confident YES
-    # p < low_threshold → confident NO
-    # low_threshold ≤ p ≤ high_threshold → uncertain → LLM fallback
     low_threshold: float = 0.40
     high_threshold: float = 0.60
+    # Text processing parameters
+    long_text_threshold: int = 100
+    window_size: int = 5
+    # ML model parameters
+    tfidf: TfidfConfig = Field(default_factory=TfidfConfig)
+    logistic_regression: LogisticRegressionConfig = Field(default_factory=LogisticRegressionConfig)
+
+
+class LLMOperationConfig(BaseModel):
+    """LLM operation-specific configuration."""
+
+    max_tokens: int = 150
+    temperature: float = 0.1
+    timeout: float = 10.0
 
 
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
-    model: str = "qwen/qwen3-next-80b-a3b-instruct"
+    model: str = "meta/llama-3.1-8b-instruct"
     base_url: str = "https://integrate.api.nvidia.com/v1"
     fallback_only: bool = True
-    max_tokens: int = 256
-    temperature: float = 0.3
+    detection: LLMOperationConfig = Field(default_factory=LLMOperationConfig)
+    extraction: LLMOperationConfig = Field(
+        default_factory=lambda: LLMOperationConfig(max_tokens=500, timeout=15.0)
+    )
+
+
+class HttpTimeoutsConfig(BaseModel):
+    """HTTP client timeouts configuration."""
+
+    telegram_api: float = 30.0
+    discord_api: float = 30.0
+    whatsapp_api: float = 30.0
+
+
+class HttpConfig(BaseModel):
+    """HTTP configuration."""
+
+    timeouts: HttpTimeoutsConfig = Field(default_factory=HttpTimeoutsConfig)
+
+
+class UiConfig(BaseModel):
+    """UI configuration."""
+
+    max_cities_shown: int = 4
+    verification_token_hours: int = 24
 
 
 class LoggingConfig(BaseModel):
@@ -98,9 +177,12 @@ class Configuration(BaseModel):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     timezone: TimezoneConfig = Field(default_factory=TimezoneConfig)
     confidence: ConfidenceConfig = Field(default_factory=ConfidenceConfig)
+    time_parsing: TimeParsingConfig = Field(default_factory=TimeParsingConfig)
     dedupe: DedupeConfig = Field(default_factory=DedupeConfig)
     classifier: ClassifierConfig = Field(default_factory=ClassifierConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    http: HttpConfig = Field(default_factory=HttpConfig)
+    ui: UiConfig = Field(default_factory=UiConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
 

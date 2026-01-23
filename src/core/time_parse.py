@@ -7,12 +7,31 @@ LLM is only used as fallback when these rules fail.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 from src.core.models import ParsedTime
+from src.settings import get_settings
+
+
+@lru_cache(maxsize=1)
+def _get_confidence_config() -> dict[str, float]:
+    """Get time parsing confidence values from config."""
+    settings = get_settings()
+    conf = settings.config.time_parsing.confidence
+    return {
+        "hhmm_ampm": conf.hhmm_ampm,
+        "european_hhmm": conf.european_hhmm,
+        "military": conf.military,
+        "plain_hhmm": conf.plain_hhmm,
+        "h_ampm": conf.h_ampm,
+        "range": conf.range,
+        "at_h": conf.at_h,
+    }
+
 
 # Common timezone abbreviations mapping to IANA
 TIMEZONE_ABBREVIATIONS: dict[str, str] = {
@@ -104,6 +123,7 @@ def parse_times(text: str) -> list[ParsedTime]:
 
     results: list[ParsedTime] = []
     text_lower = text.lower()
+    conf = _get_confidence_config()
 
     # Check for tomorrow prefix
     is_tomorrow = bool(PATTERNS["tomorrow"].search(text))
@@ -146,7 +166,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                     minute=minute,
                     timezone_hint=tz_hint,
                     is_tomorrow=is_tomorrow,
-                    confidence=0.95,
+                    confidence=conf["hhmm_ampm"],
                 )
             )
             matched_positions.add(match.start())
@@ -167,7 +187,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                     minute=minute,
                     timezone_hint=tz_hint,
                     is_tomorrow=is_tomorrow,
-                    confidence=0.9,
+                    confidence=conf["european_hhmm"],
                 )
             )
             matched_positions.add(match.start())
@@ -187,7 +207,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                 minute=minute,
                 timezone_hint=tz_hint,
                 is_tomorrow=is_tomorrow,
-                confidence=0.9,
+                confidence=conf["military"],
             )
         )
         matched_positions.add(match.start())
@@ -207,7 +227,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                     minute=minute,
                     timezone_hint=tz_hint,
                     is_tomorrow=is_tomorrow,
-                    confidence=0.95,
+                    confidence=conf["plain_hhmm"],
                 )
             )
             matched_positions.add(match.start())
@@ -234,7 +254,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                     minute=0,
                     timezone_hint=tz_hint,
                     is_tomorrow=is_tomorrow,
-                    confidence=0.9,
+                    confidence=conf["h_ampm"],
                 )
             )
             matched_positions.add(match.start())
@@ -264,7 +284,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                         minute=0,
                         timezone_hint=tz_hint,
                         is_tomorrow=is_tomorrow,
-                        confidence=0.85,
+                        confidence=conf["range"],
                     )
                 )
         matched_positions.add(match.start())
@@ -281,7 +301,7 @@ def parse_times(text: str) -> list[ParsedTime]:
                         minute=0,
                         timezone_hint=tz_hint,
                         is_tomorrow=is_tomorrow,
-                        confidence=0.7,
+                        confidence=conf["at_h"],
                     )
                 )
 

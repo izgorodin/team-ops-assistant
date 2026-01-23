@@ -134,7 +134,6 @@ def get_core_python_files() -> list[Path]:
 class TestNoMagicNumbers:
     """Tests that core modules have no magic numbers."""
 
-    @pytest.mark.xfail(reason="Migration in progress - Step 1 of refactoring")
     def test_time_parse_no_magic_confidence(self) -> None:
         """time_parse.py should load confidence values from config."""
         filepath = Path(__file__).parent.parent / "src" / "core" / "time_parse.py"
@@ -152,7 +151,6 @@ class TestNoMagicNumbers:
             "These should be loaded from settings.config.time_parsing.confidence.*"
         )
 
-    @pytest.mark.xfail(reason="Migration in progress - Step 1 of refactoring")
     def test_time_classifier_no_magic_thresholds(self) -> None:
         """time_classifier.py should load thresholds from config."""
         filepath = Path(__file__).parent.parent / "src" / "core" / "time_classifier.py"
@@ -160,28 +158,40 @@ class TestNoMagicNumbers:
             pytest.skip("File not found")
 
         content = filepath.read_text()
+        lines = content.split("\n")
 
-        # Check for hardcoded threshold values
-        threshold_keywords = [
-            "_LONG_TEXT_THRESHOLD",
-            "_WINDOW_SIZE",
-            "ngram_range",
-            "min_df",
-            "max_df",
-            "max_iter",
-        ]
-
+        # Check for hardcoded module-level constants
+        module_constants = ["_LONG_TEXT_THRESHOLD", "_WINDOW_SIZE"]
         hardcoded = []
-        for keyword in threshold_keywords:
-            if f"{keyword} = " in content or f"{keyword}=" in content:
-                hardcoded.append(keyword)
+        for const in module_constants:
+            if f"{const} = " in content:
+                hardcoded.append(const)
+
+        # Check for hardcoded values in function calls (not using config)
+        for i, line in enumerate(lines, 1):
+            # Skip comments and imports
+            stripped = line.strip()
+            if stripped.startswith("#") or "import" in line:
+                continue
+
+            # Check for hardcoded numeric values in specific patterns
+            # These should use config.* references instead
+            if "ngram_range=" in line and "config" not in line:
+                hardcoded.append(f"ngram_range at line {i}")
+            if "min_df=" in line and "config" not in line:
+                hardcoded.append(f"min_df at line {i}")
+            if "max_df=" in line and "config" not in line:
+                hardcoded.append(f"max_df at line {i}")
+            if "max_iter=" in line and "config" not in line:
+                hardcoded.append(f"max_iter at line {i}")
+            if "random_state=" in line and "config" not in line:
+                hardcoded.append(f"random_state at line {i}")
 
         assert not hardcoded, (
             f"Found hardcoded values in time_classifier.py: {hardcoded}. "
             "These should be loaded from settings.config.classifier.*"
         )
 
-    @pytest.mark.xfail(reason="Migration in progress - Step 1 of refactoring")
     def test_timezone_identity_no_magic_confidence(self) -> None:
         """timezone_identity.py should load confidence values from config."""
         filepath = Path(__file__).parent.parent / "src" / "core" / "timezone_identity.py"
@@ -214,7 +224,6 @@ class TestNoMagicNumbers:
             + "\nThese should be loaded from settings.config.confidence.*"
         )
 
-    @pytest.mark.xfail(reason="Migration in progress - Step 1 of refactoring")
     def test_llm_fallback_no_magic_timeouts(self) -> None:
         """llm_fallback.py should load timeouts and params from config."""
         filepath = Path(__file__).parent.parent / "src" / "core" / "llm_fallback.py"
@@ -240,7 +249,6 @@ class TestNoMagicNumbers:
 class TestConfigCompleteness:
     """Tests that configuration has all required sections."""
 
-    @pytest.mark.xfail(reason="Config migration in progress - Step 1")
     def test_config_has_time_parsing_section(self) -> None:
         """configuration.yaml must have time_parsing.confidence section."""
         from src.settings import get_settings
@@ -262,7 +270,6 @@ class TestConfigCompleteness:
             "configuration.yaml must have 'classifier' section with ML parameters"
         )
 
-    @pytest.mark.xfail(reason="Config migration in progress - Step 1")
     def test_config_has_http_timeouts_section(self) -> None:
         """configuration.yaml must have http.timeouts section."""
         from src.settings import get_settings

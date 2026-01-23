@@ -68,9 +68,10 @@ async def detect_time_with_llm(text: str) -> bool:
     template = _get_detect_prompt_template()
     prompt = template.render(message=text)
 
-    # Call LLM API
+    # Call LLM API with detection-specific settings
+    detection_config = settings.config.llm.detection
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=detection_config.timeout) as client:
             response = await client.post(
                 f"{settings.config.llm.base_url}/chat/completions",
                 headers={
@@ -80,8 +81,8 @@ async def detect_time_with_llm(text: str) -> bool:
                 json={
                     "model": settings.config.llm.model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": settings.config.llm.max_tokens,
-                    "temperature": settings.config.llm.temperature,
+                    "max_tokens": detection_config.max_tokens,
+                    "temperature": detection_config.temperature,
                 },
             )
             response.raise_for_status()
@@ -129,24 +130,19 @@ def _parse_llm_response(content: str) -> bool:
             # Try to find JSON object directly
             start = content.find("{")
             end = content.rfind("}") + 1
-            if start != -1 and end > start:
-                json_str = content[start:end]
-            else:
-                json_str = content
+            json_str = content[start:end] if start != -1 and end > start else content
 
         result = json.loads(json_str)
         return bool(result.get("contains_time", False))
 
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning(f"Failed to parse LLM response: {e}")
-        # Fallback: look for keywords
+        # Fallback: look for keywords, fail open (True) unless explicitly false
         content_lower = content.lower()
-        if '"contains_time": true' in content_lower or '"contains_time":true' in content_lower:
-            return True
-        if '"contains_time": false' in content_lower or '"contains_time":false' in content_lower:
-            return False
-        # Ultimate fallback - fail open
-        return True
+        has_false = (
+            '"contains_time": false' in content_lower or '"contains_time":false' in content_lower
+        )
+        return not has_false
 
 
 # ============================================================================
@@ -181,8 +177,10 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
         timezone_hints=tz_hint or "none",
     )
 
+    # Use extraction-specific settings
+    extraction_config = settings.config.llm.extraction
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=extraction_config.timeout) as client:
             response = await client.post(
                 f"{settings.config.llm.base_url}/chat/completions",
                 headers={
@@ -192,8 +190,8 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
                 json={
                     "model": settings.config.llm.model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 500,
-                    "temperature": 0.1,  # Low temperature for structured output
+                    "max_tokens": extraction_config.max_tokens,
+                    "temperature": extraction_config.temperature,
                 },
             )
             response.raise_for_status()

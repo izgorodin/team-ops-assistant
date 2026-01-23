@@ -186,6 +186,49 @@ def format_conversion_response(
     return "\n".join(lines)
 
 
+def format_time_conversion(
+    hour: int,
+    minute: int,
+    source_tz: str,
+    target_timezones: list[str],
+    original_text: str = "",
+    is_tomorrow: bool = False,
+) -> str:
+    """Format a time conversion response from raw hour/minute.
+
+    Convenience function that creates a ParsedTime internally
+    and returns formatted conversion response.
+
+    Args:
+        hour: Hour (0-23).
+        minute: Minute (0-59).
+        source_tz: Source IANA timezone.
+        target_timezones: List of target IANA timezones.
+        original_text: Original time text from message.
+        is_tomorrow: Whether the time refers to tomorrow.
+
+    Returns:
+        Formatted response string.
+    """
+    from src.core.models import ParsedTime
+
+    # Create ParsedTime for conversion
+    parsed_time = ParsedTime(
+        original_text=original_text or f"{hour:02d}:{minute:02d}",
+        hour=hour,
+        minute=minute,
+        is_tomorrow=is_tomorrow,
+    )
+
+    # Convert to all target timezones
+    conversions = convert_to_timezones(parsed_time, source_tz, target_timezones)
+
+    # Format and return
+    return format_conversion_response(
+        original_text or f"{hour:02d}:{minute:02d}", source_tz, conversions
+    )
+
+
 def is_valid_iana_timezone(timezone: str) -> bool:
     """Check if a timezone string is a valid IANA timezone.
 

@@ -43,12 +43,16 @@ class TimeClassifier:
         from sklearn.linear_model import LogisticRegression
         from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+        from src.settings import get_settings
+
+        config = get_settings().config.classifier
+
         # TF-IDF with character n-grams (helps with multilingual)
         self.vectorizer = TfidfVectorizer(
-            ngram_range=(1, 3),
+            ngram_range=tuple(config.tfidf.ngram_range),
             analyzer="char_wb",  # character n-grams with word boundaries
-            min_df=2,
-            max_df=0.95,
+            min_df=config.tfidf.min_df,
+            max_df=config.tfidf.max_df,
         )
 
         X = self.vectorizer.fit_transform(texts)
@@ -56,8 +60,8 @@ class TimeClassifier:
         # Logistic regression with balanced class weights
         self.model = LogisticRegression(
             class_weight="balanced",
-            max_iter=1000,
-            random_state=42,
+            max_iter=config.logistic_regression.max_iter,
+            random_state=config.logistic_regression.random_state,
         )
         self.model.fit(X, labels)
         self._is_trained = True
@@ -198,9 +202,6 @@ def get_classifier() -> TimeClassifier:
     return _classifier
 
 
-# Threshold for "long text" - if longer, use trigger + window approach
-_LONG_TEXT_THRESHOLD = 100
-
 # Trigger pattern - any digit (covers 95%+ of time references)
 _TRIGGER = re.compile(r"\d")
 
@@ -217,26 +218,33 @@ _TIME_WORDS = frozenset(
     }
 )
 
-# Window size: tokens before and after trigger
-_WINDOW_SIZE = 5
 
+def _get_classifier_config() -> tuple[float, float, int, int]:
+    """Get classifier config from settings.
 
-def _get_thresholds() -> tuple[float, float]:
-    """Get classifier thresholds from settings."""
+    Returns:
+        Tuple of (low_threshold, high_threshold, long_text_threshold, window_size)
+    """
     from src.settings import get_settings
 
     config = get_settings().config.classifier
-    return config.low_threshold, config.high_threshold
+    return (
+        config.low_threshold,
+        config.high_threshold,
+        config.long_text_threshold,
+        config.window_size,
+    )
 
 
-def _extract_windows(text: str) -> list[str]:
+def _extract_windows(text: str, window_size: int) -> list[str]:
     """Extract context windows around potential time triggers.
 
     For each token containing a digit or time word, extracts
-    a window of ±5 tokens around it.
+    a window of ±window_size tokens around it.
 
     Args:
         text: Input text
+        window_size: Number of tokens before and after trigger
 
     Returns:
         List of context windows to check with ML
@@ -249,8 +257,8 @@ def _extract_windows(text: str) -> list[str]:
         # Check if token is a trigger (has digit or is time word)
         if _TRIGGER.search(token) or token.lower() in _TIME_WORDS:
             # Calculate window bounds
-            start = max(0, i - _WINDOW_SIZE)
-            end = min(len(tokens), i + _WINDOW_SIZE + 1)
+            start = max(0, i - window_size)
+            end = min(len(tokens), i + window_size + 1)
 
             # Avoid duplicate windows
             bounds = (start, end)
@@ -293,12 +301,15 @@ def contains_time_ml(text: str, use_llm_fallback: bool = True) -> bool:
 
     classifier = get_classifier()
 
+    # Get config values
+    _, _, long_text_threshold, window_size = _get_classifier_config()
+
     # Short text - check directly with thresholds
-    if len(text) <= _LONG_TEXT_THRESHOLD:
+    if len(text) <= long_text_threshold:
         return _check_with_threshold(classifier, text, use_llm_fallback)
 
     # Long text - extract windows around triggers and check each
-    windows = _extract_windows(text)
+    windows = _extract_windows(text, window_size)
 
     # No windows = no time (shouldn't happen after trigger guard)
     if not windows:
@@ -325,7 +336,7 @@ def _check_with_threshold(classifier: TimeClassifier, text: str, use_llm_fallbac
     proba = classifier.predict_proba(text)
 
     # Confident YES
-    low_threshold, high_threshold = _get_thresholds()
+    low_threshold, high_threshold, _, _ = _get_classifier_config()
     if proba > high_threshold:
         return True
 

@@ -80,7 +80,7 @@ class TimezoneIdentityManager:
         # 3. Chat default timezone
         chat_state = await self.storage.get_chat_state(platform, chat_id)
         if chat_state and chat_state.default_tz:
-            return chat_state.default_tz, 0.5  # Lower confidence for chat default
+            return chat_state.default_tz, config.chat_default
 
         # 4. Unknown
         return None, 0.0
@@ -114,11 +114,11 @@ class TimezoneIdentityManager:
             elif source == TimezoneSource.CITY_PICK:
                 confidence = config.city_pick
             elif source == TimezoneSource.MESSAGE_EXPLICIT:
-                confidence = 0.9
+                confidence = config.message_explicit
             elif source == TimezoneSource.INFERRED:
-                confidence = 0.6
+                confidence = config.inferred
             else:
-                confidence = 0.5
+                confidence = config.chat_default
 
         now = datetime.utcnow()
         state = UserTzState(
@@ -154,7 +154,7 @@ class TimezoneIdentityManager:
 
 
 def generate_verify_token(
-    platform: Platform, user_id: str, chat_id: str, expires_hours: int = 24
+    platform: Platform, user_id: str, chat_id: str, expires_hours: int | None = None
 ) -> str:
     """Generate a verification token for timezone verification.
 
@@ -162,12 +162,16 @@ def generate_verify_token(
         platform: User's platform.
         user_id: User's platform-specific ID.
         chat_id: Chat where the request originated.
-        expires_hours: Token validity in hours.
+        expires_hours: Token validity in hours. If None, uses
+            config.ui.verification_token_hours (default: 24).
+            Backwards compatible: explicit values work as before.
 
     Returns:
         Signed verification token.
     """
     settings = get_settings()
+    if expires_hours is None:
+        expires_hours = settings.config.ui.verification_token_hours
     secret = settings.verify_token_secret
 
     # Create token payload
