@@ -162,7 +162,9 @@ def generate_verify_token(
         platform: User's platform.
         user_id: User's platform-specific ID.
         chat_id: Chat where the request originated.
-        expires_hours: Token validity in hours (uses config default if None).
+        expires_hours: Token validity in hours. If None, uses
+            config.ui.verification_token_hours (default: 24).
+            Backwards compatible: explicit values work as before.
 
     Returns:
         Signed verification token.

@@ -35,15 +35,24 @@ class TimezoneConfig(BaseModel):
 
 
 class ConfidenceConfig(BaseModel):
-    """Confidence threshold configuration."""
+    """Confidence threshold configuration.
 
-    threshold: float = 0.7
-    verified: float = 1.0
-    city_pick: float = 0.85
-    message_explicit: float = 0.9
-    inferred: float = 0.6
-    chat_default: float = 0.5
-    decay_per_day: float = 0.01
+    Confidence values represent certainty about timezone source:
+    - 1.0: Web-verified (user explicitly confirmed)
+    - 0.9: Explicit in message (e.g., "3pm PST")
+    - 0.85: City picker selection
+    - 0.7: Threshold for requiring verification
+    - 0.6: Inferred from context
+    - 0.5: Chat default (fallback)
+    """
+
+    threshold: float = 0.7  # Below this, prompt for verification
+    verified: float = 1.0  # Web-verified timezone
+    city_pick: float = 0.85  # User selected from city picker
+    message_explicit: float = 0.9  # Timezone explicit in message (e.g., "PST")
+    inferred: float = 0.6  # Inferred from user history
+    chat_default: float = 0.5  # Chat-level default timezone
+    decay_per_day: float = 0.01  # Confidence decay for stale data
 
 
 class TimeParsingConfidenceConfig(BaseModel):

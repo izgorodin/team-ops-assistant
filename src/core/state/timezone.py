@@ -66,15 +66,8 @@ class TimezoneStateManager:
         """
         config = self._settings.config.confidence
 
-        # If no storage is configured, return unknown state
-        if self._storage is None:
-            return StateResult[str](
-                value=None,
-                confidence=0.0,
-                source="unknown",
-            )
-
         try:
+            # Use self.storage to trigger lazy-loading if needed
             # Try user's verified timezone first
             user_state = await self.storage.get_user_tz_state(platform, user_id)
             if user_state and user_state.tz_iana and user_state.confidence >= config.threshold:

@@ -192,6 +192,7 @@ def format_time_conversion(
     source_tz: str,
     target_timezones: list[str],
     original_text: str = "",
+    is_tomorrow: bool = False,
 ) -> str:
     """Format a time conversion response from raw hour/minute.
 
@@ -204,6 +205,7 @@ def format_time_conversion(
         source_tz: Source IANA timezone.
         target_timezones: List of target IANA timezones.
         original_text: Original time text from message.
+        is_tomorrow: Whether the time refers to tomorrow.
 
     Returns:
         Formatted response string.
@@ -215,6 +217,7 @@ def format_time_conversion(
         original_text=original_text or f"{hour:02d}:{minute:02d}",
         hour=hour,
         minute=minute,
+        is_tomorrow=is_tomorrow,
     )
 
     # Convert to all target timezones
