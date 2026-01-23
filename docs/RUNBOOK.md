@@ -30,7 +30,8 @@ Operational runbook for deploying and managing Team Ops Assistant on Render.
    | `WHATSAPP_ACCESS_TOKEN` | From Meta Business Suite |
    | `WHATSAPP_PHONE_NUMBER_ID` | Your WhatsApp phone number ID |
    | `WHATSAPP_VERIFY_TOKEN` | Custom token for webhook verification |
-   | `TOGETHER_API_KEY` | Together AI API key |
+   | `NVIDIA_API_KEY` | NVIDIA NIM API key (LLM fallback) |
+   | `TOGETHER_API_KEY` | Together AI API key (legacy, optional) |
    | `APP_SECRET_KEY` | Random secret for sessions |
    | `VERIFY_TOKEN_SECRET` | Random secret for verification tokens |
 
