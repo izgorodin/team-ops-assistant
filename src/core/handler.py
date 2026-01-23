@@ -145,17 +145,17 @@ class MessageHandler:
         text = (
             "🌍 I noticed you mentioned a time! To convert it for the team, "
             "I need to know your timezone.\n\n"
-            f"**Set your timezone once:**\n"
-            f"• [Verify TZ]({verify_url}) - auto-detects from browser\n"
+            f"<b>Set your timezone once:</b>\n"
+            f"• <a href=\"{verify_url}\">Verify TZ</a> - auto-detects from browser\n"
             f"• Or pick a city: {city_list}\n\n"
-            "_Reply with your city name and I'll remember it!_"
+            "<i>Reply with your city name and I'll remember it!</i>"
         )
 
         message = OutboundMessage(
             platform=event.platform,
             chat_id=event.chat_id,
             text=text,
-            parse_mode="markdown",
+            parse_mode="html",
         )
 
         return HandlerResult(
