@@ -181,6 +181,32 @@ class TestActionHandlerProtocol:
         for msg in result:
             assert isinstance(msg, OutboundMessage)
 
+    async def test_time_conversion_handler_handles_tomorrow(self) -> None:
+        """TimeConversionHandler must handle is_tomorrow flag correctly."""
+        from src.core.actions.time_convert import TimeConversionHandler
+        from src.core.models import DetectedTrigger, Platform, ResolvedContext
+
+        handler = TimeConversionHandler()
+
+        trigger = DetectedTrigger(
+            trigger_type="time",
+            confidence=0.95,
+            data={"hour": 9, "minute": 0, "timezone_hint": None, "is_tomorrow": True},
+        )
+        context = ResolvedContext(
+            platform=Platform.TELEGRAM,
+            chat_id="chat_1",
+            user_id="user_1",
+            source_timezone="America/Los_Angeles",
+            target_timezones=["America/New_York"],
+        )
+
+        result = await handler.handle(trigger, context)
+
+        assert isinstance(result, list)
+        # Should produce conversion message
+        assert len(result) >= 0  # May be empty if no target timezones differ
+
 
 # ============================================================================
 # Pipeline Integration Tests

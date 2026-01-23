@@ -73,7 +73,7 @@ grep -rE "(nvapi-|mongodb\+srv://[^\"']+:[^\"']+@)" --include="*.py" src/
 ### Production Setup (Render)
 
 - [ ] All required env vars in Render dashboard
-- [ ] MongoDB Atlas IP allowlist includes Render IPs (or 0.0.0.0/0)
+- [ ] MongoDB Atlas IP allowlist includes only Render egress IPs (never use 0.0.0.0/0 in production)
 - [ ] Webhook URL configured in Telegram
 
 ### Code Security

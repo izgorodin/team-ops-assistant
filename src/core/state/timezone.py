@@ -6,7 +6,6 @@ Implements the StateManager[str] protocol.
 
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING
 
 from src.core.models import Platform, StateResult, TimezoneSource
@@ -118,9 +117,10 @@ class TimezoneStateManager:
         from src.core.models import UserTzState
 
         # Map source string to TimezoneSource enum
-        source_enum = TimezoneSource.DEFAULT
-        with contextlib.suppress(ValueError):
+        try:
             source_enum = TimezoneSource(source)
+        except ValueError:
+            source_enum = TimezoneSource.DEFAULT
 
         now = datetime.utcnow()
         state = UserTzState(
