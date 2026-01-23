@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from datetime import UTC
 
-import pytest
-
 # ============================================================================
 # TriggerDetector Protocol Tests
 # ============================================================================

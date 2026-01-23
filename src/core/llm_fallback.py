@@ -139,7 +139,9 @@ def _parse_llm_response(content: str) -> bool:
         logger.warning(f"Failed to parse LLM response: {e}")
         # Fallback: look for keywords, fail open (True) unless explicitly false
         content_lower = content.lower()
-        has_false = '"contains_time": false' in content_lower or '"contains_time":false' in content_lower
+        has_false = (
+            '"contains_time": false' in content_lower or '"contains_time":false' in content_lower
+        )
         return not has_false
 
 

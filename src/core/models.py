@@ -188,9 +188,7 @@ class ResolvedContext(BaseModel, frozen=True):
     source_timezone: str | None = Field(
         default=None, description="User's timezone for the time reference"
     )
-    target_timezones: list[str] = Field(
-        default_factory=list, description="Timezones to convert to"
-    )
+    target_timezones: list[str] = Field(default_factory=list, description="Timezones to convert to")
     reply_to_message_id: str | None = None
 
 
