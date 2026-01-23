@@ -163,6 +163,9 @@ class MessageHandler:
             parse_mode="html",
         )
 
+        # Record response for throttling (prevents repeated prompts)
+        self.dedupe.record_response(event.platform, event.chat_id)
+
         return HandlerResult(
             should_respond=True,
             messages=[message],

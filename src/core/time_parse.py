@@ -35,21 +35,34 @@ def _get_confidence_config() -> dict[str, float]:
 
 # Common timezone abbreviations mapping to IANA
 TIMEZONE_ABBREVIATIONS: dict[str, str] = {
+    # Pacific
+    "pt": "America/Los_Angeles",
     "pst": "America/Los_Angeles",
     "pdt": "America/Los_Angeles",
+    # Mountain
+    "mt": "America/Denver",
     "mst": "America/Denver",
     "mdt": "America/Denver",
+    # Central
+    "ct": "America/Chicago",
     "cst": "America/Chicago",
     "cdt": "America/Chicago",
+    # Eastern
+    "et": "America/New_York",
     "est": "America/New_York",
     "edt": "America/New_York",
+    # Europe
     "gmt": "Europe/London",
     "bst": "Europe/London",
     "cet": "Europe/Berlin",
     "cest": "Europe/Berlin",
+    "wet": "Europe/Lisbon",
+    "west": "Europe/Lisbon",
+    # Asia/Pacific
     "jst": "Asia/Tokyo",
     "aest": "Australia/Sydney",
     "aedt": "Australia/Sydney",
+    # UTC
     "utc": "UTC",
 }
 
