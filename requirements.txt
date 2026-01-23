@@ -21,11 +21,12 @@ httpx>=0.25.0,<1.0.0
 Jinja2>=3.1.0,<4.0.0
 
 # langchain - LLM framework
-langchain>=0.1.0,<1.0.0
-langchain-core>=0.1.0,<1.0.0
+langchain>=0.3.0,<1.0.0
+langchain-core>=0.3.0,<1.0.0
+langchain-openai>=0.2.0,<1.0.0
 
 # langgraph - LLM graph workflows
-langgraph>=0.0.50,<1.0.0
+langgraph>=0.2.0,<1.0.0
 
 # together - Together AI SDK
 together>=1.0.0,<2.0.0

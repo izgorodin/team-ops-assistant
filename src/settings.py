@@ -215,6 +215,8 @@ class Settings:
         self.app_host: str = os.getenv("APP_HOST", "0.0.0.0")
         self.app_port: int = int(os.getenv("APP_PORT", "8000"))
         self.app_debug: bool = os.getenv("APP_DEBUG", "false").lower() == "true"
+        # Public URL for verification links (defaults to localhost for dev)
+        self.app_base_url: str = os.getenv("APP_BASE_URL", f"http://localhost:{self.app_port}")
         self.verify_token_secret: str = os.getenv("VERIFY_TOKEN_SECRET", "dev-verify-secret")
         # Public URL for verification links (defaults to localhost for dev)
         self.app_base_url: str = os.getenv("APP_BASE_URL", f"http://localhost:{self.app_port}")

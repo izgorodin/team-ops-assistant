@@ -147,6 +147,61 @@ class VerifyToken(BaseModel, frozen=True):
 
 
 # ============================================================================
+# Session Models (Agent Mode)
+# ============================================================================
+
+
+class SessionStatus(str, Enum):
+    """Status of an agent session."""
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class SessionGoal(str, Enum):
+    """Goal/purpose of an agent session."""
+
+    AWAITING_TIMEZONE = "awaiting_timezone"
+    # Future: CHANGE_TIMEZONE, CONFIGURE_TEAM, etc.
+
+
+class Session(BaseModel):
+    """Agent session for multi-turn conversations.
+
+    When the bot needs to collect information (e.g., timezone),
+    it creates a session. All subsequent messages from the user
+    are routed to the agent handler until the session is closed.
+
+    Indexed by (platform, chat_id, user_id) with TTL on expires_at.
+    """
+
+    session_id: str = Field(description="Unique session identifier")
+    platform: Platform
+    chat_id: str
+    user_id: str
+
+    goal: SessionGoal
+    status: SessionStatus = SessionStatus.ACTIVE
+
+    # Context for the agent
+    context: dict[str, Any] = Field(
+        default_factory=lambda: {"attempts": 0, "history": []},
+        description="Session context: original_text, parsed_time, attempts, history",
+    )
+
+    # For reply detection (optional)
+    bot_message_id: str | None = Field(
+        default=None, description="ID of bot's last message for reply detection"
+    )
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(description="Session expiration time (TTL)")
+
+
+# ============================================================================
 # Extensible Architecture Models
 # ============================================================================
 

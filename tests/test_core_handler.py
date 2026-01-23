@@ -180,6 +180,7 @@ class TestMessageHandler:
         storage.get_user_tz_state = AsyncMock(return_value=None)
         storage.get_chat_state = AsyncMock(return_value=None)
         storage.insert_dedupe_event = AsyncMock()
+        storage.create_session = AsyncMock()  # For session creation
         return storage
 
     @pytest.fixture
