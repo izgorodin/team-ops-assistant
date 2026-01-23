@@ -92,6 +92,7 @@ def get_circuit_breaker() -> LLMCircuitBreaker:
 
     return _circuit_breaker
 
+
 # Load prompt templates
 DETECT_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "trigger_detect.md"
 EXTRACT_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "parse_time.md"

@@ -133,8 +133,10 @@ class LLMConfig(BaseModel):
     fallback_only: bool = True
     detection: LLMOperationConfig = Field(default_factory=LLMOperationConfig)
     extraction: LLMOperationConfig = Field(
-        default_factory=lambda: LLMOperationConfig(max_tokens=500, timeout=15.0)
+        default_factory=lambda: LLMOperationConfig(max_tokens=500, timeout=9.0)
     )
+    # Sync bridge wraps async LLM calls - outer timeout for total latency control
+    sync_bridge_timeout: float = 10.0
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
 
 

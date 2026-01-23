@@ -119,7 +119,9 @@ llm:
   extraction:
     max_tokens: 500
     temperature: 0.1
-    timeout: 15.0  # Reduced to fit Telegram 30s webhook limit
+    timeout: 9.0  # HTTP timeout < sync_bridge to let inner timeout trigger first
+  # Sync bridge wraps async LLM calls - outer timeout for total latency control
+  sync_bridge_timeout: 10.0  # Total < 30s Telegram webhook limit
   # Circuit breaker for API resilience
   circuit_breaker:
     # Open circuit after N consecutive failures

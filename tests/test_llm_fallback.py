@@ -265,33 +265,36 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_closes_after_timeout(self) -> None:
         """Circuit breaker should close (allow retry) after reset timeout."""
-        import time
         from unittest.mock import patch
 
         from src.core.llm_fallback import LLMCircuitBreaker
         from src.settings import CircuitBreakerConfig
 
         config = CircuitBreakerConfig(failure_threshold=3, reset_timeout_seconds=1.0)
-        cb = LLMCircuitBreaker(config)
 
-        # Open the circuit
-        cb.record_failure()
-        cb.record_failure()
-        cb.record_failure()
-        assert cb.is_open() is True
-
-        # Mock time passing - must patch in the module where it's used
+        # Mock time consistently throughout the test
         with patch("src.core.llm_fallback.time") as mock_time:
-            # Return current time + 2 seconds (past the 1s reset timeout)
-            mock_time.time.return_value = time.time() + 2.0
-            assert cb.is_open() is False  # Should be closed after timeout
+            # Start at t=1000
+            mock_time.time.return_value = 1000.0
+
+            cb = LLMCircuitBreaker(config)
+            cb.record_failure()
+            cb.record_failure()
+            cb.record_failure()
+            assert cb.is_open() is True  # _last_failure_time = 1000.0
+
+            # Advance time past reset_timeout_seconds (1.0s)
+            mock_time.time.return_value = 1002.0  # 2 seconds later
+            assert cb.is_open() is False  # elapsed = 2s > 1s reset timeout
 
     def test_circuit_breaker_disabled_always_closed(self) -> None:
         """Circuit breaker should stay closed when disabled."""
         from src.core.llm_fallback import LLMCircuitBreaker
         from src.settings import CircuitBreakerConfig
 
-        config = CircuitBreakerConfig(failure_threshold=3, reset_timeout_seconds=60.0, enabled=False)
+        config = CircuitBreakerConfig(
+            failure_threshold=3, reset_timeout_seconds=60.0, enabled=False
+        )
         cb = LLMCircuitBreaker(config)
 
         cb.record_failure()
@@ -306,26 +309,36 @@ class TestCircuitBreaker:
         """extract_times_with_llm should return empty when circuit is open."""
         import httpx
 
-        from src.core.llm_fallback import extract_times_with_llm, get_circuit_breaker
-
-        # Make circuit open by recording failures
-        cb = get_circuit_breaker()
-        cb.record_failure()
-        cb.record_failure()
-        cb.record_failure()
-
-        # Mock should NOT be called since circuit is open
-        route = respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
-            side_effect=httpx.TimeoutException("should not be called")
+        from src.core import llm_fallback
+        from src.core.llm_fallback import (
+            LLMCircuitBreaker,
+            extract_times_with_llm,
         )
+        from src.settings import CircuitBreakerConfig
 
-        result = await extract_times_with_llm("test text")
+        # Create fresh circuit breaker in open state
+        config = CircuitBreakerConfig(failure_threshold=3, reset_timeout_seconds=60.0)
+        cb = LLMCircuitBreaker(config)
+        cb.record_failure()
+        cb.record_failure()
+        cb.record_failure()
 
-        assert result == []  # Empty, circuit skipped LLM
-        assert route.call_count == 0  # API not called
+        # Inject into module
+        llm_fallback._circuit_breaker = cb
 
-        # Reset for other tests
-        cb.record_success()
+        try:
+            # Mock should NOT be called since circuit is open
+            route = respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
+                side_effect=httpx.TimeoutException("should not be called")
+            )
+
+            result = await extract_times_with_llm("test text")
+
+            assert result == []  # Empty, circuit skipped LLM
+            assert route.call_count == 0  # API not called
+        finally:
+            # Always reset to avoid polluting other tests
+            llm_fallback._circuit_breaker = None
 
     def test_circuit_breaker_integration_with_extract(self) -> None:
         """Circuit breaker should integrate correctly with extract_times_with_llm."""
@@ -334,9 +347,7 @@ class TestCircuitBreaker:
         from src.settings import CircuitBreakerConfig
 
         # Create a fresh circuit breaker
-        config = CircuitBreakerConfig(
-            failure_threshold=3, reset_timeout_seconds=60.0, enabled=True
-        )
+        config = CircuitBreakerConfig(failure_threshold=3, reset_timeout_seconds=60.0, enabled=True)
         cb = LLMCircuitBreaker(config)
         llm_fallback._circuit_breaker = cb
 
