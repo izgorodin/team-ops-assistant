@@ -8,7 +8,7 @@ Multi-platform TeamOps assistant bot (Telegram/Discord/WhatsApp) that detects ti
 - Python 3.11+ with async/await (Quart framework)
 - MongoDB Atlas with Motor (async driver)
 - Pydantic v2 for data validation
-- Together AI (Qwen3) for LLM fallback
+- NVIDIA NIM API (Llama 3.1) for LLM fallback
 - Ruff for linting, Pyright for strict typing
 
 **Architecture:** Thin Adapters, Rich Core
@@ -84,6 +84,12 @@ Reference configs:
 - Contract tests for each connector
 - Unit tests for core logic
 - All tests must be async-compatible
+
+### Convenience Functions
+When creating convenience functions that wrap Pydantic models:
+- Include ALL optional parameters from the underlying model
+- Or explicitly document which parameters are NOT supported
+- Example: `format_time_conversion()` must support `is_tomorrow` if `ParsedTime` has it
 
 ## Security
 
