@@ -100,13 +100,22 @@ class TestContainsTimeReference:
         """Test detection of am/pm format."""
         assert contains_time_reference("Call at 3pm") is True
 
-    def test_detects_meeting_context(self) -> None:
-        """Test detection of meeting context."""
-        assert contains_time_reference("Schedule a meeting") is True
+    def test_detects_meeting_with_time(self) -> None:
+        """Test detection of meeting context with time."""
+        # Must have digits to pass trigger guard
+        assert contains_time_reference("Schedule a meeting at 10") is True
 
     def test_no_time_reference(self) -> None:
-        """Test message without time reference."""
-        assert contains_time_reference("Hello there!") is False
+        """Test message without time reference (no digits = no time)."""
+        # No digits → trigger guard rejects immediately
+        assert contains_time_reference("The weather is nice today") is False
+        assert contains_time_reference("Schedule a meeting") is False  # no digits!
+
+    @pytest.mark.xfail(reason="Word-based times (midnight/noon) not yet supported")
+    def test_detects_midnight_noon(self) -> None:
+        """Test detection of time words without digits."""
+        assert contains_time_reference("Submit by midnight") is True
+        assert contains_time_reference("Lunch at noon") is True
 
 
 class TestTimeConversion:
