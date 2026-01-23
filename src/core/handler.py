@@ -7,7 +7,9 @@ LLM is used only as fallback when rules-based parsing fails.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from src.core.dedupe import DedupeManager
 from src.core.models import (
@@ -15,6 +17,9 @@ from src.core.models import (
     NormalizedEvent,
     OutboundMessage,
     Platform,
+    Session,
+    SessionGoal,
+    SessionStatus,
     TimezoneSource,
 )
 from src.core.time_convert import (
@@ -131,7 +136,8 @@ class MessageHandler:
     async def _handle_unknown_timezone(self, event: NormalizedEvent) -> HandlerResult:
         """Handle case where user's timezone is unknown.
 
-        Prompts user to verify their timezone.
+        Creates a session and prompts user to verify their timezone.
+        Subsequent messages from this user will be routed to the agent handler.
 
         Args:
             event: The event being processed.
@@ -142,6 +148,27 @@ class MessageHandler:
         # Generate verification token
         token = generate_verify_token(event.platform, event.user_id, event.chat_id)
         verify_url = get_verify_url(token, self.base_url)
+
+        # Create a session for the agent to handle follow-up messages
+        session = Session(
+            session_id=str(uuid4()),
+            platform=event.platform,
+            chat_id=event.chat_id,
+            user_id=event.user_id,
+            goal=SessionGoal.AWAITING_TIMEZONE,
+            status=SessionStatus.ACTIVE,
+            context={
+                "original_text": event.text,
+                "verify_url": verify_url,
+                "attempts": 0,
+                "history": [],
+            },
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(minutes=30),
+        )
+        await self.storage.create_session(session)
+        logger.info(f"Created timezone session {session.session_id} for user {event.user_id}")
 
         # Build verification prompt with city fallback
         cities = self.settings.config.timezone.team_cities

@@ -17,6 +17,8 @@ from src.core.models import (
     ChatState,
     DedupeEvent,
     Platform,
+    Session,
+    SessionStatus,
     UserTzState,
 )
 from src.settings import get_settings
@@ -97,6 +99,22 @@ class MongoStorage:
             [("created_at", ASCENDING)],
             expireAfterSeconds=config.ttl_seconds,
             name="created_at_ttl",
+        )
+
+        # Sessions collection: index on (platform, chat_id, user_id, status) + TTL on expires_at
+        await self.db.sessions.create_index(
+            [
+                ("platform", ASCENDING),
+                ("chat_id", ASCENDING),
+                ("user_id", ASCENDING),
+                ("status", ASCENDING),
+            ],
+            name="platform_chat_user_status_idx",
+        )
+        await self.db.sessions.create_index(
+            [("expires_at", ASCENDING)],
+            expireAfterSeconds=0,  # TTL at exact expires_at time
+            name="expires_at_ttl",
         )
 
         logger.info("MongoDB indexes ensured")
@@ -253,6 +271,110 @@ class MongoStorage:
             return True
         except DuplicateKeyError:
             return False
+
+    # Session operations (agent mode)
+
+    async def get_active_session(
+        self, platform: Platform, chat_id: str, user_id: str
+    ) -> Session | None:
+        """Get active session for user in chat.
+
+        Args:
+            platform: User's platform.
+            chat_id: Chat identifier.
+            user_id: User's platform-specific ID.
+
+        Returns:
+            Session if active session exists, None otherwise.
+        """
+        doc = await self.db.sessions.find_one(
+            {
+                "platform": platform.value,
+                "chat_id": chat_id,
+                "user_id": user_id,
+                "status": SessionStatus.ACTIVE.value,
+            }
+        )
+
+        if doc is None:
+            return None
+
+        return self._doc_to_session(doc)
+
+    async def create_session(self, session: Session) -> None:
+        """Create a new session.
+
+        Args:
+            session: Session to create.
+        """
+        await self.db.sessions.insert_one(
+            {
+                "session_id": session.session_id,
+                "platform": session.platform.value,
+                "chat_id": session.chat_id,
+                "user_id": session.user_id,
+                "goal": session.goal.value,
+                "status": session.status.value,
+                "context": session.context,
+                "bot_message_id": session.bot_message_id,
+                "created_at": session.created_at,
+                "updated_at": session.updated_at,
+                "expires_at": session.expires_at,
+            }
+        )
+
+    async def update_session(self, session: Session) -> None:
+        """Update an existing session.
+
+        Args:
+            session: Session with updated fields.
+        """
+        await self.db.sessions.update_one(
+            {"session_id": session.session_id},
+            {
+                "$set": {
+                    "status": session.status.value,
+                    "context": session.context,
+                    "bot_message_id": session.bot_message_id,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+        )
+
+    async def close_session(self, session_id: str, status: SessionStatus) -> None:
+        """Close a session with given status.
+
+        Args:
+            session_id: Session identifier.
+            status: Final status (COMPLETED, FAILED, EXPIRED).
+        """
+        await self.db.sessions.update_one(
+            {"session_id": session_id},
+            {
+                "$set": {
+                    "status": status.value,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+        )
+
+    def _doc_to_session(self, doc: dict[str, Any]) -> Session:
+        """Convert MongoDB document to Session."""
+        from src.core.models import SessionGoal
+
+        return Session(
+            session_id=doc["session_id"],
+            platform=Platform(doc["platform"]),
+            chat_id=doc["chat_id"],
+            user_id=doc["user_id"],
+            goal=SessionGoal(doc["goal"]),
+            status=SessionStatus(doc["status"]),
+            context=doc.get("context", {"attempts": 0, "history": []}),
+            bot_message_id=doc.get("bot_message_id"),
+            created_at=doc.get("created_at", datetime.utcnow()),
+            updated_at=doc.get("updated_at", datetime.utcnow()),
+            expires_at=doc["expires_at"],
+        )
 
 
 # Global storage instance

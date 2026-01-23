@@ -17,7 +17,9 @@ from src.connectors.discord.outbound import close_discord_outbound
 from src.connectors.telegram.inbound import normalize_telegram_update
 from src.connectors.telegram.outbound import close_telegram_outbound, send_messages
 from src.connectors.whatsapp.outbound import close_whatsapp_outbound
+from src.core.agent_handler import AgentHandler
 from src.core.handler import MessageHandler
+from src.core.orchestrator import MessageOrchestrator
 from src.settings import get_settings
 from src.storage.mongo import get_storage
 from src.web.routes_verify import verify_bp
@@ -56,9 +58,14 @@ def create_app() -> Quart:
         storage = get_storage()
         await storage.connect()
 
-        # Store handler in app context
-        # Use APP_BASE_URL for public-facing verification links
-        app.message_handler = MessageHandler(storage, settings.app_base_url)  # type: ignore[attr-defined]
+        # Create handlers and orchestrator
+        main_handler = MessageHandler(storage, settings.app_base_url)
+        agent_handler = AgentHandler(storage, settings)
+        orchestrator = MessageOrchestrator(storage, main_handler, agent_handler)
+
+        # Store in app context
+        app.orchestrator = orchestrator  # type: ignore[attr-defined]
+        app.message_handler = main_handler  # type: ignore[attr-defined]  # Keep for backwards compat
 
         logger.info("Application started successfully")
 
@@ -109,9 +116,9 @@ def create_app() -> Quart:
                 # Not a processable message, acknowledge anyway
                 return jsonify({"status": "ignored"})
 
-            # Handle the event
-            handler: MessageHandler = app.message_handler  # type: ignore[attr-defined]
-            result = await handler.handle(event)
+            # Handle the event via orchestrator
+            orchestrator: MessageOrchestrator = app.orchestrator  # type: ignore[attr-defined]
+            result = await orchestrator.route(event)
 
             # Send outbound messages
             if result.should_respond and result.messages:
