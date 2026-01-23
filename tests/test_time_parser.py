@@ -424,3 +424,142 @@ def test_parse_times_12_hour_conversion() -> None:
 
     if result_am:
         assert result_am[0].hour == 0
+
+
+# ============================================================================
+# Russian Time Patterns Tests
+# ============================================================================
+
+
+class TestRussianPatterns:
+    """Tests for Russian time format parsing."""
+
+    def test_russian_patterns_exist(self) -> None:
+        """Contract: Russian patterns are defined."""
+        required = ["ru_v_h", "ru_v_hh_mm", "ru_time_of_day", "ru_tomorrow", "ru_today"]
+        for name in required:
+            assert name in PATTERNS, f"Russian pattern '{name}' not found"
+
+    # --- "в X" pattern (at X) ---
+
+    @pytest.mark.parametrize(
+        ("text", "expected_hour"),
+        [
+            ("в 10", 10),
+            ("в 5", 5),
+            ("в 23", 23),
+            ("встреча в 15", 15),
+            ("созвон в 9", 9),
+        ],
+    )
+    def test_parse_russian_v_h(self, text: str, expected_hour: int) -> None:
+        """Russian 'в X' format should parse correctly."""
+        result = parse_times(text)
+        assert len(result) >= 1, f"Should parse time from: {text}"
+        assert result[0].hour == expected_hour
+        assert result[0].minute == 0
+
+    # --- "в X:XX" and "в X-XX" patterns ---
+
+    @pytest.mark.parametrize(
+        ("text", "expected_hour", "expected_minute"),
+        [
+            ("в 10:30", 10, 30),
+            ("в 10-30", 10, 30),
+            ("в 14:45", 14, 45),
+            ("встреча в 9:15", 9, 15),
+            ("созвон в 15-00", 15, 0),
+        ],
+    )
+    def test_parse_russian_v_hh_mm(
+        self, text: str, expected_hour: int, expected_minute: int
+    ) -> None:
+        """Russian 'в X:XX' and 'в X-XX' formats should parse correctly."""
+        result = parse_times(text)
+        assert len(result) >= 1, f"Should parse time from: {text}"
+        assert result[0].hour == expected_hour
+        assert result[0].minute == expected_minute
+
+    # --- Time of day modifiers (утра/вечера/дня/ночи) ---
+
+    @pytest.mark.parametrize(
+        ("text", "expected_hour"),
+        [
+            ("в 5 утра", 5),  # 5 AM
+            ("в 9 утра", 9),  # 9 AM
+            ("в 5 вечера", 17),  # 5 PM
+            ("в 7 вечера", 19),  # 7 PM
+            ("в 3 дня", 15),  # 3 PM (afternoon)
+            ("в 2 ночи", 2),  # 2 AM (night)
+            ("в 12 дня", 12),  # noon
+        ],
+    )
+    def test_parse_russian_time_of_day(self, text: str, expected_hour: int) -> None:
+        """Russian time with утра/вечера/дня/ночи should convert correctly."""
+        result = parse_times(text)
+        assert len(result) >= 1, f"Should parse time from: {text}"
+        assert result[0].hour == expected_hour
+
+    # --- "завтра" (tomorrow) ---
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "завтра в 10",
+            "завтра в 10:30",
+            "Завтра в 5 вечера",
+            "встреча завтра в 15",
+        ],
+    )
+    def test_parse_russian_tomorrow(self, text: str) -> None:
+        """Russian 'завтра' should set is_tomorrow flag."""
+        result = parse_times(text)
+        assert len(result) >= 1, f"Should parse time from: {text}"
+        assert result[0].is_tomorrow is True
+
+    # --- "сегодня" (today) ---
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "сегодня в 10",
+            "сегодня в 14:30",
+            "Сегодня в 5 вечера",
+        ],
+    )
+    def test_parse_russian_today(self, text: str) -> None:
+        """Russian 'сегодня' should parse (is_tomorrow=False)."""
+        result = parse_times(text)
+        assert len(result) >= 1, f"Should parse time from: {text}"
+        assert result[0].is_tomorrow is False
+
+    # --- Combined tests ---
+
+    def test_parse_russian_complex_phrase(self) -> None:
+        """Complex Russian phrase should parse correctly."""
+        result = parse_times("Созвон завтра часиков в 5 вечера")
+        assert len(result) >= 1
+        assert result[0].hour == 17
+        assert result[0].is_tomorrow is True
+
+    def test_parse_russian_with_tz_hint(self) -> None:
+        """Russian time with timezone hint should extract both."""
+        result = parse_times("в 10 MSK")  # Moscow time
+        assert len(result) >= 1
+        assert result[0].hour == 10
+        # MSK hint would need to be added to TIMEZONE_ABBREVIATIONS
+
+    # --- Negative cases ---
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "в магазине",  # "in the store" - not time
+            "в команде 10 человек",  # "10 people in the team" - not time
+            "встреча была отличной",  # no time
+        ],
+    )
+    def test_parse_russian_negative(self, text: str) -> None:
+        """Russian text without time should return empty."""
+        result = parse_times(text)
+        assert result == [], f"Should NOT parse time from: {text}"

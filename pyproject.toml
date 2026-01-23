@@ -30,6 +30,7 @@ ignore = [
     "B008",   # do not perform function calls in argument defaults
     "B904",   # raise without from inside except
     "ARG001", # unused function argument (common in handlers)
+    "RUF001", # ambiguous characters (Cyrillic for Russian language support)
 ]
 
 [tool.ruff.lint.isort]

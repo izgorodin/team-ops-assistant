@@ -101,6 +101,19 @@ PATTERNS = {
         r"\b(" + "|".join(re.escape(k) for k in CITY_TIMEZONES) + r")\b",
         re.IGNORECASE,
     ),
+    # --- Russian patterns ---
+    # "в 5 утра", "в 7 вечера", "в 3 дня", "в 2 ночи" - hour with time of day
+    "ru_time_of_day": re.compile(
+        r"\bв\s+(\d{1,2})\s*(утра|вечера|дня|ночи)\b", re.IGNORECASE
+    ),
+    # "в 10-30", "в 14-45" - Russian format with dash
+    "ru_v_hh_mm": re.compile(r"\bв\s+(\d{1,2})-(\d{2})\b"),
+    # "в 10", "в 15" - Russian "at X" (hour only)
+    "ru_v_h": re.compile(r"\bв\s+(\d{1,2})\b"),
+    # "завтра" - tomorrow in Russian
+    "ru_tomorrow": re.compile(r"\bзавтра\b", re.IGNORECASE),
+    # "сегодня" - today in Russian
+    "ru_today": re.compile(r"\bсегодня\b", re.IGNORECASE),
 }
 
 
@@ -125,8 +138,10 @@ def parse_times(text: str) -> list[ParsedTime]:
     text_lower = text.lower()
     conf = _get_confidence_config()
 
-    # Check for tomorrow prefix
-    is_tomorrow = bool(PATTERNS["tomorrow"].search(text))
+    # Check for tomorrow prefix (English and Russian)
+    is_tomorrow = bool(
+        PATTERNS["tomorrow"].search(text) or PATTERNS["ru_tomorrow"].search(text)
+    )
 
     # Extract timezone/city hints
     tz_hint: str | None = None
@@ -289,7 +304,90 @@ def parse_times(text: str) -> list[ParsedTime]:
                 )
         matched_positions.add(match.start())
 
-    # 7. Parse "at H" format (lower confidence since ambiguous)
+    # 7. Parse Russian "в X утра/вечера/дня/ночи" format (time of day)
+    # Examples: в 5 утра, в 7 вечера, в 3 дня, в 2 ночи
+    for match in PATTERNS["ru_time_of_day"].finditer(text):
+        if match.start() in matched_positions:
+            continue
+
+        hour = int(match.group(1))
+        time_of_day = match.group(2).lower()
+
+        # Convert to 24-hour based on time of day
+        if time_of_day == "утра":
+            # Morning: keep as-is (1-11), 12 утра = 0
+            if hour == 12:
+                hour = 0
+        elif time_of_day == "ночи":
+            # Night: 1-4 ночи stays as-is, 12 ночи = 0
+            if hour == 12:
+                hour = 0
+        elif time_of_day == "дня":
+            # Afternoon: 12 дня = 12, 1-5 дня = +12
+            if hour != 12 and hour < 6:
+                hour += 12
+        elif time_of_day == "вечера" and hour != 12:
+            # Evening: 5-11 вечера = +12 (if < 12)
+            hour += 12
+
+        if 0 <= hour <= 23:
+            results.append(
+                ParsedTime(
+                    original_text=match.group(0),
+                    hour=hour,
+                    minute=0,
+                    timezone_hint=tz_hint,
+                    is_tomorrow=is_tomorrow,
+                    confidence=conf["h_ampm"],  # Same confidence as H am/pm
+                )
+            )
+            matched_positions.add(match.start())
+
+    # 8. Parse Russian "в X-XX" format (hour-minute with dash)
+    # Examples: в 10-30, в 14-45
+    for match in PATTERNS["ru_v_hh_mm"].finditer(text):
+        if match.start() in matched_positions:
+            continue
+
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            results.append(
+                ParsedTime(
+                    original_text=match.group(0),
+                    hour=hour,
+                    minute=minute,
+                    timezone_hint=tz_hint,
+                    is_tomorrow=is_tomorrow,
+                    confidence=conf["plain_hhmm"],
+                )
+            )
+            matched_positions.add(match.start())
+
+    # 9. Parse Russian "в X" format (hour only)
+    # Examples: в 10, в 15
+    # Lower priority - only if no time_of_day match at same position
+    if not results:  # Only if no other times found
+        for match in PATTERNS["ru_v_h"].finditer(text):
+            if match.start() in matched_positions:
+                continue
+
+            hour = int(match.group(1))
+            if 0 <= hour <= 23:
+                results.append(
+                    ParsedTime(
+                        original_text=match.group(0),
+                        hour=hour,
+                        minute=0,
+                        timezone_hint=tz_hint,
+                        is_tomorrow=is_tomorrow,
+                        confidence=conf["at_h"],  # Same confidence as "at H"
+                    )
+                )
+                matched_positions.add(match.start())
+
+    # 10. Parse English "at H" format (lower confidence since ambiguous)
     if not results:  # Only if no other times found
         for match in PATTERNS["at_h"].finditer(text):
             hour = int(match.group(1))
