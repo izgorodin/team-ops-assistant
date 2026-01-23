@@ -119,7 +119,17 @@ llm:
   extraction:
     max_tokens: 500
     temperature: 0.1
-    timeout: 30.0  # Increased for NVIDIA API cold starts
+    timeout: 9.0  # HTTP timeout < sync_bridge to let inner timeout trigger first
+  # Sync bridge wraps async LLM calls - outer timeout for total latency control
+  sync_bridge_timeout: 10.0  # Total < 30s Telegram webhook limit
+  # Circuit breaker for API resilience
+  circuit_breaker:
+    # Open circuit after N consecutive failures
+    failure_threshold: 3
+    # Try again after this many seconds
+    reset_timeout_seconds: 60.0
+    # Enable/disable circuit breaker
+    enabled: true
 
 # HTTP client timeouts (seconds)
 http:

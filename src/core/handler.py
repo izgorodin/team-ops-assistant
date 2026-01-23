@@ -146,7 +146,7 @@ class MessageHandler:
             "🌍 I noticed you mentioned a time! To convert it for the team, "
             "I need to know your timezone.\n\n"
             f"<b>Set your timezone once:</b>\n"
-            f"• <a href=\"{verify_url}\">Verify TZ</a> - auto-detects from browser\n"
+            f'• <a href="{verify_url}">Verify TZ</a> - auto-detects from browser\n'
             f"• Or pick a city: {city_list}\n\n"
             "<i>Reply with your city name and I'll remember it!</i>"
         )

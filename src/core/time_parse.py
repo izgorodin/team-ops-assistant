@@ -103,9 +103,7 @@ PATTERNS = {
     ),
     # --- Russian patterns ---
     # "в 5 утра", "в 7 вечера", "в 3 дня", "в 2 ночи" - hour with time of day
-    "ru_time_of_day": re.compile(
-        r"\bв\s+(\d{1,2})\s*(утра|вечера|дня|ночи)\b", re.IGNORECASE
-    ),
+    "ru_time_of_day": re.compile(r"\bв\s+(\d{1,2})\s*(утра|вечера|дня|ночи)\b", re.IGNORECASE),
     # "в 10-30", "в 14-45" - Russian format with dash
     "ru_v_hh_mm": re.compile(r"\bв\s+(\d{1,2})-(\d{2})\b"),
     # "в 10", "в 15" - Russian "at X" (hour only)
@@ -139,9 +137,7 @@ def parse_times(text: str) -> list[ParsedTime]:
     conf = _get_confidence_config()
 
     # Check for tomorrow prefix (English and Russian)
-    is_tomorrow = bool(
-        PATTERNS["tomorrow"].search(text) or PATTERNS["ru_tomorrow"].search(text)
-    )
+    is_tomorrow = bool(PATTERNS["tomorrow"].search(text) or PATTERNS["ru_tomorrow"].search(text))
 
     # Extract timezone/city hints
     tz_hint: str | None = None
@@ -438,9 +434,12 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
             # Already in async context - need thread pool
             import concurrent.futures
 
+            from src.settings import get_settings
+
+            timeout = get_settings().config.llm.sync_bridge_timeout
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(asyncio.run, extract_times_with_llm(text, tz_hint))
-                return future.result(timeout=15.0)
+                return future.result(timeout=timeout)
         else:
             # No event loop - safe to use asyncio.run
             return asyncio.run(extract_times_with_llm(text, tz_hint))
