@@ -57,8 +57,8 @@ def create_app() -> Quart:
         await storage.connect()
 
         # Store handler in app context
-        base_url = f"http://{settings.app_host}:{settings.app_port}"
-        app.message_handler = MessageHandler(storage, base_url)  # type: ignore[attr-defined]
+        # Use APP_BASE_URL for public-facing verification links
+        app.message_handler = MessageHandler(storage, settings.app_base_url)  # type: ignore[attr-defined]
 
         logger.info("Application started successfully")
 

@@ -41,14 +41,15 @@ def get_effective_confidence(state: UserTzState, config: ConfidenceConfig) -> fl
     if updated_at.tzinfo is None:
         updated_at = updated_at.replace(tzinfo=UTC)
 
-    delta = now - updated_at
-    days = delta.days + (delta.seconds / 86400)  # Include partial days
+    # Use total_seconds for precision, clamp to >= 0 (handles clock skew)
+    delta_seconds = max(0.0, (now - updated_at).total_seconds())
+    days = delta_seconds / 86400
 
     # Apply decay
     decayed = state.confidence - (config.decay_per_day * days)
 
-    # Floor at 0.0
-    return max(decayed, 0.0)
+    # Clamp to [0.0, state.confidence] - never exceed stored or go negative
+    return max(0.0, min(state.confidence, decayed))
 
 
 class TimezoneIdentityManager:

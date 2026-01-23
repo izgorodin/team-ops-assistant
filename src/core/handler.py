@@ -206,7 +206,8 @@ class MessageHandler:
 
         # Only check short messages (city names are short)
         # This avoids matching "London" in "Meeting at 3pm in London"
-        if len(text) > 50 or " " in text.strip():
+        # Allow spaces for multi-word cities like "New York", "Los Angeles"
+        if len(text) > 50:
             return None
 
         # Try to match a city

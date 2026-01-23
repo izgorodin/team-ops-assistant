@@ -40,7 +40,8 @@ def test_fresh_state_has_full_confidence() -> None:
 
     effective = get_effective_confidence(state, config)
 
-    assert effective == 1.0
+    # Allow tiny floating point difference from test execution time
+    assert effective == pytest.approx(1.0, abs=0.001)
 
 
 def test_confidence_decays_after_one_day() -> None:
@@ -241,3 +242,25 @@ async def test_fresh_state_does_not_prompt_verification() -> None:
     )
 
     assert manager.should_prompt_verification(fresh_state) is False
+
+
+def test_future_timestamp_clamps_to_stored_confidence() -> None:
+    """Clock skew (future updated_at) should clamp to stored confidence, not exceed it."""
+    from src.core.timezone_identity import get_effective_confidence
+
+    config = ConfidenceConfig(decay_per_day=0.01, threshold=0.7)
+    state = UserTzState(
+        platform=Platform.TELEGRAM,
+        user_id="123",
+        tz_iana="Europe/London",
+        confidence=0.9,
+        source=TimezoneSource.WEB_VERIFIED,
+        # Future timestamp (clock skew)
+        updated_at=datetime.now(UTC) + timedelta(days=10),
+    )
+
+    effective = get_effective_confidence(state, config)
+
+    # Should never exceed stored confidence
+    assert effective <= state.confidence
+    assert effective == 0.9  # Clamped to stored value

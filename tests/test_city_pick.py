@@ -346,3 +346,32 @@ async def test_city_pick_response_includes_timezone() -> None:
     # Response should mention Berlin or Europe/Berlin
     response_text = result.messages[0].text
     assert "Berlin" in response_text or "Europe/Berlin" in response_text
+
+
+@pytest.mark.asyncio
+async def test_handle_multiword_city_detected() -> None:
+    """Multi-word cities like 'New York' should be detected via handle()."""
+    from src.core.handler import MessageHandler
+
+    storage = MagicMock()
+    storage.check_dedupe_event = AsyncMock(return_value=False)
+    storage.upsert_dedupe_event = AsyncMock()
+    storage.upsert_user_tz_state = AsyncMock()
+
+    handler = MessageHandler(storage)
+
+    event = NormalizedEvent(
+        platform=Platform.TELEGRAM,
+        event_id="evt123",
+        chat_id="chat456",
+        user_id="user789",
+        text="New York",  # Multi-word city
+    )
+
+    result = await handler.handle(event)
+
+    # Should respond with confirmation
+    assert result.should_respond is True
+    assert len(result.messages) == 1
+    response_text = result.messages[0].text
+    assert "New York" in response_text or "America/New_York" in response_text
