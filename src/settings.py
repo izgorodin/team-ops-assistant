@@ -117,6 +117,14 @@ class LLMOperationConfig(BaseModel):
     timeout: float = 10.0
 
 
+class CircuitBreakerConfig(BaseModel):
+    """Circuit breaker configuration for LLM API calls."""
+
+    failure_threshold: int = 3  # Open after N consecutive failures
+    reset_timeout_seconds: float = 60.0  # Try again after this period
+    enabled: bool = True
+
+
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
@@ -127,6 +135,7 @@ class LLMConfig(BaseModel):
     extraction: LLMOperationConfig = Field(
         default_factory=lambda: LLMOperationConfig(max_tokens=500, timeout=15.0)
     )
+    circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
 
 
 class HttpTimeoutsConfig(BaseModel):

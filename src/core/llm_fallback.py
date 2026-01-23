@@ -8,15 +8,89 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 from jinja2 import Template
 
 from src.core.models import ParsedTime
 
+if TYPE_CHECKING:
+    from src.settings import CircuitBreakerConfig
+
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Circuit Breaker for API Resilience
+# ============================================================================
+
+
+class LLMCircuitBreaker:
+    """Circuit breaker to prevent cascading failures when LLM API is down.
+
+    States:
+    - CLOSED: Normal operation, requests go through
+    - OPEN: After N failures, skip LLM calls for reset_timeout_seconds
+    """
+
+    def __init__(self, config: CircuitBreakerConfig) -> None:
+        """Initialize circuit breaker with configuration."""
+        self.config = config
+        self._failures = 0
+        self._last_failure_time = 0.0
+
+    def is_open(self) -> bool:
+        """Check if circuit is open (should skip LLM calls).
+
+        Returns:
+            True if circuit is open (skip LLM), False if closed (allow LLM).
+        """
+        if not self.config.enabled:
+            return False
+
+        if self._failures >= self.config.failure_threshold:
+            # Check if reset timeout has passed
+            elapsed = time.time() - self._last_failure_time
+            if elapsed >= self.config.reset_timeout_seconds:
+                # Reset after timeout - allow one retry
+                self._failures = 0
+                return False
+            return True
+
+        return False
+
+    def record_failure(self) -> None:
+        """Record an API failure."""
+        self._failures += 1
+        self._last_failure_time = time.time()
+        logger.warning(f"LLM circuit breaker: failure #{self._failures}")
+
+    def record_success(self) -> None:
+        """Record a successful API call, resetting failure count."""
+        if self._failures > 0:
+            logger.info("LLM circuit breaker: success, resetting failure count")
+        self._failures = 0
+
+
+# Global circuit breaker instance (lazy loaded)
+_circuit_breaker: LLMCircuitBreaker | None = None
+
+
+def get_circuit_breaker() -> LLMCircuitBreaker:
+    """Get global circuit breaker instance."""
+    global _circuit_breaker
+
+    if _circuit_breaker is None:
+        from src.settings import get_settings
+
+        config = get_settings().config.llm.circuit_breaker
+        _circuit_breaker = LLMCircuitBreaker(config)
+
+    return _circuit_breaker
 
 # Load prompt templates
 DETECT_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "trigger_detect.md"
@@ -164,6 +238,12 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
 
     settings = get_settings()
 
+    # Check circuit breaker first
+    cb = get_circuit_breaker()
+    if cb.is_open():
+        logger.warning("LLM circuit breaker is open, skipping extraction")
+        return []
+
     api_key = settings.nvidia_api_key
     if not api_key:
         logger.warning("NVIDIA_API_KEY not set, cannot extract times")
@@ -200,17 +280,23 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
         content = data["choices"][0]["message"]["content"]
         times = _parse_extraction_response(content)
 
+        # Record success
+        cb.record_success()
+
         logger.debug(f"LLM extraction: '{text[:50]}...' -> {len(times)} times")
         return times
 
     except httpx.HTTPStatusError as e:
         logger.error(f"LLM API error: {e.response.status_code}")
+        cb.record_failure()
         return []
     except httpx.TimeoutException:
         logger.error("LLM API timeout")
+        cb.record_failure()
         return []
     except Exception as e:
         logger.error(f"LLM extraction error: {e}")
+        cb.record_failure()
         return []
 
 

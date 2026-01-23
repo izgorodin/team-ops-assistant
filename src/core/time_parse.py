@@ -440,7 +440,8 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(asyncio.run, extract_times_with_llm(text, tz_hint))
-                return future.result(timeout=15.0)
+                # 10s timeout ensures total < 30s Telegram webhook limit
+                return future.result(timeout=10.0)
         else:
             # No event loop - safe to use asyncio.run
             return asyncio.run(extract_times_with_llm(text, tz_hint))
