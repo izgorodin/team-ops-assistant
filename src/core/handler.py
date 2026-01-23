@@ -71,6 +71,11 @@ class MessageHandler:
             logger.debug(f"Throttled chat: {event.chat_id}")
             return HandlerResult(should_respond=False)
 
+        # 2.5. Check if message is a city pick reply (before time detection)
+        city_result = await self._try_city_pick(event)
+        if city_result is not None:
+            return city_result
+
         # 3. Check if message contains time reference
         if not contains_time_reference(event.text):
             return HandlerResult(should_respond=False)
@@ -184,6 +189,49 @@ class MessageHandler:
 
         # Fall back to team defaults
         return self.settings.config.timezone.team_timezones
+
+    async def _try_city_pick(self, event: NormalizedEvent) -> HandlerResult | None:
+        """Try to process the message as a city pick.
+
+        Checks if the message text matches a configured city name.
+        Only matches short messages that are just a city name.
+
+        Args:
+            event: The normalized event.
+
+        Returns:
+            HandlerResult if city was matched and processed, None otherwise.
+        """
+        text = event.text.strip()
+
+        # Only check short messages (city names are short)
+        # This avoids matching "London" in "Meeting at 3pm in London"
+        if len(text) > 50 or " " in text.strip():
+            return None
+
+        # Try to match a city
+        tz = await self.handle_city_pick(event.platform, event.user_id, text)
+
+        if tz is None:
+            return None
+
+        # City matched - respond with confirmation
+        # Find the city name for display
+        city_name = text  # Default to what user typed
+        for city in self.settings.config.timezone.team_cities:
+            if city.name.lower() == text.lower():
+                city_name = city.name
+                break
+
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=f"✅ Got it! Your timezone is set to <b>{city_name}</b> ({tz}).\n\n"
+            "I'll now convert times you mention to your team's timezones.",
+            parse_mode="html",
+        )
+
+        return HandlerResult(should_respond=True, messages=[message])
 
     async def handle_city_pick(
         self, platform: Platform, user_id: str, city_name: str

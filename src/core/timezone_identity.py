@@ -8,14 +8,47 @@ from __future__ import annotations
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from src.core.models import Platform, TimezoneSource, UserTzState, VerifyToken
-from src.settings import get_settings
+from src.settings import ConfidenceConfig, get_settings
 
 if TYPE_CHECKING:
     from src.storage.mongo import MongoStorage
+
+
+def get_effective_confidence(state: UserTzState, config: ConfidenceConfig) -> float:
+    """Calculate effective confidence with time decay.
+
+    Confidence decays over time since the state was last updated.
+    This encourages periodic re-verification of stale data.
+
+    Args:
+        state: User timezone state with stored confidence and updated_at.
+        config: Confidence configuration with decay_per_day.
+
+    Returns:
+        Effective confidence after applying decay. Always >= 0.0.
+    """
+    if config.decay_per_day <= 0:
+        return state.confidence
+
+    # Calculate days since last update
+    now = datetime.now(UTC)
+    # Handle naive datetime from state (utcnow() returns naive)
+    updated_at = state.updated_at
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=UTC)
+
+    delta = now - updated_at
+    days = delta.days + (delta.seconds / 86400)  # Include partial days
+
+    # Apply decay
+    decayed = state.confidence - (config.decay_per_day * days)
+
+    # Floor at 0.0
+    return max(decayed, 0.0)
 
 
 class TimezoneIdentityManager:
@@ -53,9 +86,11 @@ class TimezoneIdentityManager:
 
         Policy order:
         1. Explicit timezone from message
-        2. User's verified timezone (if confidence >= threshold)
+        2. User's verified timezone (if effective confidence >= threshold)
         3. Chat default timezone
         4. None (caller should ask user to verify)
+
+        Note: Effective confidence applies time decay to stored confidence.
 
         Args:
             platform: User's platform.
@@ -72,10 +107,12 @@ class TimezoneIdentityManager:
         if explicit_tz:
             return explicit_tz, 1.0
 
-        # 2. User's verified timezone
+        # 2. User's verified timezone (with decay)
         user_state = await self.get_user_timezone(platform, user_id)
-        if user_state and user_state.tz_iana and user_state.confidence >= config.threshold:
-            return user_state.tz_iana, user_state.confidence
+        if user_state and user_state.tz_iana:
+            effective_conf = get_effective_confidence(user_state, config)
+            if effective_conf >= config.threshold:
+                return user_state.tz_iana, effective_conf
 
         # 3. Chat default timezone
         chat_state = await self.storage.get_chat_state(platform, chat_id)
@@ -137,6 +174,8 @@ class TimezoneIdentityManager:
     def should_prompt_verification(self, user_state: UserTzState | None) -> bool:
         """Check if we should prompt the user to verify their timezone.
 
+        Uses effective (decayed) confidence to account for stale data.
+
         Args:
             user_state: Current user timezone state.
 
@@ -150,7 +189,8 @@ class TimezoneIdentityManager:
             return True
 
         config = self.settings.config.confidence
-        return user_state.confidence < config.threshold
+        effective_conf = get_effective_confidence(user_state, config)
+        return effective_conf < config.threshold
 
 
 def generate_verify_token(

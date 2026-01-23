@@ -44,15 +44,15 @@ confidence:
   threshold: 0.7
   # Confidence assigned when user verifies via web flow
   verified: 1.0
-  # Confidence assigned when user picks a city
-  city_pick: 0.85
+  # Confidence assigned when user picks a city (explicit user action = 1.0)
+  city_pick: 1.0
   # Confidence from explicit timezone in message (e.g., "3pm PST")
   message_explicit: 0.9
   # Confidence from inferred patterns
   inferred: 0.6
   # Confidence for chat default timezone
   chat_default: 0.5
-  # Confidence decay per day of inactivity (not used in MVP)
+  # Confidence decay per day (1.0 → 0.7 after 30 days)
   decay_per_day: 0.01
 
 # Time parsing confidence by pattern type
