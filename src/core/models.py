@@ -7,9 +7,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
+
+# Generic type for StateResult
+T = TypeVar("T")
 
 
 class Platform(str, Enum):
@@ -141,3 +144,60 @@ class VerifyToken(BaseModel, frozen=True):
     chat_id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
+
+
+# ============================================================================
+# Extensible Architecture Models
+# ============================================================================
+
+
+class DetectedTrigger(BaseModel, frozen=True):
+    """A trigger detected in the message.
+
+    Generic container for any type of trigger (time, date, question, etc.).
+    """
+
+    trigger_type: str = Field(description="Type of trigger detected (e.g., 'time', 'date')")
+    confidence: float = Field(ge=0.0, le=1.0, description="Detection confidence")
+    data: dict[str, Any] = Field(
+        default_factory=dict, description="Trigger-specific data (varies by type)"
+    )
+    original_text: str = Field(default="", description="Original text that triggered detection")
+
+
+class StateResult(BaseModel, Generic[T]):
+    """Result from a StateManager.get_state() call.
+
+    Generic container for state with confidence and source information.
+    """
+
+    value: T | None = Field(description="The state value, or None if unknown")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence in this value")
+    source: str = Field(default="unknown", description="Where this value came from")
+
+
+class ResolvedContext(BaseModel, frozen=True):
+    """Context resolved for handling a trigger.
+
+    Contains all information needed by ActionHandlers to process a trigger.
+    """
+
+    platform: Platform
+    chat_id: str
+    user_id: str
+    source_timezone: str | None = Field(
+        default=None, description="User's timezone for the time reference"
+    )
+    target_timezones: list[str] = Field(
+        default_factory=list, description="Timezones to convert to"
+    )
+    reply_to_message_id: str | None = None
+
+
+class PipelineResult(BaseModel):
+    """Result from Pipeline.process() call."""
+
+    messages: list[OutboundMessage] = Field(default_factory=list)
+    triggers_detected: int = Field(default=0)
+    triggers_handled: int = Field(default=0)
+    errors: list[str] = Field(default_factory=list)

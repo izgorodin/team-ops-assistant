@@ -46,8 +46,32 @@ confidence:
   verified: 1.0
   # Confidence assigned when user picks a city
   city_pick: 0.85
+  # Confidence from explicit timezone in message (e.g., "3pm PST")
+  message_explicit: 0.9
+  # Confidence from inferred patterns
+  inferred: 0.6
+  # Confidence for chat default timezone
+  chat_default: 0.5
   # Confidence decay per day of inactivity (not used in MVP)
   decay_per_day: 0.01
+
+# Time parsing confidence by pattern type
+time_parsing:
+  confidence:
+    # "3:30 PM", "14:30 AM" - most explicit
+    hhmm_ampm: 0.95
+    # "15h30" - European format
+    european_hhmm: 0.9
+    # "1500" - military time
+    military: 0.9
+    # "15:30" - plain HH:MM
+    plain_hhmm: 0.95
+    # "3pm", "3 PM" - hour with am/pm
+    h_ampm: 0.9
+    # "5-7pm" - range format
+    range: 0.85
+    # "at 3" - most ambiguous
+    at_h: 0.7
   
 # Deduplication settings  
 dedupe:
@@ -62,10 +86,21 @@ classifier:
   # p > high_threshold → confident YES (skip to extraction)
   # p < low_threshold → confident NO (skip message)
   # low ≤ p ≤ high → uncertain → LLM fallback
-  # Trade-off: narrow zone = more errors, wide zone = more LLM calls
-  # 0.40/0.60 gives ~25% uncertain but minimal false pos/neg
   low_threshold: 0.40
   high_threshold: 0.60
+  # Text longer than this will be split into windows
+  long_text_threshold: 100
+  # Context window size for long text analysis
+  window_size: 5
+  # TF-IDF vectorizer parameters
+  tfidf:
+    ngram_range: [1, 3]
+    min_df: 2
+    max_df: 0.95
+  # Logistic regression parameters
+  logistic_regression:
+    max_iter: 1000
+    random_state: 42
   
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
@@ -75,10 +110,30 @@ llm:
   base_url: "https://integrate.api.nvidia.com/v1"
   # Use LLM only as fallback when rules-based parsing fails
   fallback_only: true
-  # Maximum tokens in response
-  max_tokens: 150
-  # Temperature for generation (low for deterministic)
-  temperature: 0.1
+  # Detection-specific settings (Layer 1 fallback)
+  detection:
+    max_tokens: 150
+    temperature: 0.1
+    timeout: 10.0
+  # Extraction-specific settings (Layer 2 fallback)
+  extraction:
+    max_tokens: 500
+    temperature: 0.1
+    timeout: 15.0
+
+# HTTP client timeouts (seconds)
+http:
+  timeouts:
+    telegram_api: 30.0
+    discord_api: 30.0
+    whatsapp_api: 30.0
+
+# UI settings
+ui:
+  # Maximum cities shown in city picker
+  max_cities_shown: 4
+  # Verification token validity (hours)
+  verification_token_hours: 24
 
 # Logging
 logging:
