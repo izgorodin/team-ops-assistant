@@ -119,7 +119,7 @@ llm:
   extraction:
     max_tokens: 500
     temperature: 0.1
-    timeout: 15.0
+    timeout: 30.0  # Increased for NVIDIA API cold starts
 
 # HTTP client timeouts (seconds)
 http:
