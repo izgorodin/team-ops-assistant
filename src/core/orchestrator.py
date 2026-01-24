@@ -9,7 +9,7 @@ The orchestrator is the main entry point for message processing:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -157,9 +157,9 @@ class MessageOrchestrator:
                 "attempts": 0,
                 "history": [],
             },
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(minutes=30),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(minutes=30),
         )
         await self.storage.create_session(session)
         logger.info(f"Created timezone session {session.session_id} for user {event.user_id}")
