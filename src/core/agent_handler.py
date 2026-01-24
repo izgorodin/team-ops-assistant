@@ -41,43 +41,30 @@ Tools available:
 - lookup_configured_city: Check team's configured cities (try first)
 - lookup_tz_abbreviation: Check timezone codes (PT, PST, EST, CET, MSK)
 - geocode_city: Look up any city worldwide (supports abbreviations: NY, LA, MSK, СПб)
-- save_timezone: Save the resolved timezone
+- save_timezone: ALWAYS call this when done (for both new cities AND confirmations)
 
-CONFIRMATION DETECTION:
-If user is confirming their current timezone (words like "да", "yes", "конечно", "верно",
-"точно", "ага", "sure", "yep", "ok", "правильно", "именно", etc.), respond ONLY with:
-CONFIRM:yes
+IMPORTANT: ALWAYS call save_timezone when the user is done:
+- For NEW CITY: look it up → call save_timezone with the resolved IANA timezone
+- For CONFIRMATION: call save_timezone with their CURRENT timezone (from context)
 
-Do NOT use any tools for confirmations - just output "CONFIRM:yes"
-
-Process for NEW CITY:
-1. Try lookup_configured_city first
-2. If not found, try lookup_tz_abbreviation for codes
-3. If still not found, try geocode_city (handles NY, LA, MSK, спб, etc.)
-4. When FOUND, call save_timezone AND report to user what you found
-5. If NOT_FOUND from all tools, ask user to try a different spelling
+Process:
+1. If user provides a city name → look it up → call save_timezone
+2. If user confirms (да, yes, конечно, верно, точно, ага, sure, ok, yep, правильно, именно, ладно, хорошо)
+   → call save_timezone with CURRENT_TZ from context
+3. If lookup fails → ask user to try different spelling
 
 CRITICAL RULES:
-- When timezone is resolved, ALWAYS tell user: "Определили {city} ({timezone}). \
-Если неверно - напиши город точнее."
-- NEVER invent/hallucinate a timezone if all lookups return NOT_FOUND
-- If NOT_FOUND, ask user to try different spelling - do NOT guess
+- ALWAYS call save_timezone with IANA timezone when done
 - Be concise - one sentence responses
 - Respond in the same language as the user
-
-OUTPUT FORMAT:
-- Output ONLY the user-facing message
-- NEVER include notes, assumptions, or explanations about function outputs
-- NEVER start with "(Note:", "(assuming", "Based on the description"
-- Just output the clean message for the user
+- NEVER invent/hallucinate a timezone if lookup fails
+- If NOT_FOUND, ask user to try different spelling
 
 Examples:
-- User: "NY" → geocode_city("NY") → FOUND → save_timezone → "Определили New York (ET). \
-Если неверно - напиши город точнее."
-- User: "xyz" → all NOT_FOUND → "Не нашёл 'xyz'. Напиши город точнее \
-(например: Moscow, London, NY)"
-- User: "конечно" → "CONFIRM:yes"
-- User: "да, всё верно" → "CONFIRM:yes"
+- User: "NY" → geocode_city("NY") → FOUND → save_timezone("America/New_York")
+- User: "да" (CURRENT_TZ: Europe/Moscow) → save_timezone("Europe/Moscow")
+- User: "конечно" (CURRENT_TZ: Europe/London) → save_timezone("Europe/London")
+- User: "xyz" → lookup fails → "Не нашёл 'xyz'. Напиши город точнее"
 """
 
 
@@ -151,6 +138,9 @@ class AgentHandler:
     ) -> HandlerResult:
         """Handle a timezone resolution session.
 
+        All logic is delegated to the LLM agent - no hardcoded checks.
+        Agent decides if user confirmed or provided a new city.
+
         Args:
             session: Active timezone session.
             event: User's response message.
@@ -158,43 +148,35 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation or clarification.
         """
-        # Quick confirmation for obvious single-char/word cases (skip LLM call)
+        # Get current timezone for re-verify context
+        current_tz = None
         if session.goal == SessionGoal.REVERIFY_TIMEZONE:
-            text_lower = event.text.strip().lower()
-            # Only most obvious cases - LLM handles the rest (конечно, sure, etc.)
-            if text_lower in ("+", "y", "да", "yes"):
-                return await self._confirm_existing_timezone(session, event)
+            user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
+            current_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
 
-        # Build conversation history
-        messages = self._build_messages(session, event.text)
+        # Build conversation history with context
+        messages = self._build_messages(session, event.text, current_tz)
 
         try:
             # Run the agent
             result = await self.agent.ainvoke({"messages": messages})
 
-            # Extract the final response
+            # Extract messages
             agent_messages = result.get("messages", [])
             if not agent_messages:
                 return await self._handle_agent_error(session, "No response from agent")
 
-            # Find the last AI message
+            # Check ALL messages for SAVE: (including tool responses)
+            saved_tz = self._extract_saved_timezone(agent_messages)
+            if saved_tz:
+                return await self._complete_session(session, event, saved_tz)
+
+            # Find the last AI message for user response
             response_text = ""
             for msg in reversed(agent_messages):
                 if isinstance(msg, AIMessage) and msg.content:
                     response_text = _sanitize_response(str(msg.content))
                     break
-
-            # Check if agent detected a confirmation (for re-verify sessions)
-            if "CONFIRM:" in response_text:
-                return await self._confirm_existing_timezone(session, event)
-
-            # Check if agent saved the timezone
-            if "SAVE:" in response_text:
-                tz_iana = response_text.split("SAVE:")[1].strip()
-                # Clean up any extra text after the timezone
-                if " " in tz_iana:
-                    tz_iana = tz_iana.split()[0]
-                return await self._complete_session(session, event, tz_iana)
 
             # Agent is asking for clarification
             return await self._continue_session(session, event, response_text)
@@ -203,17 +185,50 @@ class AgentHandler:
             logger.exception(f"Agent error: {e}")
             return await self._handle_agent_error(session, str(e))
 
-    def _build_messages(self, session: Session, user_text: str) -> list[BaseMessage]:
+    def _extract_saved_timezone(self, messages: list) -> str | None:
+        """Extract saved timezone from agent messages.
+
+        Checks all messages (including tool responses) for SAVE: pattern.
+
+        Args:
+            messages: List of agent messages.
+
+        Returns:
+            IANA timezone if found, None otherwise.
+        """
+        for msg in messages:
+            content = str(msg.content) if hasattr(msg, "content") else str(msg)
+            if "SAVE:" in content:
+                # Extract timezone after SAVE:
+                tz_part = content.split("SAVE:")[1].strip()
+                # Clean up any extra text
+                if " " in tz_part:
+                    tz_part = tz_part.split()[0]
+                if "\n" in tz_part:
+                    tz_part = tz_part.split("\n")[0]
+                return tz_part
+        return None
+
+    def _build_messages(
+        self, session: Session, user_text: str, current_tz: str | None = None
+    ) -> list[BaseMessage]:
         """Build message history for the agent.
 
         Args:
             session: Current session with history.
             user_text: User's current message.
+            current_tz: User's current timezone (for re-verify sessions).
 
         Returns:
             List of LangChain messages.
         """
-        messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
+        # Build system prompt with context
+        system_content = SYSTEM_PROMPT
+        if current_tz:
+            # Add context about current timezone for confirmations
+            system_content += f"\n\nCONTEXT: CURRENT_TZ={current_tz}"
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_content)]
 
         # Add conversation history from session
         history = session.context.get("history", [])
@@ -267,46 +282,6 @@ class AgentHandler:
             chat_id=event.chat_id,
             text=text,
             parse_mode="html",
-        )
-
-        return HandlerResult(should_respond=True, messages=[message])
-
-    async def _confirm_existing_timezone(
-        self, session: Session, event: NormalizedEvent
-    ) -> HandlerResult:
-        """Confirm existing timezone and refresh confidence.
-
-        Called when user confirms their timezone is still correct during re-verification.
-
-        Args:
-            session: Current re-verify session.
-            event: User's confirmation message.
-
-        Returns:
-            HandlerResult with confirmation message.
-        """
-        # Always get CURRENT timezone from storage (not session context)
-        # This handles the case where user entered a new city before confirming
-        user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
-        existing_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
-
-        if existing_tz:
-            # Refresh confidence to 1.0 by re-saving with WEB_VERIFIED source
-            await self.tz_manager.update_user_timezone(
-                platform=event.platform,
-                user_id=event.user_id,
-                tz_iana=existing_tz,
-                source=TimezoneSource.WEB_VERIFIED,  # Refresh confidence to 1.0
-            )
-
-        # Close the session
-        await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
-
-        message = OutboundMessage(
-            platform=event.platform,
-            chat_id=event.chat_id,
-            text=f"👍 Окей, оставляю {existing_tz}",
-            parse_mode="plain",
         )
 
         return HandlerResult(should_respond=True, messages=[message])
