@@ -48,6 +48,19 @@ Team Ops Assistant is a multi-platform bot that monitors team chat channels and 
    # Should return: {"status":"ok"}
    ```
 
+### Local Development Limitations
+
+**Important:** `run.sh` starts a local server but **cannot receive webhook messages** from Telegram/Discord/WhatsApp because they require a public URL.
+
+**Local server is useful for:**
+
+- Running tests: `pytest`
+- Health check: `curl localhost:8000/health`
+- API endpoint testing with curl
+
+**For actual bot testing:**
+Deploy to Render (see [RUNBOOK.md](./RUNBOOK.md)). The deploy is fast and gives you real webhook functionality.
+
 ## Project Structure
 
 ```

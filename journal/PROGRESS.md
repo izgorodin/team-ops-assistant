@@ -139,6 +139,33 @@ The minimum viable product is deployed and functional:
 
 ---
 
+## 2026-01-24: Architecture Migration & Repo Cleanup
+
+**Completed (PR #6, PR #7):**
+
+- [x] Pipeline architecture migration (handler.py → pipeline.py)
+- [x] Orchestrator now uses Pipeline instead of MessageHandler
+- [x] Fixed datetime.utcnow() deprecation → datetime.now(UTC)
+- [x] Added architecture-analysis skill for refactoring safety
+- [x] Unified AI agent config files (CLAUDE.md as single source of truth)
+- [x] Cleaned up parent directory (removed stale .git, symlinks)
+- [x] Documented run.sh limitations (webhooks need public URL)
+
+**Documentation Updates:**
+
+- [x] docs/ONBOARDING.md - Added "Local Development Limitations" section
+- [x] run.sh - Added detailed comment header explaining purpose
+- [x] CLAUDE.md - Added note about AI agent config file structure
+- [x] .claude/skills/architecture-analysis/skill.md - NEW skill
+
+**Key Learnings:**
+
+- Behavior inventory BEFORE refactoring prevents lost side effects
+- D1-D7 workflow must be completed for ALL review comments
+- run.sh is useful for local dev (pytest, health checks) but not bot testing
+
+---
+
 ## Future Improvements
 
 1. Extend time parsing patterns (dash, Russian, bare numbers)

@@ -1,6 +1,19 @@
 #!/bin/bash
-# Team Ops Assistant - Run Script
-# Creates virtual environment, installs dependencies, and runs the server
+# Team Ops Assistant - Local Development Server
+#
+# Purpose: Run server locally for development and testing
+#
+# What this script CAN do:
+#   - Set up venv and install dependencies
+#   - Run local server for health checks: curl localhost:8000/health
+#   - Enable local API endpoint testing
+#   - Run tests: source .venv/bin/activate && pytest
+#
+# What this script CANNOT do:
+#   - Receive Telegram/Discord/WhatsApp webhooks (requires public URL)
+#   - End-to-end bot testing
+#
+# For actual bot testing: Deploy to Render (see docs/RUNBOOK.md)
 
 set -e
 
