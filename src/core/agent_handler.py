@@ -267,15 +267,8 @@ class AgentHandler:
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
 
-        # Build success message
-        # Try to find a friendly city name
-        city_name = self._get_city_name_for_tz(tz_iana)
-        if city_name:
-            text = f"✅ Got it! Your timezone is set to <b>{city_name}</b> ({tz_iana})."
-        else:
-            text = f"✅ Got it! Your timezone is set to <b>{tz_iana}</b>."
-
-        text += "\n\nI'll now convert times you mention to your team's timezones."
+        # Build success message (Russian since most users are Russian-speaking)
+        text = f"✅ Сохранено: <b>{tz_iana}</b>"
 
         message = OutboundMessage(
             platform=event.platform,

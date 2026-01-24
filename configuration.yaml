@@ -104,8 +104,8 @@ classifier:
   
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
-  # Fast small model for time detection fallback
-  model: "meta/llama-3.1-8b-instruct"
+  # Large model with proper tool calling support
+  model: "meta/llama-3.1-70b-instruct"
   # NVIDIA API base URL
   base_url: "https://integrate.api.nvidia.com/v1"
   # Use LLM only as fallback when rules-based parsing fails
