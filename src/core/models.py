@@ -32,6 +32,9 @@ class NormalizedEvent(BaseModel, frozen=True):
 
     platform: Platform
     event_id: str = Field(description="Unique event ID for deduplication")
+    message_id: str | None = Field(
+        default=None, description="Platform message ID for reply_to functionality"
+    )
     chat_id: str = Field(description="Chat/channel/group ID")
     user_id: str = Field(description="User/author ID")
     username: str | None = Field(default=None, description="Username if available")

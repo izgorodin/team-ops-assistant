@@ -258,9 +258,7 @@ class AgentHandler:
 
         return HandlerResult(should_respond=True, messages=[message])
 
-    async def _fail_session(
-        self, session: Session, event: NormalizedEvent
-    ) -> HandlerResult:
+    async def _fail_session(self, session: Session, event: NormalizedEvent) -> HandlerResult:
         """Fail the session after too many attempts.
 
         Args:
@@ -296,9 +294,7 @@ class AgentHandler:
 
         return HandlerResult(should_respond=True, messages=[message])
 
-    async def _handle_agent_error(
-        self, session: Session, error: str
-    ) -> HandlerResult:
+    async def _handle_agent_error(self, session: Session, error: str) -> HandlerResult:
         """Handle agent errors gracefully.
 
         Args:

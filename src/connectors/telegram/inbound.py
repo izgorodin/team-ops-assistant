@@ -68,6 +68,7 @@ def normalize_telegram_update(update: dict[str, Any]) -> NormalizedEvent | None:
     return NormalizedEvent(
         platform=Platform.TELEGRAM,
         event_id=event_id,
+        message_id=message_id,
         chat_id=chat_id,
         user_id=user_id,
         username=username,

@@ -97,9 +97,19 @@ class TelegramOutbound:
 
         try:
             response = await client.post(url, json=payload)
-            response.raise_for_status()
 
+            # Always try to parse response for error details
             data = response.json()
+
+            if not response.is_success:
+                error_desc = data.get("description", "Unknown error")
+                logger.error(
+                    f"Telegram API error {response.status_code}: {error_desc} "
+                    f"(payload: chat_id={payload.get('chat_id')}, "
+                    f"reply_to={payload.get('reply_to_message_id')})"
+                )
+                return None
+
             if not data.get("ok"):
                 logger.error(f"Telegram API error: {data}")
                 return None

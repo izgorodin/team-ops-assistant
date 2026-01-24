@@ -169,5 +169,5 @@ class Pipeline:
             user_id=event.user_id,
             source_timezone=source_timezone,
             target_timezones=target_timezones,
-            reply_to_message_id=event.event_id,
+            reply_to_message_id=event.message_id,
         )
