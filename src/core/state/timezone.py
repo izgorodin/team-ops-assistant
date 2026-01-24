@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.models import Platform, StateResult, TimezoneSource
+from src.core.timezone_identity import get_effective_confidence
 from src.settings import get_settings
 
 if TYPE_CHECKING:
@@ -67,14 +68,17 @@ class TimezoneStateManager:
 
         try:
             # Use self.storage to trigger lazy-loading if needed
-            # Try user's verified timezone first
+            # Try user's verified timezone first (with decay applied)
             user_state = await self.storage.get_user_tz_state(platform, user_id)
-            if user_state and user_state.tz_iana and user_state.confidence >= config.threshold:
-                return StateResult[str](
-                    value=user_state.tz_iana,
-                    confidence=user_state.confidence,
-                    source=user_state.source.value,
-                )
+            if user_state and user_state.tz_iana:
+                # Apply confidence decay based on time since last update
+                effective_conf = get_effective_confidence(user_state, config)
+                if effective_conf >= config.threshold:
+                    return StateResult[str](
+                        value=user_state.tz_iana,
+                        confidence=effective_conf,  # Return decayed confidence
+                        source=user_state.source.value,
+                    )
 
             # Try chat default timezone
             chat_state = await self.storage.get_chat_state(platform, chat_id)

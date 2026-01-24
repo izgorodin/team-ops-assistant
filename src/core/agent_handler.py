@@ -34,41 +34,62 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # System prompt for the timezone agent
-SYSTEM_PROMPT = """You are a timezone assistant for a team chat bot.
-Your job is to help users set their timezone so the bot can convert times correctly.
+SYSTEM_PROMPT = """You are a friendly timezone assistant. Help users set their timezone.
 
-Tools available:
-- lookup_configured_city: Check team's configured cities (try first)
-- lookup_tz_abbreviation: Check timezone codes (PT, PST, EST, CET, MSK)
-- geocode_city: Look up any city worldwide (supports abbreviations: NY, LA, MSK, СПб)
-- save_timezone: Save the resolved timezone
+## Tools
+- lookup_configured_city: Check team's preset cities first
+- lookup_tz_abbreviation: Timezone codes (PT, EST, CET, MSK)
+- geocode_city: Any city worldwide (supports: NY, LA, MSK, СПб, Москва, Питер)
+- save_timezone: Call when you have a valid IANA timezone
 
-Process:
-1. Try lookup_configured_city first
-2. If not found, try lookup_tz_abbreviation for codes
-3. If still not found, try geocode_city (handles NY, LA, MSK, спб, etc.)
-4. When FOUND, call save_timezone AND report to user what you found
-5. If NOT_FOUND from all tools, ask user to try a different spelling
+## Process
+1. User gives city/timezone → look it up with tools
+2. If FOUND: → call save_timezone with the IANA timezone
+3. If user confirms (да, yes, ага, конечно, верно, ok, yep) → call save_timezone(CURRENT_TZ)
+4. If NOT_FOUND: → ask user for clarification (see examples below)
 
-CRITICAL RULES:
-- When timezone is resolved, ALWAYS tell user: "Определили {city} ({timezone}). \
-Если неверно - напиши город точнее."
-- NEVER invent/hallucinate a timezone if all lookups return NOT_FOUND
-- If NOT_FOUND, ask user to try different spelling - do NOT guess
-- Be concise - one sentence responses
-- Respond in the same language as the user
+## CRITICAL: Handling NOT_FOUND
 
-OUTPUT FORMAT:
-- Output ONLY the user-facing message
-- NEVER include notes, assumptions, or explanations about function outputs
-- NEVER start with "(Note:", "(assuming", "Based on the description"
-- Just output the clean message for the user
+When a tool returns NOT_FOUND, you MUST:
+1. Tell the user you couldn't find it
+2. Ask for a city name (not state/country)
+3. NEVER invent or guess a timezone
+4. NEVER call save_timezone after NOT_FOUND
 
-Examples:
-- User: "NY" → geocode_city("NY") → FOUND → save_timezone → "Определили New York (ET). \
-Если неверно - напиши город точнее."
-- User: "xyz" → all NOT_FOUND → "Не нашёл 'xyz'. Напиши город точнее \
-(например: Moscow, London, NY)"
+WRONG: Tool returns NOT_FOUND for "Kentucky" → save_timezone("Europe/Berlin")
+RIGHT: Tool returns NOT_FOUND for "Kentucky" → "Не нашёл Kentucky. Это штат, а не город. Напиши город, например Louisville или Lexington."
+
+## Language
+Respond in the same language as the user's message.
+Russian user → respond in Russian.
+English user → respond in English.
+
+## Examples
+
+### City found:
+User: "Москва"
+→ geocode_city("Москва") → "FOUND: Moscow → Europe/Moscow"
+→ save_timezone("Europe/Moscow")
+
+### Abbreviation:
+User: "NY"
+→ geocode_city("NY") → "FOUND: New York → America/New_York"
+→ save_timezone("America/New_York")
+
+### Confirmation (CURRENT_TZ in context):
+User: "да"
+Context: CURRENT_TZ=Europe/Prague
+→ save_timezone("Europe/Prague")
+
+### NOT_FOUND - ask for city:
+User: "Кентуки"
+→ geocode_city("Кентуки") → "NOT_FOUND: 'Кентуки' не найден..."
+→ "Не нашёл Кентуки. Напиши город, например Lexington или Louisville."
+
+### NOT_FOUND - country:
+User: "США"
+→ geocode_city("США") → "NOT_FOUND..."
+→ "США - это страна. В каком городе ты находишься?"
 """
 
 
@@ -129,7 +150,7 @@ class AgentHandler:
         Returns:
             HandlerResult with response messages.
         """
-        if session.goal == SessionGoal.AWAITING_TIMEZONE:
+        if session.goal in (SessionGoal.AWAITING_TIMEZONE, SessionGoal.REVERIFY_TIMEZONE):
             return await self._handle_timezone_session(session, event)
 
         # Unknown session goal - close it
@@ -142,6 +163,9 @@ class AgentHandler:
     ) -> HandlerResult:
         """Handle a timezone resolution session.
 
+        All logic is delegated to the LLM agent - no hardcoded checks.
+        Agent decides if user confirmed or provided a new city.
+
         Args:
             session: Active timezone session.
             event: User's response message.
@@ -149,32 +173,35 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation or clarification.
         """
-        # Build conversation history
-        messages = self._build_messages(session, event.text)
+        # Get current timezone for re-verify context
+        current_tz = None
+        if session.goal == SessionGoal.REVERIFY_TIMEZONE:
+            user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
+            current_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
+
+        # Build conversation history with context
+        messages = self._build_messages(session, event.text, current_tz)
 
         try:
             # Run the agent
             result = await self.agent.ainvoke({"messages": messages})
 
-            # Extract the final response
+            # Extract messages
             agent_messages = result.get("messages", [])
             if not agent_messages:
                 return await self._handle_agent_error(session, "No response from agent")
 
-            # Find the last AI message
+            # Check ALL messages for SAVE: (including tool responses)
+            saved_tz = self._extract_saved_timezone(agent_messages)
+            if saved_tz:
+                return await self._complete_session(session, event, saved_tz)
+
+            # Find the last AI message for user response
             response_text = ""
             for msg in reversed(agent_messages):
                 if isinstance(msg, AIMessage) and msg.content:
                     response_text = _sanitize_response(str(msg.content))
                     break
-
-            # Check if agent saved the timezone
-            if "SAVE:" in response_text:
-                tz_iana = response_text.split("SAVE:")[1].strip()
-                # Clean up any extra text after the timezone
-                if " " in tz_iana:
-                    tz_iana = tz_iana.split()[0]
-                return await self._complete_session(session, event, tz_iana)
 
             # Agent is asking for clarification
             return await self._continue_session(session, event, response_text)
@@ -183,17 +210,50 @@ class AgentHandler:
             logger.exception(f"Agent error: {e}")
             return await self._handle_agent_error(session, str(e))
 
-    def _build_messages(self, session: Session, user_text: str) -> list[BaseMessage]:
+    def _extract_saved_timezone(self, messages: list) -> str | None:
+        """Extract saved timezone from agent messages.
+
+        Checks all messages (including tool responses) for SAVE: pattern.
+
+        Args:
+            messages: List of agent messages.
+
+        Returns:
+            IANA timezone if found, None otherwise.
+        """
+        for msg in messages:
+            content = str(msg.content) if hasattr(msg, "content") else str(msg)
+            if "SAVE:" in content:
+                # Extract timezone after SAVE:
+                tz_part = content.split("SAVE:")[1].strip()
+                # Clean up any extra text
+                if " " in tz_part:
+                    tz_part = tz_part.split()[0]
+                if "\n" in tz_part:
+                    tz_part = tz_part.split("\n")[0]
+                return tz_part
+        return None
+
+    def _build_messages(
+        self, session: Session, user_text: str, current_tz: str | None = None
+    ) -> list[BaseMessage]:
         """Build message history for the agent.
 
         Args:
             session: Current session with history.
             user_text: User's current message.
+            current_tz: User's current timezone (for re-verify sessions).
 
         Returns:
             List of LangChain messages.
         """
-        messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
+        # Build system prompt with context
+        system_content = SYSTEM_PROMPT
+        if current_tz:
+            # Add context about current timezone for confirmations
+            system_content += f"\n\nCONTEXT: CURRENT_TZ={current_tz}"
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_content)]
 
         # Add conversation history from session
         history = session.context.get("history", [])
@@ -232,15 +292,8 @@ class AgentHandler:
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
 
-        # Build success message
-        # Try to find a friendly city name
-        city_name = self._get_city_name_for_tz(tz_iana)
-        if city_name:
-            text = f"✅ Got it! Your timezone is set to <b>{city_name}</b> ({tz_iana})."
-        else:
-            text = f"✅ Got it! Your timezone is set to <b>{tz_iana}</b>."
-
-        text += "\n\nI'll now convert times you mention to your team's timezones."
+        # Build success message (Russian since most users are Russian-speaking)
+        text = f"✅ Сохранено: <b>{tz_iana}</b>"
 
         message = OutboundMessage(
             platform=event.platform,

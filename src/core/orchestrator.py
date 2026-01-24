@@ -128,6 +128,7 @@ class MessageOrchestrator:
         """Handle case where state collection is needed.
 
         Creates a session and prompts user for timezone.
+        Distinguishes between first-time onboarding and re-verification.
 
         Args:
             event: The event being processed.
@@ -141,6 +142,20 @@ class MessageOrchestrator:
         token = generate_verify_token(event.platform, event.user_id, event.chat_id)
         verify_url = get_verify_url(token, self.base_url)
 
+        # Check if this is re-verification (user has existing tz) or first-time onboarding
+        user_state = await self.storage.get_user_tz_state(event.platform, event.user_id)
+        is_reverify = user_state is not None and user_state.tz_iana is not None
+
+        # Choose goal and prompt based on scenario
+        existing_tz: str | None = None
+        if is_reverify and user_state is not None and user_state.tz_iana is not None:
+            goal = SessionGoal.REVERIFY_TIMEZONE
+            existing_tz = user_state.tz_iana
+            text = f"🔄 Твоя таймзона всё ещё {existing_tz}?\nНапиши 'да' или новый город"
+        else:
+            goal = SessionGoal.AWAITING_TIMEZONE
+            text = "🌍 Какой твой город? (для часового пояса)\nПримеры: NY, Москва, London, Berlin"
+
         # Create session for agent to handle follow-up
         trigger = result.state_collection_trigger
         session = Session(
@@ -148,7 +163,7 @@ class MessageOrchestrator:
             platform=event.platform,
             chat_id=event.chat_id,
             user_id=event.user_id,
-            goal=SessionGoal.AWAITING_TIMEZONE,
+            goal=goal,
             status=SessionStatus.ACTIVE,
             context={
                 "original_text": event.text,
@@ -156,16 +171,17 @@ class MessageOrchestrator:
                 "verify_url": verify_url,
                 "attempts": 0,
                 "history": [],
+                "existing_tz": existing_tz,
             },
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(minutes=30),
         )
         await self.storage.create_session(session)
-        logger.info(f"Created timezone session {session.session_id} for user {event.user_id}")
-
-        # Build prompt message - simple, text-only, cross-platform
-        text = "🌍 Какой твой город? (для часового пояса)\nПримеры: NY, Москва, London, Berlin"
+        logger.info(
+            f"Created {'re-verify' if is_reverify else 'onboarding'} "
+            f"session {session.session_id} for user {event.user_id}"
+        )
 
         message = OutboundMessage(
             platform=event.platform,

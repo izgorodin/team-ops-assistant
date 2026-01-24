@@ -58,12 +58,21 @@ TIMEZONE_ABBREVIATIONS: dict[str, str] = {
     "cest": "Europe/Berlin",
     "wet": "Europe/Lisbon",
     "west": "Europe/Lisbon",
+    "eet": "Europe/Kiev",
+    "eest": "Europe/Kiev",
+    # Russia
+    "msk": "Europe/Moscow",
+    "msd": "Europe/Moscow",  # Moscow Daylight (historical)
     # Asia/Pacific
     "jst": "Asia/Tokyo",
+    "kst": "Asia/Seoul",
+    "cst_asia": "Asia/Shanghai",  # China Standard Time
+    "ist": "Asia/Kolkata",  # India Standard Time
     "aest": "Australia/Sydney",
     "aedt": "Australia/Sydney",
     # UTC
     "utc": "UTC",
+    "zulu": "UTC",
 }
 
 # City names mapping to IANA
