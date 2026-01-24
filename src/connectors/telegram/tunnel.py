@@ -8,7 +8,9 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -25,8 +27,6 @@ NGROK_AUTHTOKEN_URL = "https://dashboard.ngrok.com/get-started/your-authtoken"
 
 class NgrokTunnelError(Exception):
     """Raised when ngrok tunnel operations fail."""
-
-    pass
 
 
 class TunnelManager:
@@ -58,8 +58,6 @@ class TunnelManager:
         Returns:
             True if authtoken is set, False otherwise.
         """
-        from pathlib import Path
-
         try:
             # Check pyngrok's in-memory config first
             pyngrok_config = conf.get_default()
@@ -119,8 +117,10 @@ class TunnelManager:
             print(f"Failed to set authtoken: {e}")
             return False
 
-    def start_tunnel(self) -> str:
-        """Start ngrok tunnel and return the public URL.
+    def _start_tunnel_sync(self) -> str:
+        """Start ngrok tunnel synchronously (blocking).
+
+        This is the sync implementation called via asyncio.to_thread().
 
         Returns:
             The public HTTPS URL.
@@ -152,6 +152,20 @@ class TunnelManager:
 
         except PyngrokNgrokError as e:
             raise NgrokTunnelError(f"Failed to start ngrok tunnel: {e}") from e
+
+    async def start_tunnel(self) -> str:
+        """Start ngrok tunnel and return the public URL.
+
+        Runs blocking ngrok operations in a thread pool to avoid
+        blocking the event loop.
+
+        Returns:
+            The public HTTPS URL.
+
+        Raises:
+            NgrokTunnelError: If tunnel fails to start.
+        """
+        return await asyncio.to_thread(self._start_tunnel_sync)
 
     async def get_current_webhook(self) -> str | None:
         """Get the current Telegram webhook URL.
@@ -217,8 +231,8 @@ class TunnelManager:
         if self._original_webhook_url:
             logger.info(f"Original webhook URL saved: {self._original_webhook_url}")
 
-        # Start ngrok tunnel
-        public_url = self.start_tunnel()
+        # Start ngrok tunnel (runs blocking ops in thread pool)
+        public_url = await self.start_tunnel()
 
         # Set Telegram webhook
         if not await self.set_webhook(public_url):
@@ -237,6 +251,29 @@ class TunnelManager:
                 logger.warning(f"Error disconnecting tunnel: {e}")
             self._public_url = None
 
+    async def _restore_webhook_exact(self, webhook_url: str) -> None:
+        """Restore webhook URL exactly as provided.
+
+        Used when the original webhook doesn't follow our /hooks/telegram convention.
+
+        Args:
+            webhook_url: The exact webhook URL to restore.
+        """
+        if not self._http_client:
+            self._http_client = httpx.AsyncClient(timeout=30.0)
+
+        try:
+            response = await self._http_client.post(
+                f"{self.api_base}/setWebhook", json={"url": webhook_url}
+            )
+            data: dict[str, Any] = response.json()
+            if data.get("ok"):
+                logger.info("Original Telegram webhook restored successfully")
+            else:
+                logger.error(f"Failed to restore original webhook: {data}")
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error restoring original webhook: {e}")
+
     async def stop(self, restore_webhook: bool = False) -> None:
         """Stop ngrok and optionally restore original webhook.
 
@@ -248,9 +285,14 @@ class TunnelManager:
         # Optionally restore original webhook
         if restore_webhook and self._original_webhook_url:
             logger.info(f"Restoring original webhook: {self._original_webhook_url}")
-            # Extract base URL from webhook URL (remove /hooks/telegram suffix)
-            base_url = self._original_webhook_url.replace("/hooks/telegram", "")
-            await self.set_webhook(base_url)
+            webhook_suffix = "/hooks/telegram"
+            if self._original_webhook_url.endswith(webhook_suffix):
+                # Original webhook used our convention; restore via base URL
+                base_url = self._original_webhook_url[: -len(webhook_suffix)]
+                await self.set_webhook(base_url)
+            else:
+                # Original webhook has different path; restore exactly as-is
+                await self._restore_webhook_exact(self._original_webhook_url)
 
         # Stop ngrok tunnel
         self.stop_tunnel()
