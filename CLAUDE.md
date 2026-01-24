@@ -1,5 +1,15 @@
 # Team Ops Assistant - AI Agent Instructions
 
+> **Note on AI Agent Config Files**
+>
+> This file (`CLAUDE.md`) is the single source of truth for all AI agents:
+>
+> - `AGENTS.md` → symlink to `CLAUDE.md`
+> - `.github/copilot-instructions.md` → symlink to `CLAUDE.md`
+>
+> We chose this approach for simplicity — one file to maintain.
+> If you need agent-specific instructions, create local versions instead of symlinks.
+
 ## Project Overview
 
 Multi-platform TeamOps assistant bot (Telegram/Discord/WhatsApp) that detects time mentions and replies with multi-timezone conversions.
