@@ -12,8 +12,8 @@ Users' timezones can change over time (relocation, travel). The system needs to:
 
 ### Current State
 - Timezone saved with `confidence` field (0.0-1.0)
-- `decay_per_day: 0.01` configured but **not implemented**
-- No mechanism to detect timezone changes
+- `decay_per_day: 0.01` configured and **implemented** (PR #9)
+- No mechanism to detect timezone changes (relocation detection pending)
 
 ### Problem
 User moved from NY to London → system still converts to ET → wrong conversions forever.
@@ -100,10 +100,12 @@ confidence:
 
 ## Implementation Plan
 
-### Phase 1: Decay Implementation
-- Add `apply_confidence_decay()` to pipeline
-- Check decay on each message
-- Re-verify when below threshold
+### Phase 1: Decay Implementation ✅
+
+- ~~Add `apply_confidence_decay()` to pipeline~~ → `get_effective_confidence()`
+- ~~Check decay on each message~~
+- ~~Re-verify when below threshold~~
+- **Implemented in PR #9** (`src/core/timezone_identity.py`)
 
 ### Phase 2: Relocation Detection (Rule-based)
 - Add regex patterns for relocation phrases
