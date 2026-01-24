@@ -43,7 +43,14 @@ Tools available:
 - geocode_city: Look up any city worldwide (supports abbreviations: NY, LA, MSK, СПб)
 - save_timezone: Save the resolved timezone
 
-Process:
+CONFIRMATION DETECTION:
+If user is confirming their current timezone (words like "да", "yes", "конечно", "верно",
+"точно", "ага", "sure", "yep", "ok", "правильно", "именно", etc.), respond ONLY with:
+CONFIRM:yes
+
+Do NOT use any tools for confirmations - just output "CONFIRM:yes"
+
+Process for NEW CITY:
 1. Try lookup_configured_city first
 2. If not found, try lookup_tz_abbreviation for codes
 3. If still not found, try geocode_city (handles NY, LA, MSK, спб, etc.)
@@ -69,6 +76,8 @@ Examples:
 Если неверно - напиши город точнее."
 - User: "xyz" → all NOT_FOUND → "Не нашёл 'xyz'. Напиши город точнее \
 (например: Moscow, London, NY)"
+- User: "конечно" → "CONFIRM:yes"
+- User: "да, всё верно" → "CONFIRM:yes"
 """
 
 
@@ -149,15 +158,11 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation or clarification.
         """
-        # Quick confirmation for re-verification sessions
+        # Quick confirmation for obvious single-char/word cases (skip LLM call)
         if session.goal == SessionGoal.REVERIFY_TIMEZONE:
             text_lower = event.text.strip().lower()
-            # Common confirmation words in Russian and English
-            confirmations = (
-                "да", "yes", "y", "+", "ок", "ok", "okay",
-                "конечно", "верно", "точно", "ага", "угу", "yep", "yup", "sure",
-            )
-            if text_lower in confirmations:
+            # Only most obvious cases - LLM handles the rest (конечно, sure, etc.)
+            if text_lower in ("+", "y", "да", "yes"):
                 return await self._confirm_existing_timezone(session, event)
 
         # Build conversation history
@@ -178,6 +183,10 @@ class AgentHandler:
                 if isinstance(msg, AIMessage) and msg.content:
                     response_text = _sanitize_response(str(msg.content))
                     break
+
+            # Check if agent detected a confirmation (for re-verify sessions)
+            if "CONFIRM:" in response_text:
+                return await self._confirm_existing_timezone(session, event)
 
             # Check if agent saved the timezone
             if "SAVE:" in response_text:
