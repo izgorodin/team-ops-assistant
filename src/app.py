@@ -17,9 +17,12 @@ from src.connectors.discord.outbound import close_discord_outbound
 from src.connectors.telegram.inbound import normalize_telegram_update
 from src.connectors.telegram.outbound import close_telegram_outbound, send_messages
 from src.connectors.whatsapp.outbound import close_whatsapp_outbound
+from src.core.actions.time_convert import TimeConversionHandler
 from src.core.agent_handler import AgentHandler
-from src.core.handler import MessageHandler
 from src.core.orchestrator import MessageOrchestrator
+from src.core.pipeline import Pipeline
+from src.core.state.timezone import TimezoneStateManager
+from src.core.triggers.time import TimeDetector
 from src.settings import get_settings
 from src.storage.mongo import get_storage
 from src.web.routes_verify import verify_bp
@@ -58,14 +61,30 @@ def create_app() -> Quart:
         storage = get_storage()
         await storage.connect()
 
-        # Create handlers and orchestrator
-        main_handler = MessageHandler(storage, settings.app_base_url)
+        # Create pipeline components
+        time_detector = TimeDetector()
+        tz_state_manager = TimezoneStateManager(storage)
+        time_handler = TimeConversionHandler()
+
+        # Create pipeline
+        pipeline = Pipeline(
+            detectors=[time_detector],
+            state_managers={"timezone": tz_state_manager},
+            action_handlers={"time": time_handler},
+        )
+
+        # Create agent handler and orchestrator
         agent_handler = AgentHandler(storage, settings)
-        orchestrator = MessageOrchestrator(storage, main_handler, agent_handler)
+        orchestrator = MessageOrchestrator(
+            storage=storage,
+            pipeline=pipeline,
+            agent_handler=agent_handler,
+            base_url=settings.app_base_url,
+        )
 
         # Store in app context
         app.orchestrator = orchestrator  # type: ignore[attr-defined]
-        app.message_handler = main_handler  # type: ignore[attr-defined]  # Keep for backwards compat
+        app.pipeline = pipeline  # type: ignore[attr-defined]
 
         logger.info("Application started successfully")
 

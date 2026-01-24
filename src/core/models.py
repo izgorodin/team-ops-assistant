@@ -254,3 +254,11 @@ class PipelineResult(BaseModel):
     triggers_detected: int = Field(default=0)
     triggers_handled: int = Field(default=0)
     errors: list[str] = Field(default_factory=list)
+
+    # State collection signaling
+    needs_state_collection: bool = Field(
+        default=False, description="True if user state needs to be collected"
+    )
+    state_collection_trigger: DetectedTrigger | None = Field(
+        default=None, description="Trigger that requires state collection"
+    )
