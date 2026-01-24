@@ -166,13 +166,66 @@ The minimum viable product is deployed and functional:
 
 ---
 
+## 2026-01-24: Local Development & Tunnel Mode
+
+**Completed (PR #8):**
+
+- [x] Added pyngrok for automatic ngrok tunnel creation
+- [x] `./run.sh` now creates tunnel and registers Telegram webhook
+- [x] Local bot testing without manual ngrok setup
+- [x] Updated docs/ONBOARDING.md with tunnel mode instructions
+
+---
+
+## 2026-01-24: Timezone Onboarding Improvements
+
+**Completed (PR #9):**
+
+- [x] Switched from Nominatim API to geonamescache (offline city lookup)
+- [x] Added city abbreviation support: NY, NYC, MSK, LA, SF, СПб
+- [x] Multi-word city support: "New York", "Санкт Петербург"
+- [x] Population-based priority (London UK > London Canada)
+- [x] Confidence decay function `get_effective_confidence()`
+- [x] 18 new tests for city lookup
+
+---
+
+## 2026-01-24: State Lifecycle & Relocation Detection
+
+**Completed (PR #13 - implements ADR-003):**
+
+- [x] **Phase 1: Confidence Decay Integration**
+  - Fixed `TimezoneStateManager` to use `get_effective_confidence()` with decay
+  - Added `REVERIFY_TIMEZONE` session goal for re-verification flow
+  - Different prompts: onboarding ("Какой твой город?") vs re-verify ("Твоя таймзона всё ещё X?")
+  - Handle "да"/"yes" confirmation to refresh confidence
+
+- [x] **Phase 2: Relocation Detection**
+  - `RelocationDetector` with regex patterns (EN + RU, past + future tense)
+  - Patterns: "moved to", "relocated", "now in", "переехал", "перееду", "переезжаю"
+  - `RelocationHandler` resets confidence to 0.0
+  - Pipeline prioritizes relocation over time triggers
+  - 19 new tests for relocation detection
+
+**Known Limitations (MVP):**
+
+- Only English and Russian supported
+- False positives: "my friend moved to X" triggers detection
+- Hyphenated cities partially captured ("Нью-Йорк" → "Нью")
+
+**Documented upgrade path:** Regex → Regex+LLM → ML classifier → Always-on LLM
+
+---
+
 ## Future Improvements
 
-1. Extend time parsing patterns (dash, Russian, bare numbers)
+1. ~~Extend time parsing patterns (dash, Russian, bare numbers)~~ Partially done in PR #9
 2. Implement LLM fallback for edge cases
 3. Add Discord connector implementation
 4. Add WhatsApp connector implementation
-5. User timezone verification flow testing
+5. ~~User timezone verification flow testing~~ Done in PR #9, #13
+6. **Two-layer detection**: Regex + LLM confirmation for relocation (reduce false positives)
+7. **ML relocation classifier**: Train on production data
 
 ---
 
@@ -182,3 +235,4 @@ The minimum viable product is deployed and functional:
 - LLM integration is interface-only in MVP; rules handle 90%+ of cases
 - Discord and WhatsApp are intentionally skeleton implementations per spec
 - NVIDIA API replaces Together AI for LLM (same model, different provider)
+- Confidence decay: -0.01/day, threshold 0.7 (30 days to re-verify)

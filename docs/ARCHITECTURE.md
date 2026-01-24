@@ -36,8 +36,8 @@ This document describes both the current implementation (AS-IS) and the target a
 │                           CORE LAYER                                     │
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                      MessageHandler                                 │ │
-│  │  dedupe → detect_time → parse_time → resolve_tz → convert → respond │ │
+│  │                         Pipeline                                    │ │
+│  │  detect_triggers → resolve_state → handle_actions → respond         │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
@@ -71,14 +71,17 @@ This document describes both the current implementation (AS-IS) and the target a
 |-----------|------|----------------|
 | **App** | `src/app.py` | Quart entry, webhook routes, lifecycle |
 | **Settings** | `src/settings.py` | Configuration loading from env + yaml |
-| **Handler** | `src/core/handler.py` | Message processing pipeline orchestration |
-| **TimeClassifier** | `src/core/time_classifier.py` | ML binary classification (has time?) |
-| **TimeParse** | `src/core/time_parse.py` | Regex extraction of time values |
+| **Pipeline** | `src/core/pipeline.py` | Orchestrates triggers → state → actions |
+| **Orchestrator** | `src/core/orchestrator.py` | Session management, state collection |
+| **TimeDetector** | `src/core/triggers/time.py` | ML + Regex time detection |
+| **RelocationDetector** | `src/core/triggers/relocation.py` | Regex relocation phrases (EN/RU) |
+| **TimezoneStateManager** | `src/core/state/timezone.py` | User TZ with confidence decay |
+| **TimeConversionHandler** | `src/core/actions/time_convert.py` | Multi-timezone conversion |
+| **RelocationHandler** | `src/core/actions/relocation.py` | Reset confidence on relocation |
+| **AgentHandler** | `src/core/agent_handler.py` | LLM agent for city resolution |
 | **LLMFallback** | `src/core/llm_fallback.py` | NVIDIA NIM API for complex cases |
-| **TzIdentity** | `src/core/timezone_identity.py` | User timezone resolution + verification |
-| **TimeConvert** | `src/core/time_convert.py` | Multi-timezone conversion |
-| **Dedupe** | `src/core/dedupe.py` | Deduplication + throttling |
-| **Models** | `src/core/models.py` | Pydantic data models |
+| **TzIdentity** | `src/core/timezone_identity.py` | Confidence decay, token generation |
+| **Models** | `src/core/models.py` | Pydantic data models + protocols |
 | **Mongo** | `src/storage/mongo.py` | MongoDB async operations |
 | **Telegram** | `src/connectors/telegram/` | Telegram inbound/outbound adapters |
 
@@ -170,8 +173,9 @@ This document describes both the current implementation (AS-IS) and the target a
 │                         TRIGGER LAYER                                    │
 │  Protocol: TriggerDetector                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │TimeDetector  │  │DateDetector  │  │QuestionDetector│  (future)       │
-│  │ ML+Regex+LLM │  │  (future)    │  │   (future)   │                   │
+│  │TimeDetector  │  │Relocation   │  │QuestionDetector│                  │
+│  │ ML+Regex+LLM │  │ Detector ✓  │  │   (future)   │                   │
+│  │      ✓       │  │ Regex EN/RU │  │              │                   │
 │  └──────────────┘  └──────────────┘  └──────────────┘                   │
 │  Output: list[DetectedTrigger]                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -180,9 +184,10 @@ This document describes both the current implementation (AS-IS) and the target a
 │                          STATE LAYER                                     │
 │  Protocol: StateManager[T]                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │TimezoneState │  │LanguageState │  │PreferenceState│  (future)        │
-│  │ confidence   │  │  (future)    │  │   (future)   │                   │
-│  │ verification │  │              │  │              │                   │
+│  │TimezoneState │  │LanguageState │  │PreferenceState│                  │
+│  │ confidence ✓ │  │  (future)    │  │   (future)   │                   │
+│  │ decay ✓      │  │              │  │              │                   │
+│  │ re-verify ✓  │  │              │  │              │                   │
 │  └──────────────┘  └──────────────┘  └──────────────┘                   │
 │  Output: ResolvedContext                                                │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -191,8 +196,9 @@ This document describes both the current implementation (AS-IS) and the target a
 │                         ACTION LAYER                                     │
 │  Protocol: ActionHandler                                                │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │TimeConverter │  │  Notifier    │  │  Scheduler   │   (future)        │
-│  │ multi-tz     │  │  (future)    │  │   (future)   │                   │
+│  │TimeConverter │  │ Relocation  │  │  Scheduler   │                   │
+│  │ multi-tz ✓   │  │ Handler ✓   │  │   (future)   │                   │
+│  │              │  │ reset conf  │  │              │                   │
 │  └──────────────┘  └──────────────┘  └──────────────┘                   │
 │  Output: list[OutboundMessage]                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -340,15 +346,23 @@ logging:
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 ```
 
-### 2.4 MVP as First Implementation
+### 2.4 Current Implementation Status
 
-The current timezone feature is the first implementation of the extensible architecture:
+The extensible architecture is now implemented with two trigger types:
 
-| Layer | Protocol | MVP Implementation |
-|-------|----------|-------------------|
-| Trigger | `TriggerDetector` | `TimeDetector` (ML + Regex + LLM) |
-| State | `StateManager[str]` | `TimezoneStateManager` (IANA tz) |
-| Action | `ActionHandler` | `TimeConversionHandler` |
+| Layer | Protocol | Implementation | Status |
+|-------|----------|----------------|--------|
+| Trigger | `TriggerDetector` | `TimeDetector` (ML + Regex + LLM) | ✅ Complete |
+| Trigger | `TriggerDetector` | `RelocationDetector` (Regex EN/RU) | ✅ Complete (MVP) |
+| State | `StateManager[str]` | `TimezoneStateManager` (confidence + decay) | ✅ Complete |
+| Action | `ActionHandler` | `TimeConversionHandler` | ✅ Complete |
+| Action | `ActionHandler` | `RelocationHandler` (reset confidence) | ✅ Complete |
+
+**State Lifecycle (ADR-003):**
+
+- Confidence decay: -0.01/day (configurable)
+- Re-verification threshold: 0.7
+- Relocation detection resets confidence to 0.0
 
 ---
 
