@@ -129,7 +129,7 @@ class AgentHandler:
         Returns:
             HandlerResult with response messages.
         """
-        if session.goal == SessionGoal.AWAITING_TIMEZONE:
+        if session.goal in (SessionGoal.AWAITING_TIMEZONE, SessionGoal.REVERIFY_TIMEZONE):
             return await self._handle_timezone_session(session, event)
 
         # Unknown session goal - close it
@@ -149,6 +149,12 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation or clarification.
         """
+        # Quick confirmation for re-verification sessions
+        if session.goal == SessionGoal.REVERIFY_TIMEZONE:
+            text_lower = event.text.strip().lower()
+            if text_lower in ("да", "yes", "y", "+", "ок", "ok"):
+                return await self._confirm_existing_timezone(session, event)
+
         # Build conversation history
         messages = self._build_messages(session, event.text)
 
@@ -247,6 +253,48 @@ class AgentHandler:
             chat_id=event.chat_id,
             text=text,
             parse_mode="html",
+        )
+
+        return HandlerResult(should_respond=True, messages=[message])
+
+    async def _confirm_existing_timezone(
+        self, session: Session, event: NormalizedEvent
+    ) -> HandlerResult:
+        """Confirm existing timezone and refresh confidence.
+
+        Called when user confirms their timezone is still correct during re-verification.
+
+        Args:
+            session: Current re-verify session.
+            event: User's confirmation message.
+
+        Returns:
+            HandlerResult with confirmation message.
+        """
+        # Get existing timezone from session context
+        existing_tz = session.context.get("existing_tz")
+        if not existing_tz:
+            # Fallback: get from storage
+            user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
+            existing_tz = user_state.tz_iana if user_state else None
+
+        if existing_tz:
+            # Refresh confidence to 1.0 by re-saving with WEB_VERIFIED source
+            await self.tz_manager.update_user_timezone(
+                platform=event.platform,
+                user_id=event.user_id,
+                tz_iana=existing_tz,
+                source=TimezoneSource.WEB_VERIFIED,  # Refresh confidence to 1.0
+            )
+
+        # Close the session
+        await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
+
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=f"👍 Окей, оставляю {existing_tz}",
+            parse_mode="plain",
         )
 
         return HandlerResult(should_respond=True, messages=[message])

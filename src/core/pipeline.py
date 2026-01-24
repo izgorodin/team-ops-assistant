@@ -18,6 +18,8 @@ from src.core.models import (
 from src.settings import get_settings
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from src.core.models import DetectedTrigger
     from src.core.protocols import ActionHandler, StateManager, TriggerDetector
 
@@ -37,8 +39,8 @@ class Pipeline:
     def __init__(
         self,
         detectors: list[TriggerDetector] | None = None,
-        state_managers: dict[str, StateManager] | None = None,
-        action_handlers: dict[str, ActionHandler] | None = None,
+        state_managers: Mapping[str, StateManager] | None = None,
+        action_handlers: Mapping[str, ActionHandler] | None = None,
     ) -> None:
         """Initialize the pipeline.
 
@@ -48,8 +50,8 @@ class Pipeline:
             action_handlers: Dict mapping trigger type to handler (e.g., {"time": TimeConversionHandler()}).
         """
         self.detectors = detectors or []
-        self.state_managers = state_managers or {}
-        self.action_handlers = action_handlers or {}
+        self.state_managers: Mapping[str, StateManager] = state_managers or {}
+        self.action_handlers: Mapping[str, ActionHandler] = action_handlers or {}
         self._settings = get_settings()
 
     async def process(self, event: NormalizedEvent) -> PipelineResult:
@@ -84,6 +86,41 @@ class Pipeline:
                 triggers_detected=0,
                 triggers_handled=0,
                 errors=errors,
+            )
+
+        # Step 1.5: Check for relocation triggers (highest priority)
+        # Relocation triggers must be handled BEFORE context resolution
+        # because they reset confidence and require re-verification
+        relocation_triggers = [t for t in all_triggers if t.trigger_type == "relocation"]
+        if relocation_triggers:
+            relocation_trigger = relocation_triggers[0]
+            handler = self.action_handlers.get("relocation")
+            if handler:
+                try:
+                    # Handler resets confidence to 0.0
+                    context = ResolvedContext(
+                        platform=event.platform,
+                        chat_id=event.chat_id,
+                        user_id=event.user_id,
+                        source_timezone=None,
+                        target_timezones=[],
+                    )
+                    await handler.handle(relocation_trigger, context)
+                except Exception as e:
+                    logger.error(f"Relocation handler failed: {e}")
+                    errors.append(f"Relocation handler error: {e}")
+
+            logger.info(
+                f"Relocation detected for user {event.user_id}: "
+                f"'{relocation_trigger.original_text}' → re-verification needed"
+            )
+            return PipelineResult(
+                messages=[],
+                triggers_detected=triggers_detected,
+                triggers_handled=1,
+                errors=errors,
+                needs_state_collection=True,
+                state_collection_trigger=relocation_trigger,
             )
 
         # Step 2: Resolve state (timezone for now)

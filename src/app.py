@@ -17,11 +17,13 @@ from src.connectors.discord.outbound import close_discord_outbound
 from src.connectors.telegram.inbound import normalize_telegram_update
 from src.connectors.telegram.outbound import close_telegram_outbound, send_messages
 from src.connectors.whatsapp.outbound import close_whatsapp_outbound
+from src.core.actions.relocation import RelocationHandler
 from src.core.actions.time_convert import TimeConversionHandler
 from src.core.agent_handler import AgentHandler
 from src.core.orchestrator import MessageOrchestrator
 from src.core.pipeline import Pipeline
 from src.core.state.timezone import TimezoneStateManager
+from src.core.triggers.relocation import RelocationDetector
 from src.core.triggers.time import TimeDetector
 from src.settings import Settings, get_settings
 from src.storage.mongo import MongoStorage, get_storage
@@ -46,14 +48,16 @@ async def create_orchestrator(
     """
     # Create pipeline components
     time_detector = TimeDetector()
+    relocation_detector = RelocationDetector()
     tz_state_manager = TimezoneStateManager(storage)
     time_handler = TimeConversionHandler()
+    relocation_handler = RelocationHandler(storage)
 
     # Create pipeline
     pipeline = Pipeline(
-        detectors=[time_detector],
+        detectors=[time_detector, relocation_detector],
         state_managers={"timezone": tz_state_manager},
-        action_handlers={"time": time_handler},
+        action_handlers={"time": time_handler, "relocation": relocation_handler},
     )
 
     # Create agent handler and orchestrator

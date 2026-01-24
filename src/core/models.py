@@ -166,7 +166,8 @@ class SessionStatus(str, Enum):
 class SessionGoal(str, Enum):
     """Goal/purpose of an agent session."""
 
-    AWAITING_TIMEZONE = "awaiting_timezone"
+    AWAITING_TIMEZONE = "awaiting_timezone"  # First-time timezone onboarding
+    REVERIFY_TIMEZONE = "reverify_timezone"  # Re-verify after confidence decay
     # Future: CHANGE_TIMEZONE, CONFIGURE_TEAM, etc.
 
 

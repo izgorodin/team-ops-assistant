@@ -53,6 +53,7 @@ class ConfidenceConfig(BaseModel):
     inferred: float = 0.6  # Inferred from user history
     chat_default: float = 0.5  # Chat-level default timezone
     decay_per_day: float = 0.01  # Confidence decay for stale data
+    relocation_reset: float = 0.0  # Reset confidence when relocation detected
 
 
 class TimeParsingConfidenceConfig(BaseModel):
