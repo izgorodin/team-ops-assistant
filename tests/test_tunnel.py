@@ -39,8 +39,8 @@ class TestTunnelManager:
         ):
             assert tunnel._check_authtoken() is False
 
-    def test_start_tunnel_success(self) -> None:
-        """Test successful tunnel start."""
+    def test_start_tunnel_sync_success(self) -> None:
+        """Test successful tunnel start (sync implementation)."""
         tunnel = TunnelManager()
 
         mock_tunnel = MagicMock()
@@ -50,10 +50,10 @@ class TestTunnelManager:
             patch.object(tunnel, "_check_authtoken", return_value=True),
             patch("src.connectors.telegram.tunnel.ngrok.connect", return_value=mock_tunnel),
         ):
-            url = tunnel.start_tunnel()
+            url = tunnel._start_tunnel_sync()
             assert url == "https://abc123.ngrok.io"
 
-    def test_start_tunnel_upgrades_http_to_https(self) -> None:
+    def test_start_tunnel_sync_upgrades_http_to_https(self) -> None:
         """Test that HTTP URLs are upgraded to HTTPS."""
         tunnel = TunnelManager()
 
@@ -64,10 +64,10 @@ class TestTunnelManager:
             patch.object(tunnel, "_check_authtoken", return_value=True),
             patch("src.connectors.telegram.tunnel.ngrok.connect", return_value=mock_tunnel),
         ):
-            url = tunnel.start_tunnel()
+            url = tunnel._start_tunnel_sync()
             assert url == "https://abc123.ngrok.io"
 
-    def test_start_tunnel_no_authtoken_cancelled(self) -> None:
+    def test_start_tunnel_sync_no_authtoken_cancelled(self) -> None:
         """Test tunnel start fails when authtoken prompt is cancelled."""
         tunnel = TunnelManager()
 
@@ -76,10 +76,10 @@ class TestTunnelManager:
             patch.object(tunnel, "_prompt_authtoken", return_value=False),
         ):
             with pytest.raises(NgrokTunnelError) as exc_info:
-                tunnel.start_tunnel()
+                tunnel._start_tunnel_sync()
             assert "authtoken required" in str(exc_info.value)
 
-    def test_start_tunnel_pyngrok_error(self) -> None:
+    def test_start_tunnel_sync_pyngrok_error(self) -> None:
         """Test tunnel start handles pyngrok errors."""
         tunnel = TunnelManager()
 
@@ -91,10 +91,10 @@ class TestTunnelManager:
             ),
         ):
             with pytest.raises(NgrokTunnelError) as exc_info:
-                tunnel.start_tunnel()
+                tunnel._start_tunnel_sync()
             assert "Connection failed" in str(exc_info.value)
 
-    def test_start_tunnel_authtoken_error(self) -> None:
+    def test_start_tunnel_sync_authtoken_error(self) -> None:
         """Test tunnel start handles invalid authtoken."""
         tunnel = TunnelManager()
 
@@ -106,8 +106,20 @@ class TestTunnelManager:
             ),
         ):
             with pytest.raises(NgrokTunnelError) as exc_info:
-                tunnel.start_tunnel()
+                tunnel._start_tunnel_sync()
             assert "authtoken" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_start_tunnel_async_calls_sync(self) -> None:
+        """Test that async start_tunnel delegates to sync implementation."""
+        tunnel = TunnelManager()
+
+        with patch.object(
+            tunnel, "_start_tunnel_sync", return_value="https://abc123.ngrok.io"
+        ) as mock_sync:
+            url = await tunnel.start_tunnel()
+            assert url == "https://abc123.ngrok.io"
+            mock_sync.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_set_webhook_success(self) -> None:

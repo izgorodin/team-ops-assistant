@@ -23,11 +23,50 @@ from src.core.orchestrator import MessageOrchestrator
 from src.core.pipeline import Pipeline
 from src.core.state.timezone import TimezoneStateManager
 from src.core.triggers.time import TimeDetector
-from src.settings import get_settings
-from src.storage.mongo import get_storage
+from src.settings import Settings, get_settings
+from src.storage.mongo import MongoStorage, get_storage
 from src.web.routes_verify import verify_bp
 
 logger = logging.getLogger(__name__)
+
+
+async def create_orchestrator(
+    storage: MongoStorage, settings: Settings
+) -> tuple[MessageOrchestrator, Pipeline]:
+    """Create pipeline and orchestrator components.
+
+    Shared initialization logic used by both webhook server and polling mode.
+
+    Args:
+        storage: MongoDB storage instance (must be connected).
+        settings: Application settings.
+
+    Returns:
+        Tuple of (orchestrator, pipeline).
+    """
+    # Create pipeline components
+    time_detector = TimeDetector()
+    tz_state_manager = TimezoneStateManager(storage)
+    time_handler = TimeConversionHandler()
+
+    # Create pipeline
+    pipeline = Pipeline(
+        detectors=[time_detector],
+        state_managers={"timezone": tz_state_manager},
+        action_handlers={"time": time_handler},
+    )
+
+    # Create agent handler and orchestrator
+    agent_handler = AgentHandler(storage, settings)
+    orchestrator = MessageOrchestrator(
+        storage=storage,
+        pipeline=pipeline,
+        agent_handler=agent_handler,
+        base_url=settings.app_base_url,
+    )
+
+    return orchestrator, pipeline
+
 
 # Global state for graceful shutdown
 _shutdown_event: asyncio.Event | None = None
@@ -61,26 +100,8 @@ def create_app() -> Quart:
         storage = get_storage()
         await storage.connect()
 
-        # Create pipeline components
-        time_detector = TimeDetector()
-        tz_state_manager = TimezoneStateManager(storage)
-        time_handler = TimeConversionHandler()
-
-        # Create pipeline
-        pipeline = Pipeline(
-            detectors=[time_detector],
-            state_managers={"timezone": tz_state_manager},
-            action_handlers={"time": time_handler},
-        )
-
-        # Create agent handler and orchestrator
-        agent_handler = AgentHandler(storage, settings)
-        orchestrator = MessageOrchestrator(
-            storage=storage,
-            pipeline=pipeline,
-            agent_handler=agent_handler,
-            base_url=settings.app_base_url,
-        )
+        # Create pipeline and orchestrator using shared helper
+        orchestrator, pipeline = await create_orchestrator(storage, settings)
 
         # Store in app context
         app.orchestrator = orchestrator  # type: ignore[attr-defined]
@@ -224,6 +245,9 @@ def run_app() -> None:
         print("Error: Cannot use both --polling and --tunnel modes")
         return
 
+    if args.restore_webhook and not args.tunnel:
+        print("Warning: --restore-webhook has no effect without --tunnel; option will be ignored.")
+
     if args.polling:
         # Run in polling mode (local development)
         asyncio.run(run_polling_mode())
@@ -246,29 +270,12 @@ async def run_polling_mode() -> None:
     logger.info("=== POLLING MODE (Local Development) ===")
     logger.info("Press Ctrl+C to stop")
 
-    # Initialize components (same as startup())
+    # Initialize components using shared helper
     settings = get_settings()
     storage = get_storage()
     await storage.connect()
 
-    # Create pipeline components
-    time_detector = TimeDetector()
-    tz_state_manager = TimezoneStateManager(storage)
-    time_handler = TimeConversionHandler()
-
-    pipeline = Pipeline(
-        detectors=[time_detector],
-        state_managers={"timezone": tz_state_manager},
-        action_handlers={"time": time_handler},
-    )
-
-    agent_handler = AgentHandler(storage, settings)
-    orchestrator = MessageOrchestrator(
-        storage=storage,
-        pipeline=pipeline,
-        agent_handler=agent_handler,
-        base_url=settings.app_base_url,
-    )
+    orchestrator, _ = await create_orchestrator(storage, settings)
 
     # Start polling
     poller = TelegramPoller(orchestrator)

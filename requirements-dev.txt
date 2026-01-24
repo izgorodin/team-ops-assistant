@@ -16,3 +16,4 @@ pre-commit>=4.0.0,<5.0.0
 
 # Local development - ngrok tunnel
 pyngrok>=7.0.0,<8.0.0
+hypercorn>=0.16.0,<1.0.0
