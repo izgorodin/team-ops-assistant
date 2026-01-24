@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
-from src.core.models import NormalizedEvent, Platform
+from src.core.models import (
+    DetectedTrigger,
+    NormalizedEvent,
+    Platform,
+    ResolvedContext,
+    UserTzState,
+)
 from src.core.triggers.relocation import RelocationDetector
+
+if TYPE_CHECKING:
+    from src.core.actions.relocation import RelocationHandler
 
 
 class TestRelocationDetector:
@@ -187,3 +200,147 @@ class TestRelocationTriggerData:
         triggers = await detector.detect(event)
         assert "pattern" in triggers[0].data
         assert triggers[0].data["pattern"] == "moved_to"
+
+
+class TestRelocationHandler:
+    """Tests for RelocationHandler.handle method."""
+
+    @pytest.fixture
+    def mock_storage(self) -> MagicMock:
+        """Create a mock storage."""
+        storage = MagicMock()
+        storage.get_user_tz_state = AsyncMock()
+        storage.upsert_user_tz_state = AsyncMock()
+        return storage
+
+    @pytest.fixture
+    def handler(self, mock_storage: MagicMock) -> RelocationHandler:
+        """Create handler with mock storage."""
+        from src.core.actions.relocation import RelocationHandler
+
+        return RelocationHandler(mock_storage)
+
+    def _make_context(self) -> ResolvedContext:
+        """Create a test context."""
+        return ResolvedContext(
+            platform=Platform.TELEGRAM,
+            chat_id="test_chat",
+            user_id="test_user",
+            source_timezone=None,
+            target_timezones=[],
+        )
+
+    def _make_trigger(self) -> DetectedTrigger:
+        """Create a test relocation trigger."""
+        return DetectedTrigger(
+            trigger_type="relocation",
+            confidence=0.9,
+            original_text="moved to London",
+            data={"city": "London", "pattern": "moved_to"},
+        )
+
+    async def test_handle_resets_confidence_when_user_exists(
+        self, handler: RelocationHandler, mock_storage: MagicMock
+    ) -> None:
+        """Test handler resets confidence when user state exists."""
+        # Setup: user has existing timezone
+        existing_state = UserTzState(
+            platform=Platform.TELEGRAM,
+            user_id="test_user",
+            tz_iana="Europe/London",
+            confidence=1.0,
+            updated_at=datetime.now(UTC),
+        )
+        mock_storage.get_user_tz_state.return_value = existing_state
+
+        # Act
+        result = await handler.handle(self._make_trigger(), self._make_context())
+
+        # Assert
+        assert result == []  # Returns empty list
+        mock_storage.upsert_user_tz_state.assert_called_once()
+        saved_state = mock_storage.upsert_user_tz_state.call_args[0][0]
+        assert saved_state.confidence == 0.0  # Confidence reset
+        assert saved_state.tz_iana == "Europe/London"  # TZ preserved
+
+    async def test_handle_does_nothing_when_no_user_state(
+        self, handler: RelocationHandler, mock_storage: MagicMock
+    ) -> None:
+        """Test handler does nothing when user has no timezone state."""
+        mock_storage.get_user_tz_state.return_value = None
+
+        result = await handler.handle(self._make_trigger(), self._make_context())
+
+        assert result == []
+        mock_storage.upsert_user_tz_state.assert_not_called()
+
+
+class TestPipelineRelocationPath:
+    """Tests for Pipeline relocation short-circuit behavior."""
+
+    @pytest.fixture
+    def mock_storage(self) -> MagicMock:
+        """Create a mock storage."""
+        storage = MagicMock()
+        storage.get_user_tz_state = AsyncMock(return_value=None)
+        storage.upsert_user_tz_state = AsyncMock()
+        return storage
+
+    def _make_event(self, text: str) -> NormalizedEvent:
+        """Create a test event."""
+        return NormalizedEvent(
+            platform=Platform.TELEGRAM,
+            event_id="test_event",
+            chat_id="test_chat",
+            user_id="test_user",
+            text=text,
+            message_id="test_msg",
+        )
+
+    async def test_relocation_triggers_needs_state_collection(
+        self, mock_storage: MagicMock
+    ) -> None:
+        """Test pipeline returns needs_state_collection for relocation triggers."""
+        from src.core.actions.relocation import RelocationHandler
+        from src.core.pipeline import Pipeline
+        from src.core.triggers.relocation import RelocationDetector
+
+        # Setup pipeline with relocation detector and handler
+        pipeline = Pipeline(
+            detectors=[RelocationDetector()],
+            state_managers={},
+            action_handlers={"relocation": RelocationHandler(mock_storage)},
+        )
+
+        # Process message with relocation
+        event = self._make_event("I moved to Berlin")
+        result = await pipeline.process(event)
+
+        # Assert relocation path was taken
+        assert result.needs_state_collection is True
+        assert result.state_collection_trigger is not None
+        assert result.state_collection_trigger.trigger_type == "relocation"
+        assert result.triggers_detected == 1
+        assert result.triggers_handled == 1
+
+    async def test_relocation_has_priority_over_time(self, mock_storage: MagicMock) -> None:
+        """Test relocation triggers are processed before time triggers."""
+        from src.core.actions.relocation import RelocationHandler
+        from src.core.pipeline import Pipeline
+        from src.core.triggers.relocation import RelocationDetector
+        from src.core.triggers.time import TimeDetector
+
+        pipeline = Pipeline(
+            detectors=[TimeDetector(), RelocationDetector()],
+            state_managers={},
+            action_handlers={"relocation": RelocationHandler(mock_storage)},
+        )
+
+        # Message with both relocation AND time
+        event = self._make_event("I moved to Berlin, let's meet at 3pm")
+        result = await pipeline.process(event)
+
+        # Relocation should take priority
+        assert result.needs_state_collection is True
+        assert result.state_collection_trigger is not None
+        assert result.state_collection_trigger.trigger_type == "relocation"

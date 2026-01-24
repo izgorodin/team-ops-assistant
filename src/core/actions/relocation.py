@@ -19,12 +19,13 @@ if TYPE_CHECKING:
 class RelocationHandler:
     """Handles relocation triggers.
 
-    When user indicates they've moved, this handler:
-    1. Resets their timezone confidence to 0.0
+    When user indicates they've moved, this handler resets their timezone
+    confidence to 0.0. The pipeline then returns needs_state_collection=True
+    immediately (step 1.5), which causes the orchestrator to create a
+    REVERIFY_TIMEZONE session.
 
-    Note: The actual session creation happens in the orchestrator
-    when it detects needs_state_collection from the pipeline
-    (because source_timezone will be None with 0.0 confidence).
+    Flow: Pipeline detects relocation → calls this handler → returns early
+    with needs_state_collection=True → Orchestrator creates re-verify session.
 
     Implements ActionHandler protocol.
     """
@@ -64,6 +65,6 @@ class RelocationHandler:
             user_state.confidence = config.relocation_reset
             await self.storage.upsert_user_tz_state(user_state)
 
-        # Return empty - the pipeline will detect needs_state_collection
-        # because source_timezone will be None with 0.0 confidence
+        # Return empty - pipeline explicitly sets needs_state_collection=True
+        # for relocation triggers (step 1.5), so orchestrator creates session
         return []
