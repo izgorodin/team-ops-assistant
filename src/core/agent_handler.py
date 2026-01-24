@@ -271,12 +271,10 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation message.
         """
-        # Get existing timezone from session context
-        existing_tz = session.context.get("existing_tz")
-        if not existing_tz:
-            # Fallback: get from storage
-            user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
-            existing_tz = user_state.tz_iana if user_state else None
+        # Always get CURRENT timezone from storage (not session context)
+        # This handles the case where user entered a new city before confirming
+        user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
+        existing_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
 
         if existing_tz:
             # Refresh confidence to 1.0 by re-saving with WEB_VERIFIED source
