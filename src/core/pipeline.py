@@ -89,6 +89,24 @@ class Pipeline:
         # Step 2: Resolve state (timezone for now)
         context = await self._resolve_context(event, all_triggers)
 
+        # Step 2.5: Check if state collection is needed
+        # If we have time triggers but no source timezone, we need to collect it
+        if context.source_timezone is None and all_triggers:
+            # Get the best trigger (highest confidence) for state collection
+            best_trigger = max(all_triggers, key=lambda t: t.confidence)
+            logger.info(
+                f"State collection needed for user {event.user_id}: "
+                f"no source timezone for trigger '{best_trigger.original_text}'"
+            )
+            return PipelineResult(
+                messages=[],
+                triggers_detected=triggers_detected,
+                triggers_handled=0,
+                errors=errors,
+                needs_state_collection=True,
+                state_collection_trigger=best_trigger,
+            )
+
         # Step 3: Handle each trigger
         for trigger in all_triggers:
             handler = self.action_handlers.get(trigger.trigger_type)
