@@ -39,3 +39,6 @@ scikit-learn>=1.4.0,<2.0.0
 
 # pytz - timezone handling
 pytz>=2024.1
+
+# geonamescache - city → timezone lookup (190k+ cities)
+geonamescache>=1.6.0,<2.0.0

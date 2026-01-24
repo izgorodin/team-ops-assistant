@@ -7,6 +7,7 @@ from the user (e.g., timezone verification).
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -33,35 +34,64 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # System prompt for the timezone agent
-SYSTEM_PROMPT = """You are a helpful timezone assistant for a team chat bot.
+SYSTEM_PROMPT = """You are a timezone assistant for a team chat bot.
 Your job is to help users set their timezone so the bot can convert times correctly.
 
-You have these tools:
-- lookup_configured_city: Check if a city is in the team's configured cities (preferred)
-- lookup_tz_abbreviation: Check timezone codes like PT, PST, EST, CET
-- geocode_city: Look up any city worldwide to find its timezone
-- save_timezone: Save the final timezone (call this when you've determined it)
+Tools available:
+- lookup_configured_city: Check team's configured cities (try first)
+- lookup_tz_abbreviation: Check timezone codes (PT, PST, EST, CET, MSK)
+- geocode_city: Look up any city worldwide (supports abbreviations: NY, LA, MSK, СПб)
+- save_timezone: Save the resolved timezone
 
 Process:
-1. When user provides input, first try to understand what they mean
-2. Try lookup_configured_city first (team's preferred cities)
-3. If not found, try lookup_tz_abbreviation for codes
-4. If still not found, try geocode_city for worldwide lookup
-5. When you've found the timezone, call save_timezone with the IANA format
-6. If you can't determine the timezone, ask for clarification politely
+1. Try lookup_configured_city first
+2. If not found, try lookup_tz_abbreviation for codes
+3. If still not found, try geocode_city (handles NY, LA, MSK, спб, etc.)
+4. When FOUND, call save_timezone AND report to user what you found
+5. If NOT_FOUND from all tools, ask user to try a different spelling
 
-Rules:
-- Be concise and friendly
+CRITICAL RULES:
+- When timezone is resolved, ALWAYS tell user: "Определили {city} ({timezone}). \
+Если неверно - напиши город точнее."
+- NEVER invent/hallucinate a timezone if all lookups return NOT_FOUND
+- If NOT_FOUND, ask user to try different spelling - do NOT guess
+- Be concise - one sentence responses
 - Respond in the same language as the user
-- If the user seems confused, offer examples
-- After 3 failed attempts, suggest using the web verification link instead
 
-Examples of user inputs you might receive:
-- "London" → lookup_configured_city, then save_timezone
-- "PT" or "PST" → lookup_tz_abbreviation, then save_timezone
-- "Funchal" → geocode_city (not in config), then save_timezone
-- "абракадабра" → ask for clarification
+OUTPUT FORMAT:
+- Output ONLY the user-facing message
+- NEVER include notes, assumptions, or explanations about function outputs
+- NEVER start with "(Note:", "(assuming", "Based on the description"
+- Just output the clean message for the user
+
+Examples:
+- User: "NY" → geocode_city("NY") → FOUND → save_timezone → "Определили New York (ET). \
+Если неверно - напиши город точнее."
+- User: "xyz" → all NOT_FOUND → "Не нашёл 'xyz'. Напиши город точнее \
+(например: Moscow, London, NY)"
 """
+
+
+def _sanitize_response(text: str) -> str:
+    """Remove LLM meta-commentary from response.
+
+    Args:
+        text: Raw response text from LLM.
+
+    Returns:
+        Cleaned response without notes/assumptions.
+    """
+    # Patterns to remove
+    patterns = [
+        r"\(Note:.*?\)",
+        r"\(assuming.*?\)",
+        r"\(based on.*?\)",
+        r"Based on the.*?description[.,]?\s*",
+        r"The output of the functions.*?\.\s*",
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
+    return text.strip()
 
 
 class AgentHandler:
@@ -135,7 +165,7 @@ class AgentHandler:
             response_text = ""
             for msg in reversed(agent_messages):
                 if isinstance(msg, AIMessage) and msg.content:
-                    response_text = str(msg.content)
+                    response_text = _sanitize_response(str(msg.content))
                     break
 
             # Check if agent saved the timezone
