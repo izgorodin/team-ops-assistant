@@ -7,13 +7,62 @@ from __future__ import annotations
 
 import logging
 
-import httpx
+from geonamescache import GeonamesCache
 from langchain_core.tools import tool
 
 from src.core.time_parse import TIMEZONE_ABBREVIATIONS
 from src.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+# City abbreviations for common inputs (expand before lookup)
+CITY_ABBREVIATIONS: dict[str, str] = {
+    # US cities
+    "ny": "new york",
+    "nyc": "new york",
+    "la": "los angeles",
+    "sf": "san francisco",
+    "dc": "washington",
+    "chi": "chicago",
+    "phx": "phoenix",
+    "bos": "boston",
+    "atl": "atlanta",
+    "sea": "seattle",
+    # Russia (Latin + Cyrillic)
+    "msk": "moscow",
+    "москва": "moscow",
+    "мск": "moscow",
+    "spb": "saint petersburg",
+    "спб": "saint petersburg",
+    "питер": "saint petersburg",
+    "санкт-петербург": "saint petersburg",
+    "екб": "yekaterinburg",
+    "нск": "novosibirsk",
+    "новосиб": "novosibirsk",
+    # Europe
+    "ldn": "london",
+    "lon": "london",
+    "лондон": "london",
+    "par": "paris",
+    "ber": "berlin",
+    "ams": "amsterdam",
+    # Asia
+    "hk": "hong kong",
+    "sg": "singapore",
+    "tok": "tokyo",
+    "bkk": "bangkok",
+}
+
+# Singleton geonamescache instance (lazy init)
+_gc: GeonamesCache | None = None
+
+
+def _get_geonames_cache() -> GeonamesCache:
+    """Get singleton GeonamesCache instance."""
+    global _gc
+    if _gc is None:
+        _gc = GeonamesCache()
+    return _gc
 
 
 @tool
@@ -65,152 +114,68 @@ def lookup_tz_abbreviation(abbrev: str) -> str:
 
 
 @tool
-async def geocode_city(city_name: str) -> str:
-    """Look up any city worldwide using geocoding to find its timezone.
+def geocode_city(city_name: str) -> str:
+    """Look up any city worldwide to find its timezone.
 
+    Uses geonamescache with 190k+ cities. Supports abbreviations like NY, MSK, СПб.
     Use this when the city is not in the configured list.
-    This makes an API call to find the timezone for any city in the world.
 
     Args:
-        city_name: Name of the city to look up
+        city_name: Name of the city to look up (supports abbreviations)
 
     Returns:
         FOUND: city → IANA timezone if found
         NOT_FOUND: message if city cannot be found
     """
-    settings = get_settings()
-
-    # Use TimeZoneDB free API (or similar)
-    # For MVP, we'll use a simple approach with geonames or similar
-    # TODO: Add TIMEZONEDB_API_KEY to settings
-    api_key = getattr(settings, "timezonedb_api_key", None)
-
-    if not api_key:
-        # Fallback: try to match common city names
-        return await _fallback_city_lookup(city_name)
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "http://api.timezonedb.com/v2.1/get-time-zone",
-                params={
-                    "key": api_key,
-                    "format": "json",
-                    "by": "city",
-                    "city": city_name,
-                },
-            )
-            data = resp.json()
-
-            if data.get("status") == "OK":
-                zone_name = data.get("zoneName", "")
-                return f"FOUND: {city_name} → {zone_name}"
-
-            return f"NOT_FOUND: Could not find timezone for '{city_name}'"
-
-    except Exception as e:
-        logger.warning(f"Geocoding API error for '{city_name}': {e}")
-        return await _fallback_city_lookup(city_name)
+    return _lookup_city_geonames(city_name)
 
 
-async def _fallback_city_lookup(city_name: str) -> str:
-    """Fallback city lookup using a built-in mapping of major cities."""
-    # Extended city list for common cities worldwide
-    EXTENDED_CITIES: dict[str, str] = {
-        # Americas
-        "los angeles": "America/Los_Angeles",
-        "san francisco": "America/Los_Angeles",
-        "seattle": "America/Los_Angeles",
-        "portland": "America/Los_Angeles",
-        "las vegas": "America/Los_Angeles",
-        "san diego": "America/Los_Angeles",
-        "denver": "America/Denver",
-        "phoenix": "America/Phoenix",
-        "chicago": "America/Chicago",
-        "houston": "America/Chicago",
-        "dallas": "America/Chicago",
-        "austin": "America/Chicago",
-        "new york": "America/New_York",
-        "boston": "America/New_York",
-        "miami": "America/New_York",
-        "atlanta": "America/New_York",
-        "washington": "America/New_York",
-        "toronto": "America/Toronto",
-        "vancouver": "America/Vancouver",
-        "mexico city": "America/Mexico_City",
-        "sao paulo": "America/Sao_Paulo",
-        "buenos aires": "America/Argentina/Buenos_Aires",
-        # Europe
-        "london": "Europe/London",
-        "dublin": "Europe/Dublin",
-        "lisbon": "Europe/Lisbon",
-        "funchal": "Atlantic/Madeira",
-        "paris": "Europe/Paris",
-        "madrid": "Europe/Madrid",
-        "barcelona": "Europe/Madrid",
-        "berlin": "Europe/Berlin",
-        "munich": "Europe/Berlin",
-        "frankfurt": "Europe/Berlin",
-        "amsterdam": "Europe/Amsterdam",
-        "brussels": "Europe/Brussels",
-        "zurich": "Europe/Zurich",
-        "vienna": "Europe/Vienna",
-        "rome": "Europe/Rome",
-        "milan": "Europe/Rome",
-        "warsaw": "Europe/Warsaw",
-        "prague": "Europe/Prague",
-        "budapest": "Europe/Budapest",
-        "athens": "Europe/Athens",
-        "istanbul": "Europe/Istanbul",
-        "moscow": "Europe/Moscow",
-        "st petersburg": "Europe/Moscow",
-        "kiev": "Europe/Kiev",
-        "kyiv": "Europe/Kiev",
-        "helsinki": "Europe/Helsinki",
-        "stockholm": "Europe/Stockholm",
-        "oslo": "Europe/Oslo",
-        "copenhagen": "Europe/Copenhagen",
-        # Asia
-        "dubai": "Asia/Dubai",
-        "tel aviv": "Asia/Tel_Aviv",
-        "jerusalem": "Asia/Jerusalem",
-        "mumbai": "Asia/Kolkata",
-        "delhi": "Asia/Kolkata",
-        "bangalore": "Asia/Kolkata",
-        "kolkata": "Asia/Kolkata",
-        "singapore": "Asia/Singapore",
-        "bangkok": "Asia/Bangkok",
-        "jakarta": "Asia/Jakarta",
-        "kuala lumpur": "Asia/Kuala_Lumpur",
-        "hong kong": "Asia/Hong_Kong",
-        "shanghai": "Asia/Shanghai",
-        "beijing": "Asia/Shanghai",
-        "shenzhen": "Asia/Shanghai",
-        "taipei": "Asia/Taipei",
-        "seoul": "Asia/Seoul",
-        "tokyo": "Asia/Tokyo",
-        "osaka": "Asia/Tokyo",
-        # Oceania
-        "sydney": "Australia/Sydney",
-        "melbourne": "Australia/Melbourne",
-        "brisbane": "Australia/Brisbane",
-        "perth": "Australia/Perth",
-        "auckland": "Pacific/Auckland",
-        "wellington": "Pacific/Auckland",
-        # Russia
-        "демидов": "Europe/Moscow",  # Small city in Russia
-        "novosibirsk": "Asia/Novosibirsk",
-        "yekaterinburg": "Asia/Yekaterinburg",
-        "vladivostok": "Asia/Vladivostok",
-    }
+def _lookup_city_geonames(city_name: str) -> str:
+    """Lookup city timezone using geonamescache (190k+ cities).
 
-    city_lower = city_name.lower().strip()
+    Args:
+        city_name: City name to look up (can be abbreviation like NY, MSK).
 
-    if city_lower in EXTENDED_CITIES:
-        tz = EXTENDED_CITIES[city_lower]
-        return f"FOUND: {city_name} → {tz}"
+    Returns:
+        FOUND: City → IANA timezone if found
+        NOT_FOUND: message if city cannot be found
+    """
+    normalized = city_name.lower().strip()
 
-    return f"NOT_FOUND: Could not find timezone for '{city_name}'. Please try a major city name or timezone code (e.g., PT, CET)."
+    # 1. Expand abbreviations (NY → new york, MSK → moscow)
+    if normalized in CITY_ABBREVIATIONS:
+        normalized = CITY_ABBREVIATIONS[normalized]
+
+    gc = _get_geonames_cache()
+    cities = gc.get_cities()
+
+    # 2. Exact match (case-insensitive) - collect all and pick by population
+    exact_matches: list[tuple[str, str, int]] = []
+    for city_data in cities.values():
+        if city_data["name"].lower() == normalized:
+            population = city_data.get("population", 0)
+            exact_matches.append((city_data["name"], city_data["timezone"], population))
+
+    if exact_matches:
+        # Pick the city with highest population (London UK > London Ontario)
+        best = max(exact_matches, key=lambda x: x[2])
+        return f"FOUND: {best[0]} → {best[1]}"
+
+    # 3. Prefix match for partial inputs (only if single match)
+    prefix_matches: list[tuple[str, str, int]] = []
+    for city_data in cities.values():
+        if city_data["name"].lower().startswith(normalized) and len(normalized) >= 3:
+            population = city_data.get("population", 0)
+            prefix_matches.append((city_data["name"], city_data["timezone"], population))
+
+    if len(prefix_matches) == 1:
+        return f"FOUND: {prefix_matches[0][0]} → {prefix_matches[0][1]}"
+
+    # 4. Not found
+    return (
+        f"NOT_FOUND: '{city_name}' не найден. "
+        "Напиши город точнее (например: Moscow, London, Tokyo)."
+    )
 
 
 @tool

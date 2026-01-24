@@ -164,24 +164,14 @@ class MessageOrchestrator:
         await self.storage.create_session(session)
         logger.info(f"Created timezone session {session.session_id} for user {event.user_id}")
 
-        # Build prompt message
-        cities = self._settings.config.timezone.team_cities
-        city_list = ", ".join(c.name for c in cities[:4])
-
-        text = (
-            "🌍 I noticed you mentioned a time! To convert it for the team, "
-            "I need to know your timezone.\n\n"
-            f"<b>Set your timezone once:</b>\n"
-            f'• <a href="{verify_url}">Verify TZ</a> - auto-detects from browser\n'
-            f"• Or pick a city: {city_list}\n\n"
-            "<i>Reply with your city name and I'll remember it!</i>"
-        )
+        # Build prompt message - simple, text-only, cross-platform
+        text = "🌍 Какой твой город? (для часового пояса)\nПримеры: NY, Москва, London, Berlin"
 
         message = OutboundMessage(
             platform=event.platform,
             chat_id=event.chat_id,
             text=text,
-            parse_mode="html",
+            parse_mode="plain",
         )
 
         # Record response for throttling

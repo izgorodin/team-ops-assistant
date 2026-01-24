@@ -223,10 +223,9 @@ def format_time_conversion(
     # Convert to all target timezones
     conversions = convert_to_timezones(parsed_time, source_tz, target_timezones)
 
-    # Format and return
-    return format_conversion_response(
-        original_text or f"{hour:02d}:{minute:02d}", source_tz, conversions
-    )
+    # Format and return - always use normalized HH:MM format
+    normalized_time = f"{hour:02d}:{minute:02d}"
+    return format_conversion_response(normalized_time, source_tz, conversions)
 
 
 def is_valid_iana_timezone(timezone: str) -> bool:
