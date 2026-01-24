@@ -203,15 +203,131 @@ def run_app() -> None:
     parser = argparse.ArgumentParser(description="Team Ops Assistant")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
+    parser.add_argument(
+        "--polling",
+        action="store_true",
+        help="Use Telegram polling instead of webhooks (for local development)",
+    )
+    parser.add_argument(
+        "--tunnel",
+        action="store_true",
+        help="Start ngrok tunnel and use webhooks (for local development)",
+    )
+    parser.add_argument(
+        "--restore-webhook",
+        action="store_true",
+        help="Restore original webhook URL on shutdown (only with --tunnel)",
+    )
     args = parser.parse_args()
 
-    app = create_app()
+    if args.polling and args.tunnel:
+        print("Error: Cannot use both --polling and --tunnel modes")
+        return
 
-    # Run with hypercorn for production-ready async server
+    if args.polling:
+        # Run in polling mode (local development)
+        asyncio.run(run_polling_mode())
+    elif args.tunnel:
+        # Run in tunnel mode (ngrok + webhooks)
+        asyncio.run(run_tunnel_mode(port=args.port, restore_webhook=args.restore_webhook))
+    else:
+        # Run in webhook mode (production)
+        app = create_app()
+        try:
+            app.run(host=args.host, port=args.port, debug=False)
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt")
+
+
+async def run_polling_mode() -> None:
+    """Run in Telegram polling mode for local development."""
+    from src.connectors.telegram.polling import TelegramPoller
+
+    logger.info("=== POLLING MODE (Local Development) ===")
+    logger.info("Press Ctrl+C to stop")
+
+    # Initialize components (same as startup())
+    settings = get_settings()
+    storage = get_storage()
+    await storage.connect()
+
+    # Create pipeline components
+    time_detector = TimeDetector()
+    tz_state_manager = TimezoneStateManager(storage)
+    time_handler = TimeConversionHandler()
+
+    pipeline = Pipeline(
+        detectors=[time_detector],
+        state_managers={"timezone": tz_state_manager},
+        action_handlers={"time": time_handler},
+    )
+
+    agent_handler = AgentHandler(storage, settings)
+    orchestrator = MessageOrchestrator(
+        storage=storage,
+        pipeline=pipeline,
+        agent_handler=agent_handler,
+        base_url=settings.app_base_url,
+    )
+
+    # Start polling
+    poller = TelegramPoller(orchestrator)
     try:
-        app.run(host=args.host, port=args.port, debug=False)
+        await poller.start()
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt")
+    finally:
+        await poller.stop()
+        await close_telegram_outbound()
+        await storage.close()
+        logger.info("Shutdown complete")
+
+
+async def run_tunnel_mode(port: int = 8000, restore_webhook: bool = False) -> None:
+    """Run in tunnel mode with ngrok for local webhook testing.
+
+    Args:
+        port: Local port to expose (default: 8000).
+        restore_webhook: If True, restore original webhook on shutdown.
+    """
+    from hypercorn.asyncio import serve
+    from hypercorn.config import Config
+
+    from src.connectors.telegram.tunnel import NgrokTunnelError, TunnelManager
+
+    logger.info("=== TUNNEL MODE (Local Webhook Development) ===")
+    logger.info("Press Ctrl+C to stop")
+
+    tunnel = TunnelManager(port=port)
+
+    try:
+        # Start tunnel and set webhook
+        public_url = await tunnel.setup()
+
+        logger.info("")
+        logger.info("=" * 50)
+        logger.info(f"Public URL: {public_url}")
+        logger.info(f"Webhook: {public_url}/hooks/telegram")
+        logger.info("Inspector: http://localhost:4040")
+        logger.info("")
+        logger.info("Send a message to your Telegram bot to test!")
+        logger.info("=" * 50)
+        logger.info("")
+
+        # Run the Quart app with hypercorn (async-compatible)
+        app = create_app()
+        config = Config()
+        config.bind = [f"0.0.0.0:{port}"]
+
+        await serve(app, config)
+
+    except NgrokTunnelError as e:
+        logger.error(f"Tunnel error: {e}")
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+    finally:
+        await tunnel.stop(restore_webhook=restore_webhook)
+        logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":
