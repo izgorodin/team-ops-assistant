@@ -152,7 +152,12 @@ class AgentHandler:
         # Quick confirmation for re-verification sessions
         if session.goal == SessionGoal.REVERIFY_TIMEZONE:
             text_lower = event.text.strip().lower()
-            if text_lower in ("да", "yes", "y", "+", "ок", "ok"):
+            # Common confirmation words in Russian and English
+            confirmations = (
+                "да", "yes", "y", "+", "ок", "ok", "okay",
+                "конечно", "верно", "точно", "ага", "угу", "yep", "yup", "sure",
+            )
+            if text_lower in confirmations:
                 return await self._confirm_existing_timezone(session, event)
 
         # Build conversation history
