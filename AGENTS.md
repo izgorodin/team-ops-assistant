@@ -98,12 +98,25 @@ When creating convenience functions that wrap Pydantic models:
 - Sanitize all user input before processing
 - Bot tokens must never be logged
 
+## Planning & Refactoring
+
+**ALWAYS use `architecture-analysis` skill BEFORE:**
+- Implementing new features
+- Refactoring existing code (any size!)
+- Replacing or deleting modules
+- Moving logic between files
+
+**Why:** Happy path is just the base. Real code has side effects, error paths, and implicit contracts. The skill ensures you inventory ALL behaviors before changing anything.
+
+**Key principle:** Never modify code you don't fully understand. If you can't list 10+ behaviors of a module, you haven't looked hard enough.
+
 ## PR Guidelines
 
 - Squash commits before merging
 - Descriptive commit messages
 - All checks must pass (ruff, pyright, pytest)
 - Update tests for new functionality
+- Use `pr-review-response` skill for handling review comments (D1-D7 workflow)
 
 ## Domain Context
 
