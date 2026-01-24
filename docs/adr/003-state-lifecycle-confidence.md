@@ -1,7 +1,7 @@
 # ADR-003: State Lifecycle & Confidence-Based Re-verification
 
 ## Status
-**Proposed** | 2026-01-24
+**Implemented** | 2026-01-24 | PR #13
 
 ## Context
 
@@ -107,15 +107,58 @@ confidence:
 - ~~Re-verify when below threshold~~
 - **Implemented in PR #9** (`src/core/timezone_identity.py`)
 
-### Phase 2: Relocation Detection (Rule-based)
-- Add regex patterns for relocation phrases
+### Phase 2: Relocation Detection (Rule-based) ✅
+
+- Add regex patterns for relocation phrases (EN + RU, past + future tense)
 - Reset confidence when detected
 - Trigger re-verification
+- **Implemented in PR #13** (`src/core/triggers/relocation.py`)
 
-### Phase 3: ML Detector (Future)
-- Collect training data from production
-- Train classifier similar to time detection
-- Replace/augment rule-based detection
+### Phase 3: ML/LLM Enhancement (Future)
+
+See "Known Limitations" section below for upgrade path.
+
+## Known Limitations (MVP)
+
+Current regex-based detection has significant limitations:
+
+### Language Support
+
+- **Only English and Russian** - no other languages supported
+- Adding new languages requires manual regex patterns
+
+### Detection Quality
+
+- **False positives**: "My friend moved to Boston" triggers detection
+- **\w+ limitation**: Hyphenated cities like "Нью-Йорк" captured as "Нью"
+- **Context-blind**: Can't distinguish "I moved" vs "he moved"
+
+### Upgrade Path (Priority Order)
+
+1. **Expand regex patterns** (cheapest)
+   - Add more languages as needed
+   - Tune patterns based on false positive feedback
+   - Works until false positive rate becomes unacceptable
+
+2. **Two-layer: Regex + LLM confirmation** (recommended next step)
+
+   ```text
+   Message → Regex (high recall) → LLM (high precision)
+   ```
+
+   - Regex acts as cheap positive detector (catches candidates)
+   - LLM confirms/rejects (reduces false positives)
+   - Only calls LLM when regex matches → low cost
+
+3. **ML classifier** (like time detection)
+   - Train on production data
+   - Replace regex entirely
+   - Requires labeled dataset
+
+4. **Always-on LLM monitoring** (expensive)
+   - Every message through LLM
+   - Best quality but highest cost
+   - Only if budget allows
 
 ## Consequences
 
