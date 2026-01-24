@@ -1,0 +1,174 @@
+phrase,timezone,signal_type,confidence,notes
+# Explicit timezone codes - English
+"I'm in PST",America/Los_Angeles,tz_code,high,pacific standard
+"EST here",America/New_York,tz_code,high,eastern standard
+"I'm on GMT",Europe/London,tz_code,high,greenwich
+"CET timezone",Europe/Berlin,tz_code,high,central european
+"We're in JST",Asia/Tokyo,tz_code,high,japan standard
+"IST for me",Asia/Kolkata,tz_code,high,india standard
+"AEST here",Australia/Sydney,tz_code,high,australian eastern
+"MSK time",Europe/Moscow,tz_code,high,moscow time
+"My timezone is CST",America/Chicago,tz_code,high,central standard
+"Working in BST",Europe/London,tz_code,high,british summer
+
+# UTC offset format
+"I'm UTC+3",Europe/Moscow,utc_offset,high,explicit offset
+"GMT+8 here",Asia/Singapore,utc_offset,high,singapore
+"UTC-5",America/New_York,utc_offset,high,eastern
+"We're GMT-8",America/Los_Angeles,utc_offset,high,pacific
+"UTC+9",Asia/Tokyo,utc_offset,high,japan
+"GMT+1",Europe/Paris,utc_offset,high,central europe
+"UTC+5:30",Asia/Kolkata,utc_offset,high,india half-hour
+"I'm at UTC+10",Australia/Sydney,utc_offset,high,sydney
+"GMT-3 timezone",America/Sao_Paulo,utc_offset,high,brazil
+"UTC+0",Europe/London,utc_offset,high,london winter
+
+# IANA timezone format
+"My tz is Europe/London",Europe/London,iana,high,full format
+"America/New_York here",America/New_York,iana,high,full format
+"I use Asia/Tokyo",Asia/Tokyo,iana,high,full format
+"Set to Europe/Berlin",Europe/Berlin,iana,high,full format
+"Australia/Sydney timezone",Australia/Sydney,iana,high,full format
+
+# Cities - Major world cities
+"I'm in London",Europe/London,city,high,uk capital
+"Based in New York",America/New_York,city,high,us east
+"Writing from Tokyo",Asia/Tokyo,city,high,japan capital
+"I live in Berlin",Europe/Berlin,city,high,germany capital
+"Here in Sydney",Australia/Sydney,city,high,australia
+"Located in Paris",Europe/Paris,city,high,france capital
+"I'm in LA",America/Los_Angeles,city,high,los angeles abbrev
+"San Francisco here",America/Los_Angeles,city,high,sf bay
+"From Singapore",Asia/Singapore,city,high,city-state
+"Based in Dubai",Asia/Dubai,city,high,uae
+"I'm in Mumbai",Asia/Kolkata,city,high,india
+"Hong Kong here",Asia/Hong_Kong,city,high,hk
+"Living in Toronto",America/Toronto,city,high,canada east
+"I'm in Vancouver",America/Vancouver,city,high,canada west
+"Amsterdam based",Europe/Amsterdam,city,high,netherlands
+"Working from Madrid",Europe/Madrid,city,high,spain
+"I'm in Seoul",Asia/Seoul,city,high,korea
+"Beijing time",Asia/Shanghai,city,high,china capital
+"Shanghai here",Asia/Shanghai,city,high,china
+"Tel Aviv based",Asia/Jerusalem,city,high,israel
+"I'm in Bangkok",Asia/Bangkok,city,high,thailand
+"Melbourne here",Australia/Melbourne,city,high,australia
+"Living in Chicago",America/Chicago,city,high,us central
+"Denver based",America/Denver,city,high,us mountain
+"I'm in Seattle",America/Los_Angeles,city,high,us pacific
+"Boston here",America/New_York,city,high,us east
+"Miami time",America/New_York,city,high,us east florida
+"Austin based",America/Chicago,city,high,us central texas
+
+# Cities - Russian
+"Я в Москве",Europe/Moscow,city,high,russia capital
+"Пишу из Питера",Europe/Moscow,city,high,saint petersburg
+"Из Санкт-Петербурга",Europe/Moscow,city,high,spb formal
+"Нахожусь в Новосибирске",Asia/Novosibirsk,city,high,siberia
+"Я из Екатеринбурга",Asia/Yekaterinburg,city,high,urals
+"Владивосток здесь",Asia/Vladivostok,city,high,far east
+"В Казани",Europe/Moscow,city,high,tatarstan
+"Из Минска",Europe/Minsk,city,high,belarus
+"Я в Киеве",Europe/Kyiv,city,high,ukraine
+"Алматы время",Asia/Almaty,city,high,kazakhstan
+
+# Cities - German
+"Ich bin in Berlin",Europe/Berlin,city,high,german
+"Aus München",Europe/Berlin,city,high,munich
+"In Frankfurt",Europe/Berlin,city,high,financial hub
+"Hamburg hier",Europe/Berlin,city,high,north germany
+"Ich lebe in Wien",Europe/Vienna,city,high,austria
+"Zürich Zeit",Europe/Zurich,city,high,switzerland
+
+# Cities - French
+"Je suis à Paris",Europe/Paris,city,high,french
+"Depuis Lyon",Europe/Paris,city,high,france
+"À Marseille",Europe/Paris,city,high,south france
+"Je vis à Montréal",America/Toronto,city,high,quebec
+"Genève ici",Europe/Zurich,city,high,geneva
+"Bruxelles",Europe/Brussels,city,high,belgium
+
+# Cities - Spanish
+"Estoy en Madrid",Europe/Madrid,city,high,spanish
+"Desde Barcelona",Europe/Madrid,city,high,catalonia
+"En Buenos Aires",America/Argentina/Buenos_Aires,city,high,argentina
+"Ciudad de México",America/Mexico_City,city,high,mexico
+"Bogotá aquí",America/Bogota,city,high,colombia
+"Lima tiempo",America/Lima,city,high,peru
+"Santiago de Chile",America/Santiago,city,high,chile
+
+# Cities - Portuguese
+"Estou em São Paulo",America/Sao_Paulo,city,high,brazil
+"No Rio de Janeiro",America/Sao_Paulo,city,high,brazil
+"Em Lisboa",Europe/Lisbon,city,high,portugal
+"Porto aqui",Europe/Lisbon,city,high,portugal
+
+# Cities - Italian
+"Sono a Roma",Europe/Rome,city,high,italy
+"Da Milano",Europe/Rome,city,high,milan
+"A Firenze",Europe/Rome,city,high,florence
+
+# Cities - Japanese
+"東京です",Asia/Tokyo,city,high,tokyo japanese
+"大阪から",Asia/Tokyo,city,high,osaka
+"私は東京にいます",Asia/Tokyo,city,high,formal japanese
+
+# Cities - Chinese
+"我在北京",Asia/Shanghai,city,high,beijing chinese
+"上海这里",Asia/Shanghai,city,high,shanghai
+"深圳时间",Asia/Shanghai,city,high,shenzhen
+
+# Countries
+"I'm in the UK",Europe/London,country,medium,ambiguous summer/winter
+"From the US",America/New_York,country,low,multiple zones
+"Based in Germany",Europe/Berlin,country,high,single zone
+"I live in Japan",Asia/Tokyo,country,high,single zone
+"From Australia",Australia/Sydney,country,low,multiple zones
+"In Canada",America/Toronto,country,low,multiple zones
+"Living in Brazil",America/Sao_Paulo,country,medium,main zone
+"I'm in India",Asia/Kolkata,country,high,single zone
+"From Russia",Europe/Moscow,country,low,multiple zones
+"Based in France",Europe/Paris,country,high,mainland
+"In Spain",Europe/Madrid,country,high,mainland
+"Living in Italy",Europe/Rome,country,high,single zone
+"From the Netherlands",Europe/Amsterdam,country,high,single zone
+"I'm in Switzerland",Europe/Zurich,country,high,single zone
+"Based in Israel",Asia/Jerusalem,country,high,single zone
+"From South Korea",Asia/Seoul,country,high,single zone
+"In Thailand",Asia/Bangkok,country,high,single zone
+"Living in Indonesia",Asia/Jakarta,country,medium,main island
+"From the Philippines",Asia/Manila,country,high,single zone
+"I'm in Vietnam",Asia/Ho_Chi_Minh,country,high,single zone
+"Based in Poland",Europe/Warsaw,country,high,single zone
+"From Ukraine",Europe/Kyiv,country,high,single zone
+"In Turkey",Europe/Istanbul,country,high,single zone
+"Living in Egypt",Africa/Cairo,country,high,single zone
+"From South Africa",Africa/Johannesburg,country,high,single zone
+"I'm in Nigeria",Africa/Lagos,country,high,single zone
+"Based in Kenya",Africa/Nairobi,country,high,single zone
+"From New Zealand",Pacific/Auckland,country,high,main islands
+"In Argentina",America/Argentina/Buenos_Aires,country,high,single zone
+"Living in Chile",America/Santiago,country,high,mainland
+"From Colombia",America/Bogota,country,high,single zone
+"I'm in Mexico",America/Mexico_City,country,medium,multiple zones
+
+# Regions
+"West Coast US",America/Los_Angeles,region,high,pacific
+"East Coast",America/New_York,region,high,eastern
+"Central Europe",Europe/Berlin,region,medium,multiple countries
+"Southeast Asia",Asia/Singapore,region,low,multiple zones
+"Middle East",Asia/Dubai,region,low,multiple zones
+"Scandinavia",Europe/Stockholm,region,low,multiple countries
+"Baltic states",Europe/Tallinn,region,low,multiple countries
+
+# Negative cases - past/travel (should NOT update timezone)
+"I visited Berlin last year",,negative,none,past visit
+"Going to Tokyo next month",,negative,none,future travel
+"I used to live in London",,negative,none,past residence
+"Planning to move to Sydney",,negative,none,future plan
+"My friend is in Paris",,negative,none,third party
+"The meeting is for people in NY",,negative,none,others location
+"Sending this from the airport",,negative,none,transit
+"On vacation in Bali",,negative,none,temporary
+"Passing through Dubai",,negative,none,transit
+"Connecting flight in Frankfurt",,negative,none,transit

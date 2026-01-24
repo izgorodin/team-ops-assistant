@@ -1,7 +1,7 @@
 """Tests for time parsing and conversion utilities.
 
-Note: MessageHandler is deprecated. Tests for pipeline/orchestrator are in
-test_orchestrator.py and test_pipeline.py.
+Note: MessageHandler is deprecated. Pipeline architecture tests are in
+test_protocols.py and test_pipeline_e2e.py.
 """
 
 from __future__ import annotations
@@ -164,6 +164,5 @@ class TestFormatConversionResponse:
         assert "23:00 UK" in response
 
 
-
 # Note: MessageHandler tests removed - functionality moved to orchestrator + pipeline.
-# See test_orchestrator.py for integration tests.
+# See test_protocols.py for contract tests and test_pipeline_e2e.py for integration tests.

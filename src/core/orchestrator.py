@@ -105,7 +105,11 @@ class MessageOrchestrator:
         # 5. Check if state collection is needed
         if result.needs_state_collection and result.state_collection_trigger:
             logger.info(f"State collection needed for user {event.user_id}")
-            return await self._handle_state_collection(event, result)
+            state_result = await self._handle_state_collection(event, result)
+            # Mark as processed for dedupe to prevent duplicate sessions on webhook retries
+            if state_result.should_respond:
+                await self.dedupe.mark_processed(event.platform, event.event_id, event.chat_id)
+            return state_result
 
         # 6. No triggers or successful handling - return result
         if result.messages:
