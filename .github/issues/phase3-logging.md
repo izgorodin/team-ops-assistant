@@ -22,9 +22,9 @@ structlog.configure(
 logger = structlog.get_logger()
 
 # Usage
-logger.info("message_processed", 
-    platform="telegram", 
-    user_id="123", 
+logger.info("message_processed",
+    platform="telegram",
+    user_id="123",
     has_time=True,
     duration_ms=45
 )

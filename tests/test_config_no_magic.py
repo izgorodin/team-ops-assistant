@@ -87,7 +87,7 @@ def find_magic_numbers_in_file(filepath: Path) -> list[MagicNumber]:
 
     for node in ast.walk(tree):
         # Check numeric literals
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
             value = str(node.value)
             if value not in ALLOWED_LITERALS:
                 line_num = node.lineno

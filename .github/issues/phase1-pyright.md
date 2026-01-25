@@ -3,7 +3,7 @@
 Pyright strict mode reports 1 error:
 
 ```
-tests/test_llm_integration.py:42:21 - error: 
+tests/test_llm_integration.py:42:21 - error:
 Argument of type "str" cannot be assigned to parameter "api_key" of type "SecretStr | None"
 ```
 

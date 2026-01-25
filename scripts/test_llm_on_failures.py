@@ -16,12 +16,27 @@ from src.core.llm_fallback import detect_time_with_llm
 # ML Classifier failures (6 cases)
 ML_FAILURES = [
     # False Negatives (should be True)
-    ("Please ensure all tickets are closed by 5pm today before the sprint ends", True, "FN - deadline context"),
-    ("Meeting confirmed: 2026-01-22 at 14:00 CET in the main conference room", True, "FN - formal confirmation"),
-    ("Please review the pull request #1234 before 5pm and leave your comments", True, "FN - PR + deadline"),
-
+    (
+        "Please ensure all tickets are closed by 5pm today before the sprint ends",
+        True,
+        "FN - deadline context",
+    ),
+    (
+        "Meeting confirmed: 2026-01-22 at 14:00 CET in the main conference room",
+        True,
+        "FN - formal confirmation",
+    ),
+    (
+        "Please review the pull request #1234 before 5pm and leave your comments",
+        True,
+        "FN - PR + deadline",
+    ),
     # False Positives (should be False)
-    ("Ребят, кто может посмотреть тикет #404? Клиент жалуется на ошибку", False, "FP - ticket number"),
+    (
+        "Ребят, кто может посмотреть тикет #404? Клиент жалуется на ошибку",
+        False,
+        "FP - ticket number",
+    ),
     ("Смотри, в отчете на странице 15 есть интересная статистика", False, "FP - page number"),
     ("The odds are 5:1 that we'll finish the feature this week", False, "FP - odds/ratio"),
 ]
@@ -49,9 +64,9 @@ async def test_cases(cases: list[tuple[str, bool, str]], label: str) -> tuple[in
     total = len(cases)
     errors = []
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Testing {label}: {total} cases")
-    print('='*60)
+    print("=" * 60)
 
     for text, expected, notes in cases:
         result = await detect_time_with_llm(text)
@@ -72,29 +87,35 @@ async def test_cases(cases: list[tuple[str, bool, str]], label: str) -> tuple[in
 
 async def main():
     print("Testing LLM Fallback on Real Message Failures")
-    print("="*60)
+    print("=" * 60)
 
     # Test ML failures
     ml_correct, ml_total, ml_errors = await test_cases(ML_FAILURES, "ML Classifier Failures")
 
     # Test Parser failures
-    parser_correct, parser_total, parser_errors = await test_cases(PARSER_FAILURES, "Parser Failures")
+    parser_correct, parser_total, parser_errors = await test_cases(
+        PARSER_FAILURES, "Parser Failures"
+    )
 
     # Summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SUMMARY")
-    print("="*60)
-    print(f"ML Failures tested:     {ml_correct}/{ml_total} ({100*ml_correct/ml_total:.1f}%)")
-    print(f"Parser Failures tested: {parser_correct}/{parser_total} ({100*parser_correct/parser_total:.1f}%)")
+    print("=" * 60)
+    print(f"ML Failures tested:     {ml_correct}/{ml_total} ({100 * ml_correct / ml_total:.1f}%)")
+    print(
+        f"Parser Failures tested: {parser_correct}/{parser_total} ({100 * parser_correct / parser_total:.1f}%)"
+    )
 
     total_correct = ml_correct + parser_correct
     total_cases = ml_total + parser_total
-    print(f"TOTAL:                  {total_correct}/{total_cases} ({100*total_correct/total_cases:.1f}%)")
+    print(
+        f"TOTAL:                  {total_correct}/{total_cases} ({100 * total_correct / total_cases:.1f}%)"
+    )
 
     if ml_errors or parser_errors:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("REMAINING ERRORS")
-        print("="*60)
+        print("=" * 60)
         for text, _expected, _got, notes, error_type in ml_errors + parser_errors:
             print(f"[{error_type}] {notes}")
             print(f"    {text[:70]}...")

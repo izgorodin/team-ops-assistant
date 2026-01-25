@@ -4,22 +4,22 @@
 repos:
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.14.0
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  # Pyright - strict type checking
-  - repo: https://github.com/RobertCraiwordan/pyright-python
-    rev: v1.1.391
+  # Pyright - strict type checking (local hook - uses installed pyright)
+  - repo: local
     hooks:
       - id: pyright
-        additional_dependencies:
-          - pydantic>=2.0
-          - quart
-          - motor
-          - httpx
+        name: pyright
+        entry: pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [src, tests]
 
   # Basic checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

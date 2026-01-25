@@ -23,8 +23,16 @@ neg_probs = [clf.predict_proba(r["phrase"]) for r in neg]
 print("=== Probability Distribution ===\n")
 
 buckets = [
-    (0, 0.1), (0.1, 0.2), (0.2, 0.3), (0.3, 0.4), (0.4, 0.5),
-    (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0)
+    (0, 0.1),
+    (0.1, 0.2),
+    (0.2, 0.3),
+    (0.3, 0.4),
+    (0.4, 0.5),
+    (0.5, 0.6),
+    (0.6, 0.7),
+    (0.7, 0.8),
+    (0.8, 0.9),
+    (0.9, 1.0),
 ]
 
 print("Bucket     | Positives | Negatives | Notes")
@@ -44,7 +52,9 @@ for low_t, high_t in [(0.3, 0.7), (0.4, 0.6), (0.45, 0.55), (0.48, 0.52)]:
     uncertain_pos = sum(1 for p in pos_probs if low_t <= p <= high_t)
     uncertain_neg = sum(1 for p in neg_probs if low_t <= p <= high_t)
     total_unc = uncertain_pos + uncertain_neg
-    print(f"\nThresholds ({low_t:.2f} / {high_t:.2f}): {total_unc}/{len(rows)} = {total_unc/len(rows)*100:.1f}% uncertain")
+    print(
+        f"\nThresholds ({low_t:.2f} / {high_t:.2f}): {total_unc}/{len(rows)} = {total_unc / len(rows) * 100:.1f}% uncertain"
+    )
 
 # Error analysis with 0.48/0.52
 print("\n=== Error Analysis (0.48/0.52) ===\n")
