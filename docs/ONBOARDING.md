@@ -7,8 +7,9 @@ Welcome to Team Ops Assistant! This guide will help you get started with the pro
 Team Ops Assistant is a multi-platform bot that monitors team chat channels and automatically converts time mentions to multiple timezones. It supports:
 
 - **Telegram** (fully implemented - MVP)
-- **Discord** (skeleton implementation)
-- **WhatsApp Cloud API** (skeleton implementation)
+- **Discord** (fully implemented)
+- **WhatsApp Cloud API** (fully implemented)
+- **Slack** (fully implemented)
 
 ## Quick Start
 
@@ -81,9 +82,10 @@ team-ops-assistant/
 │   │   ├── routes_verify.py    # Verification web flow
 │   │   └── verify_page.html    # Vue.js verification page
 │   └── connectors/
-│       ├── telegram/       # Telegram adapter (implemented)
-│       ├── discord/        # Discord adapter (skeleton)
-│       └── whatsapp/       # WhatsApp adapter (skeleton)
+│       ├── telegram/       # Telegram adapter
+│       ├── slack/          # Slack adapter
+│       ├── discord/        # Discord adapter
+│       └── whatsapp/       # WhatsApp adapter
 ├── prompts/                # Jinja2 prompt templates for LLM
 ├── tests/                  # pytest test suite
 ├── docs/                   # Documentation

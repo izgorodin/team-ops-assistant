@@ -2,13 +2,14 @@
 """Analyze probability distribution to find optimal thresholds."""
 
 import csv
+from pathlib import Path
 
 from src.core.time_classifier import get_classifier
 
 clf = get_classifier()
 
 # Load control corpus
-with open("data/time_extraction_control.csv") as f:
+with Path("data/time_extraction_control.csv").open() as f:
     reader = csv.DictReader(f)
     rows = list(reader)
 
@@ -53,7 +54,7 @@ false_neg, false_pos = 0, 0
 for r in rows:
     prob = clf.predict_proba(r["phrase"])
     has_time = bool(r["times"].strip())
-    
+
     if has_time and prob < LOW:
         false_neg += 1
         print(f"FALSE NEG ({prob:.2f}): {r['phrase'][:60]}")

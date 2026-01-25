@@ -148,7 +148,8 @@ class CircuitBreakerConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
-    model: str = "qwen/qwen3-70b-instruct"
+    # Default must match configuration.yaml - single source of truth is YAML
+    model: str = "qwen/qwen3-next-80b-a3b-instruct"
     base_url: str = "https://integrate.api.nvidia.com/v1"
     fallback_only: bool = True
     detection: LLMOperationConfig = Field(default_factory=LLMOperationConfig)

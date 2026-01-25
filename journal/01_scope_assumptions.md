@@ -20,36 +20,35 @@ Telegram implementation includes:
 - Outbound message sending via Bot API
 - Full test coverage
 
-### Skeleton Implementation: Discord
+### Fully Implemented: Discord
 
-Discord skeleton includes:
-- Inbound normalization function (implemented but not connected)
-- Outbound class structure (methods stub)
+Discord implementation includes:
+- Inbound normalization for MESSAGE_CREATE events
+- Outbound message sending via REST API v10
+- Webhook endpoint `/hooks/discord`
 - Example payload fixtures
-- Contract test expectations
-- Documentation for completion
+- Contract test coverage
 
-To complete Discord:
-1. Set up Discord.py or interaction webhooks
-2. Connect normalization to gateway/webhook
-3. Implement outbound API calls
-4. Add rate limiting
+> **Note:** Discord typically uses Gateway connections for real-time events.
+> The webhook endpoint is provided for custom proxy setups or integration testing.
+> See #34 for optional Gateway connection implementation.
 
-### Skeleton Implementation: WhatsApp
+### Fully Implemented: WhatsApp
 
-WhatsApp skeleton includes:
+WhatsApp implementation includes:
 - Inbound normalization for text messages
-- Webhook verification endpoint (implemented)
-- Outbound class structure (methods stub)
+- Webhook verification endpoint (GET)
+- Webhook handler (POST)
+- Outbound message sending via Cloud API
 - Example payload fixtures
-- Contract test expectations
-- Notes on 24-hour messaging window
+- Contract test coverage
 
-To complete WhatsApp:
-1. Implement outbound `send_message` method
-2. Handle template messages for out-of-window
-3. Add signature verification
-4. Test with Meta sandbox
+> **Note:** WhatsApp has a 24-hour messaging window.
+> Template messages for out-of-window messaging are not yet implemented.
+
+Not implemented yet (post-MVP):
+- Signature verification
+- Testing with Meta sandbox
 
 ## Core Features (MVP)
 
