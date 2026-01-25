@@ -78,24 +78,35 @@ or
 
 ---
 
-### Discord Webhook (Stub)
+### Discord Webhook
 
-Placeholder for Discord interactions.
+Receives Discord MESSAGE_CREATE events.
 
 ```
 POST /hooks/discord
 ```
 
+**Request Body:** Discord message payload (JSON)
+
 **Response:**
 ```json
 {
-  "status": "not_implemented",
-  "message": "Discord connector is a skeleton. See docs for implementation guide."
+  "status": "processed"
+}
+```
+or
+```json
+{
+  "status": "ignored"
 }
 ```
 
 **Status Codes:**
-- `501` - Not implemented
+- `200` - Message processed successfully
+- `400` - Invalid JSON
+- `500` - Internal server error
+
+> **Note:** Discord typically uses Gateway connections. This webhook endpoint is provided for custom proxy setups or integration testing.
 
 ---
 
@@ -118,24 +129,33 @@ GET /hooks/whatsapp
 
 ---
 
-### WhatsApp Webhook (Stub)
+### WhatsApp Webhook
 
-Placeholder for WhatsApp Cloud API webhooks.
+Receives WhatsApp Cloud API message webhooks.
 
 ```
 POST /hooks/whatsapp
 ```
 
+**Request Body:** WhatsApp Cloud API webhook payload (JSON)
+
 **Response:**
 ```json
 {
-  "status": "not_implemented",
-  "message": "WhatsApp connector is a skeleton. See docs for implementation guide."
+  "status": "processed"
+}
+```
+or
+```json
+{
+  "status": "ignored"
 }
 ```
 
 **Status Codes:**
-- `501` - Not implemented
+- `200` - Webhook processed successfully
+- `400` - Invalid JSON
+- `500` - Internal server error
 
 ---
 

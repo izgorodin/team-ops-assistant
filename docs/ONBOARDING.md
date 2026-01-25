@@ -81,9 +81,10 @@ team-ops-assistant/
 │   │   ├── routes_verify.py    # Verification web flow
 │   │   └── verify_page.html    # Vue.js verification page
 │   └── connectors/
-│       ├── telegram/       # Telegram adapter (implemented)
-│       ├── discord/        # Discord adapter (skeleton)
-│       └── whatsapp/       # WhatsApp adapter (skeleton)
+│       ├── telegram/       # Telegram adapter
+│       ├── slack/          # Slack adapter
+│       ├── discord/        # Discord adapter
+│       └── whatsapp/       # WhatsApp adapter
 ├── prompts/                # Jinja2 prompt templates for LLM
 ├── tests/                  # pytest test suite
 ├── docs/                   # Documentation

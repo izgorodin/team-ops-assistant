@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.llm_fallback import detect_time_with_llm
 
-
 # ML Classifier failures (6 cases)
 ML_FAILURES = [
     # False Negatives (should be True)
@@ -96,7 +95,7 @@ async def main():
         print("\n" + "="*60)
         print("REMAINING ERRORS")
         print("="*60)
-        for text, expected, got, notes, error_type in ml_errors + parser_errors:
+        for text, _expected, _got, notes, error_type in ml_errors + parser_errors:
             print(f"[{error_type}] {notes}")
             print(f"    {text[:70]}...")
 

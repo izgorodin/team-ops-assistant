@@ -1,0 +1,60 @@
+# Render Blueprint - Infrastructure as Code
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: team-ops-assistant
+    runtime: python
+    region: frankfurt  # EU region for lower latency to team locations
+    plan: free  # Start with free, upgrade for production
+
+    # Build configuration
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.app --host 0.0.0.0 --port $PORT
+
+    # Health check
+    healthCheckPath: /health
+
+    # Environment variables (secrets set via Render dashboard)
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+
+      # MongoDB Atlas connection
+      - key: MONGODB_URI
+        sync: false  # Set manually in dashboard (secret)
+
+      # Telegram Bot
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+
+      # Discord Bot
+      - key: DISCORD_BOT_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+
+      # Slack Bot
+      - key: SLACK_BOT_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+      - key: SLACK_SIGNING_SECRET
+        sync: false  # Set manually in dashboard (secret)
+
+      # WhatsApp Cloud API
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false  # Set manually in dashboard (secret)
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+
+      # LLM API (NVIDIA NIM)
+      - key: NVIDIA_API_KEY
+        sync: false  # Set manually in dashboard (secret)
+
+      # Application secrets
+      - key: APP_SECRET_KEY
+        generateValue: true  # Auto-generate secure value
+      - key: VERIFY_TOKEN_SECRET
+        generateValue: true  # Auto-generate secure value
+
+    # Auto-deploy on push to main branch
+    autoDeploy: true
