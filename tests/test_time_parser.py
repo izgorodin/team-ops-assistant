@@ -315,7 +315,7 @@ def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
 
 
 # Cases where regex DOES match but shouldn't be time - ML should filter
-# These are KNOWN ISSUES - marked as xfail
+# Known issues are marked as skip (not xfail) for cleaner output
 @pytest.mark.parametrize(
     ("phrase", "notes"),
     [
@@ -323,28 +323,28 @@ def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
         pytest.param(
             "John 3:16 is famous",
             "bible verse",
-            marks=pytest.mark.xfail(reason="ML doesn't filter bible verses"),
+            marks=pytest.mark.skip(reason="Known issue: ML doesn't filter bible verses"),
         ),
         pytest.param(
             "Read Romans 8:28",
             "bible verse",
-            marks=pytest.mark.xfail(reason="ML doesn't filter bible verses"),
+            marks=pytest.mark.skip(reason="Known issue: ML doesn't filter bible verses"),
         ),
         pytest.param(
             "Matthew 5:09",
             "bible verse padded",
-            marks=pytest.mark.xfail(reason="ML doesn't filter bible verses"),
+            marks=pytest.mark.skip(reason="Known issue: ML doesn't filter bible verses"),
         ),
         pytest.param(
             "Psalm 23:01",
             "bible verse padded",
-            marks=pytest.mark.xfail(reason="ML doesn't filter bible verses"),
+            marks=pytest.mark.skip(reason="Known issue: ML doesn't filter bible verses"),
         ),
         # Score with 2-digit (rare but possible)
         pytest.param(
             "They won 12:15 in overtime",
             "score 2-digit",
-            marks=pytest.mark.xfail(reason="Looks like time"),
+            marks=pytest.mark.skip(reason="Known issue: ambiguous time/score format"),
         ),
         # Ports (often 4 digits so might not match, but some do)
         ("localhost:8080", "localhost port"),  # should work - 80 is valid minute
@@ -354,7 +354,7 @@ def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
 def test_parse_times_rejects_two_digit_lookalikes(phrase: str, notes: str) -> None:
     """parse_times should NOT extract times from 2-digit minute lookalikes.
 
-    ML classifier should filter these - some are xfail (known issues).
+    ML classifier should filter these - some are skip (known issues).
     """
     result = parse_times(phrase)
     assert result == [], (

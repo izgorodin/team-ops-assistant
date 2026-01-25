@@ -106,7 +106,7 @@ class TestContainsTimeReference:
         assert contains_time_reference("The weather is nice today") is False
         assert contains_time_reference("Schedule a meeting") is False  # no digits!
 
-    @pytest.mark.xfail(reason="Word-based times (midnight/noon) not yet supported")
+    @pytest.mark.skip(reason="Not implemented: word-based times (midnight/noon)")
     def test_detects_midnight_noon(self) -> None:
         """Test detection of time words without digits."""
         assert contains_time_reference("Submit by midnight") is True

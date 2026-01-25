@@ -159,17 +159,44 @@ def _load_control_corpus() -> list[tuple[str, bool, str]]:
 CONTROL_CORPUS = _load_control_corpus()
 
 
-@pytest.mark.xfail(reason="Target 90% classifier accuracy - WIP", strict=False)
-@pytest.mark.parametrize(
-    ("phrase", "has_time", "notes"),
-    CONTROL_CORPUS,
-    ids=[f"ctrl:{i}" for i in range(len(CONTROL_CORPUS))],
-)
-def test_ml_control_corpus(phrase: str, has_time: bool, notes: str) -> None:
-    """ML classifier accuracy on control corpus."""
-    result = contains_time_ml(phrase, use_llm_fallback=False)
-    assert result == has_time, (
-        f"Control corpus mismatch: '{phrase}' expected={has_time}, got={result} ({notes})"
+def test_ml_control_corpus_accuracy() -> None:
+    """ML classifier accuracy on control corpus (target: 90%).
+
+    Instead of failing on each mismatch, this test:
+    1. Runs all corpus cases
+    2. Calculates overall accuracy
+    3. Asserts accuracy >= threshold
+    4. Reports failures for debugging
+    """
+    if not CONTROL_CORPUS:
+        pytest.skip("Control corpus not found")
+
+    threshold = 0.90
+    failures: list[tuple[str, bool, bool, str]] = []  # (phrase, expected, got, notes)
+
+    for phrase, has_time, notes in CONTROL_CORPUS:
+        result = contains_time_ml(phrase, use_llm_fallback=False)
+        if result != has_time:
+            failures.append((phrase, has_time, result, notes))
+
+    total = len(CONTROL_CORPUS)
+    passed = total - len(failures)
+    accuracy = passed / total
+
+    # Report failures for debugging
+    if failures:
+        print(f"\n{'=' * 60}")
+        print(f"ML Classifier Failures ({len(failures)}/{total}):")
+        print(f"{'=' * 60}")
+        for phrase, expected, got, notes in failures[:20]:  # Limit output
+            print(f"  '{phrase}' expected={expected}, got={got} ({notes})")
+        if len(failures) > 20:
+            print(f"  ... and {len(failures) - 20} more")
+        print(f"{'=' * 60}")
+
+    assert accuracy >= threshold, (
+        f"ML classifier accuracy {accuracy:.1%} below threshold {threshold:.0%} "
+        f"({len(failures)} failures out of {total})"
     )
 
 
