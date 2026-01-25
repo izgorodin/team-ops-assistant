@@ -214,8 +214,25 @@ class Pipeline:
             except Exception as e:
                 logger.error(f"Failed to get timezone state: {e}")
 
-        # Get target timezones from config
-        target_timezones = self._settings.config.timezone.team_timezones
+        # Get target timezones: config + chat's detected timezones
+        config_timezones = self._settings.config.timezone.team_timezones
+        chat_timezones: list[str] = []
+
+        # Get chat's active timezones from storage
+        if "timezone" in self.state_managers:
+            try:
+                tz_manager = self.state_managers["timezone"]
+                storage = tz_manager.storage  # type: ignore[attr-defined]
+                chat_state = await storage.get_chat_state(event.platform, event.chat_id)
+                if chat_state and chat_state.active_timezones:
+                    chat_timezones = chat_state.active_timezones
+            except Exception as e:
+                logger.error(f"Failed to get chat timezones: {e}")
+
+        # Merge: config first, then chat-specific
+        from src.core.chat_timezones import merge_timezones
+
+        target_timezones = merge_timezones(config_timezones, chat_timezones)
 
         return ResolvedContext(
             platform=event.platform,

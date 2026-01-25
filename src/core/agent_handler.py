@@ -134,9 +134,7 @@ class AgentHandler:
             relocation_city = trigger_data.get("city")
             if relocation_city:
                 # Prepend the relocation context so agent knows user said "Moved to Paris"
-                logger.info(
-                    f"Adding relocation context to session: city={relocation_city}"
-                )
+                logger.info(f"Adding relocation context to session: city={relocation_city}")
                 user_text = f"[User said they moved to {relocation_city}] {event.text}"
 
         # Build conversation history with context
@@ -248,6 +246,11 @@ class AgentHandler:
             tz_iana=tz_iana,
             source=TimezoneSource.CITY_PICK,  # Agent-assisted is similar to city pick
         )
+
+        # Add timezone to chat's active_timezones for dynamic team list
+        from src.core.chat_timezones import add_timezone_to_chat
+
+        await add_timezone_to_chat(self.storage, event.platform, event.chat_id, tz_iana)
 
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
