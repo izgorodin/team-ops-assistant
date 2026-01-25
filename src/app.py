@@ -13,10 +13,18 @@ from typing import Any
 
 from quart import Quart, Response, jsonify, request
 
+from src.connectors.discord.inbound import normalize_discord_message
 from src.connectors.discord.outbound import close_discord_outbound
+from src.connectors.discord.outbound import send_messages as send_discord_messages
+from src.connectors.slack.inbound import handle_url_verification, normalize_slack_event
+from src.connectors.slack.outbound import close_slack_outbound
+from src.connectors.slack.outbound import send_messages as send_slack_messages
 from src.connectors.telegram.inbound import normalize_telegram_update
-from src.connectors.telegram.outbound import close_telegram_outbound, send_messages
+from src.connectors.telegram.outbound import close_telegram_outbound
+from src.connectors.telegram.outbound import send_messages as send_telegram_messages
+from src.connectors.whatsapp.inbound import normalize_whatsapp_webhook
 from src.connectors.whatsapp.outbound import close_whatsapp_outbound
+from src.connectors.whatsapp.outbound import send_messages as send_whatsapp_messages
 from src.core.actions.relocation import RelocationHandler
 from src.core.actions.time_convert import TimeConversionHandler
 from src.core.agent_handler import AgentHandler
@@ -135,6 +143,7 @@ def create_app() -> Quart:
         await close_telegram_outbound()
         await close_discord_outbound()
         await close_whatsapp_outbound()
+        await close_slack_outbound()
 
         # Close MongoDB
         storage = get_storage()
@@ -169,7 +178,7 @@ def create_app() -> Quart:
 
             # Send outbound messages
             if result.should_respond and result.messages:
-                await send_messages(result.messages)
+                await send_telegram_messages(result.messages)
 
             return jsonify({"status": "processed"})
 
@@ -177,21 +186,71 @@ def create_app() -> Quart:
             logger.exception("Error processing Telegram webhook")
             return jsonify({"error": str(e)}), 500
 
-    # Discord webhook endpoint (stub)
-    @app.route("/hooks/discord", methods=["POST"])
-    async def discord_webhook() -> tuple[Response, int]:
-        """Handle incoming Discord interactions (STUB).
+    # Slack webhook endpoints
+    @app.route("/hooks/slack", methods=["POST"])
+    async def slack_webhook() -> Response | tuple[Response, int]:
+        """Handle incoming Slack Events API webhooks."""
+        try:
+            payload = await request.get_json()
+            if not payload:
+                return jsonify({"error": "Invalid JSON"}), 400
 
-        TODO: Implement Discord interactions/events handling.
-        For full Discord support, you'll likely want to use discord.py
-        with gateway connection rather than webhooks.
+            # Handle URL verification challenge
+            challenge_response = handle_url_verification(payload)
+            if challenge_response:
+                return jsonify(challenge_response)
+
+            # Normalize the event
+            event = normalize_slack_event(payload)
+            if event is None:
+                return jsonify({"status": "ignored"})
+
+            # Handle the event via orchestrator
+            orchestrator: MessageOrchestrator = app.orchestrator  # type: ignore[attr-defined]
+            result = await orchestrator.route(event)
+
+            # Send outbound messages
+            if result.should_respond and result.messages:
+                await send_slack_messages(result.messages)
+
+            return jsonify({"status": "processed"})
+
+        except Exception as e:
+            logger.exception("Error processing Slack webhook")
+            return jsonify({"error": str(e)}), 500
+
+    # Discord webhook endpoint
+    @app.route("/hooks/discord", methods=["POST"])
+    async def discord_webhook() -> Response | tuple[Response, int]:
+        """Handle incoming Discord MESSAGE_CREATE events.
+
+        Note: For production use, consider using discord.py with gateway
+        connection instead of HTTP webhooks for real-time events.
+        This endpoint is for integration testing or custom webhook setups.
         """
-        return jsonify(
-            {
-                "status": "not_implemented",
-                "message": "Discord connector is a skeleton. See docs for implementation guide.",
-            }
-        ), 501
+        try:
+            payload = await request.get_json()
+            if not payload:
+                return jsonify({"error": "Invalid JSON"}), 400
+
+            # Normalize the message
+            event = normalize_discord_message(payload)
+            if event is None:
+                return jsonify({"status": "ignored"})
+
+            # Handle the event via orchestrator
+            orchestrator: MessageOrchestrator = app.orchestrator  # type: ignore[attr-defined]
+            result = await orchestrator.route(event)
+
+            # Send outbound messages
+            if result.should_respond and result.messages:
+                await send_discord_messages(result.messages)
+
+            return jsonify({"status": "processed"})
+
+        except Exception as e:
+            logger.exception("Error processing Discord webhook")
+            return jsonify({"error": str(e)}), 500
 
     # WhatsApp webhook endpoints
     @app.route("/hooks/whatsapp", methods=["GET"])
@@ -211,17 +270,32 @@ def create_app() -> Quart:
         return jsonify({"error": "Forbidden"}), 403
 
     @app.route("/hooks/whatsapp", methods=["POST"])
-    async def whatsapp_webhook() -> tuple[Response, int]:
-        """Handle incoming WhatsApp webhook events (STUB).
+    async def whatsapp_webhook() -> Response | tuple[Response, int]:
+        """Handle incoming WhatsApp Cloud API webhook events."""
+        try:
+            payload = await request.get_json()
+            if not payload:
+                return jsonify({"error": "Invalid JSON"}), 400
 
-        TODO: Implement WhatsApp message handling.
-        """
-        return jsonify(
-            {
-                "status": "not_implemented",
-                "message": "WhatsApp connector is a skeleton. See docs for implementation guide.",
-            }
-        ), 501
+            # Normalize webhook (can contain multiple messages)
+            events = normalize_whatsapp_webhook(payload)
+            if not events:
+                return jsonify({"status": "ignored"})
+
+            # Handle each event
+            orchestrator: MessageOrchestrator = app.orchestrator  # type: ignore[attr-defined]
+            for event in events:
+                result = await orchestrator.route(event)
+
+                # Send outbound messages
+                if result.should_respond and result.messages:
+                    await send_whatsapp_messages(result.messages)
+
+            return jsonify({"status": "processed"})
+
+        except Exception as e:
+            logger.exception("Error processing WhatsApp webhook")
+            return jsonify({"error": str(e)}), 500
 
     return app
 
@@ -293,6 +367,9 @@ async def run_polling_mode() -> None:
     finally:
         await poller.stop()
         await close_telegram_outbound()
+        await close_slack_outbound()
+        await close_discord_outbound()
+        await close_whatsapp_outbound()
         await storage.close()
         logger.info("Shutdown complete")
 
