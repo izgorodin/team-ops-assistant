@@ -5,7 +5,6 @@ Loads configuration from environment variables (.env) and configuration.yaml.
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from typing import Any
