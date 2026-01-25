@@ -130,11 +130,13 @@ class AgentHandler:
         self.tz_manager = TimezoneIdentityManager(storage)
 
         # Initialize LLM (using OpenAI-compatible API with NVIDIA NIM)
+        # Timeout must be under Telegram's 30s webhook limit
         self.llm = ChatOpenAI(
             base_url=settings.config.llm.base_url,
             api_key=settings.nvidia_api_key,  # type: ignore[arg-type]
             model=settings.config.llm.model,
             temperature=0.3,
+            timeout=15.0,  # 15s timeout to stay within webhook limits
         )
 
         # Create the ReAct agent with tools
@@ -189,7 +191,7 @@ class AgentHandler:
             # Extract messages
             agent_messages = result.get("messages", [])
             if not agent_messages:
-                return await self._handle_agent_error(session, "No response from agent")
+                return await self._handle_agent_error(session, event, "No response from agent")
 
             # Check ALL messages for SAVE: (including tool responses)
             saved_tz = self._extract_saved_timezone(agent_messages)
@@ -206,9 +208,12 @@ class AgentHandler:
             # Agent is asking for clarification
             return await self._continue_session(session, event, response_text)
 
+        except TimeoutError:
+            logger.error(f"Agent timeout in session {session.session_id}")
+            return await self._handle_agent_timeout(session, event)
         except Exception as e:
             logger.exception(f"Agent error: {e}")
-            return await self._handle_agent_error(session, str(e))
+            return await self._handle_agent_error(session, event, str(e))
 
     def _extract_saved_timezone(self, messages: list) -> str | None:
         """Extract saved timezone from agent messages.
@@ -377,19 +382,56 @@ class AgentHandler:
 
         return HandlerResult(should_respond=True, messages=[message])
 
-    async def _handle_agent_error(self, session: Session, error: str) -> HandlerResult:
-        """Handle agent errors gracefully.
+    async def _handle_agent_timeout(
+        self,
+        session: Session,  # noqa: ARG002 - kept for interface consistency
+        event: NormalizedEvent,
+    ) -> HandlerResult:
+        """Handle LLM timeout - send friendly message, keep session open.
 
         Args:
             session: Current session.
+            event: Original event.
+
+        Returns:
+            HandlerResult with retry prompt.
+        """
+        text = "⏳ Сервис медленно отвечает. Попробуй ещё раз через минуту."
+
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=text,
+            parse_mode="plain",
+        )
+
+        return HandlerResult(should_respond=True, messages=[message])
+
+    async def _handle_agent_error(
+        self, session: Session, event: NormalizedEvent, error: str
+    ) -> HandlerResult:
+        """Handle agent errors gracefully - send message, keep session open.
+
+        Args:
+            session: Current session.
+            event: Original event.
             error: Error message.
 
         Returns:
-            HandlerResult indicating no response.
+            HandlerResult with error message.
         """
         logger.error(f"Agent error in session {session.session_id}: {error}")
-        # Don't close session on error - let user retry
-        return HandlerResult(should_respond=False)
+
+        text = "😕 Что-то пошло не так. Попробуй ещё раз или напиши город по-другому."
+
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=text,
+            parse_mode="plain",
+        )
+
+        return HandlerResult(should_respond=True, messages=[message])
 
     def _get_city_name_for_tz(self, tz_iana: str) -> str | None:
         """Get a friendly city name for a timezone.
