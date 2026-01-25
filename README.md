@@ -1,5 +1,7 @@
 # Team Ops Assistant
 
+[![CI](https://github.com/izgorodin/team-ops-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/izgorodin/team-ops-assistant/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/izgorodin/team-ops-assistant/graph/badge.svg)](https://codecov.io/gh/izgorodin/team-ops-assistant)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type checked: pyright](https://img.shields.io/badge/type%20checked-pyright-blue.svg)](https://github.com/microsoft/pyright)
