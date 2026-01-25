@@ -23,6 +23,7 @@ from src.core.models import (
     SessionGoal,
     SessionStatus,
 )
+from src.core.prompts import get_ui_message
 from src.core.timezone_identity import generate_verify_token, get_verify_url
 from src.settings import get_settings
 
@@ -151,10 +152,10 @@ class MessageOrchestrator:
         if is_reverify and user_state is not None and user_state.tz_iana is not None:
             goal = SessionGoal.REVERIFY_TIMEZONE
             existing_tz = user_state.tz_iana
-            text = f"🔄 Твоя таймзона всё ещё {existing_tz}?\nНапиши 'да' или новый город"
+            text = get_ui_message("reverify", existing_tz=existing_tz)
         else:
             goal = SessionGoal.AWAITING_TIMEZONE
-            text = "🌍 Какой твой город? (для часового пояса)\nПримеры: NY, Москва, London, Berlin"
+            text = get_ui_message("onboarding")
 
         # Create session for agent to handle follow-up
         trigger = result.state_collection_trigger

@@ -27,6 +27,10 @@ class TestTelegramPoller:
         """Fixture for mock settings."""
         settings = MagicMock()
         settings.telegram_bot_token = "test_token_123"
+        # Add polling config
+        settings.config.polling.backoff_seconds = 5
+        settings.config.polling.long_polling_timeout = 30
+        settings.config.polling.client_timeout = 60.0
         return settings
 
     @pytest.fixture

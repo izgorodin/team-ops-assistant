@@ -73,12 +73,14 @@ time_parsing:
     # "at 3" - most ambiguous
     at_h: 0.7
   
-# Deduplication settings  
+# Deduplication settings
 dedupe:
   # TTL for dedupe events in seconds (7 days)
   ttl_seconds: 604800
   # Throttle: minimum seconds between responses in same chat
   throttle_seconds: 2
+  # Cache cleanup multiplier (retention cutoff: entries older than throttle_seconds * multiplier are removed)
+  cache_cleanup_multiplier: 10
 
 # ML Classifier settings
 classifier:
@@ -104,7 +106,7 @@ classifier:
   
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
-  # Large model with proper tool calling support
+  # Llama 3.1 70B - reliable tool calling for agent workflows
   model: "meta/llama-3.1-70b-instruct"
   # NVIDIA API base URL
   base_url: "https://integrate.api.nvidia.com/v1"
@@ -120,6 +122,7 @@ llm:
     max_tokens: 500
     temperature: 0.1
     timeout: 9.0  # HTTP timeout < sync_bridge to let inner timeout trigger first
+    default_confidence: 0.8  # Default confidence for LLM-extracted times
   # Sync bridge wraps async LLM calls - outer timeout for total latency control
   sync_bridge_timeout: 10.0  # Total < 30s Telegram webhook limit
   # Circuit breaker for API resilience
@@ -130,6 +133,10 @@ llm:
     reset_timeout_seconds: 60.0
     # Enable/disable circuit breaker
     enabled: true
+  # Agent-specific settings (timezone resolution)
+  agent:
+    temperature: 0.3
+    timeout: 15.0
 
 # HTTP client timeouts (seconds)
 http:
@@ -144,6 +151,25 @@ ui:
   max_cities_shown: 4
   # Verification token validity (hours)
   verification_token_hours: 24
+
+# Telegram polling settings (local development)
+polling:
+  # Backoff sleep on errors (seconds)
+  backoff_seconds: 5
+  # Long polling timeout (seconds)
+  long_polling_timeout: 30
+  # HTTP client timeout (seconds)
+  client_timeout: 60.0
+
+# Ngrok tunnel settings (local development)
+tunnel:
+  # Default port for ngrok tunnel
+  default_port: 8000
+
+# Trigger detection settings
+triggers:
+  # Confidence score for relocation detection
+  relocation_confidence: 0.9
 
 # Logging
 logging:

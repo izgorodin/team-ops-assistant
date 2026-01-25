@@ -48,7 +48,8 @@ class TelegramPoller:
     async def start(self) -> None:
         """Start polling for updates."""
         self._running = True
-        self._client = httpx.AsyncClient(timeout=60.0)
+        polling_config = self.settings.config.polling
+        self._client = httpx.AsyncClient(timeout=polling_config.client_timeout)
 
         # Delete webhook first (required for getUpdates to work)
         await self._delete_webhook()
@@ -63,12 +64,12 @@ class TelegramPoller:
                     await self._process_update(update)
             except httpx.HTTPError as e:
                 logger.error(f"Polling error: {e}")
-                await asyncio.sleep(5)  # Back off on errors
+                await asyncio.sleep(polling_config.backoff_seconds)
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.exception(f"Unexpected polling error: {e}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(polling_config.backoff_seconds)
 
     async def stop(self) -> None:
         """Stop polling."""
@@ -103,7 +104,7 @@ class TelegramPoller:
             return []
 
         params: dict[str, Any] = {
-            "timeout": 30,  # Long polling timeout
+            "timeout": self.settings.config.polling.long_polling_timeout,
             "allowed_updates": ["message"],  # Only get messages
         }
         if self._offset is not None:

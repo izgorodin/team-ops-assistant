@@ -279,7 +279,7 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
             data = response.json()
 
         content = data["choices"][0]["message"]["content"]
-        times = _parse_extraction_response(content)
+        times = _parse_extraction_response(content, extraction_config.default_confidence)
 
         # Record success
         cb.record_success()
@@ -301,11 +301,12 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
         return []
 
 
-def _parse_extraction_response(content: str) -> list[ParsedTime]:
+def _parse_extraction_response(content: str, default_confidence: float = 0.8) -> list[ParsedTime]:
     """Parse LLM extraction response to get ParsedTime list.
 
     Args:
         content: Raw LLM response content.
+        default_confidence: Default confidence for extracted times.
 
     Returns:
         List of ParsedTime objects.
@@ -348,7 +349,7 @@ def _parse_extraction_response(content: str) -> list[ParsedTime]:
                         minute=minute,
                         timezone_hint=t.get("timezone_hint"),
                         is_tomorrow=bool(t.get("is_tomorrow", False)),
-                        confidence=float(t.get("confidence", 0.8)),
+                        confidence=float(t.get("confidence", default_confidence)),
                     )
                 )
             except (KeyError, ValueError, TypeError) as e:

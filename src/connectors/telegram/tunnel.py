@@ -35,14 +35,14 @@ class TunnelManager:
     Uses pyngrok which automatically downloads ngrok if needed.
     """
 
-    def __init__(self, port: int = 8000) -> None:
+    def __init__(self, port: int | None = None) -> None:
         """Initialize the tunnel manager.
 
         Args:
-            port: Local port to expose (default: 8000)
+            port: Local port to expose (default from config).
         """
-        self.port = port
         self.settings = get_settings()
+        self.port = port if port is not None else self.settings.config.tunnel.default_port
         self._public_url: str | None = None
         self._original_webhook_url: str | None = None
         self._http_client: httpx.AsyncClient | None = None

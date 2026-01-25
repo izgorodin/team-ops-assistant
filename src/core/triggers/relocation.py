@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 
 from src.core.models import DetectedTrigger, NormalizedEvent
+from src.settings import get_settings
 
 # Common words that shouldn't be part of city names
 # These get captured due to greedy (\w+\s+\w+)? pattern
@@ -102,10 +103,11 @@ class RelocationDetector:
             match = pattern.search(text)
             if match:
                 city = _clean_city(match.group(1).strip())
+                settings = get_settings()
                 return [
                     DetectedTrigger(
                         trigger_type="relocation",
-                        confidence=0.9,  # High confidence for explicit statements
+                        confidence=settings.config.triggers.relocation_confidence,
                         original_text=match.group(0),
                         data={
                             "city": city,

@@ -25,6 +25,7 @@ from src.core.models import (
     SessionStatus,
     TimezoneSource,
 )
+from src.core.prompts import get_agent_system_prompt, get_ui_message
 from src.core.timezone_identity import TimezoneIdentityManager
 
 if TYPE_CHECKING:
@@ -32,65 +33,6 @@ if TYPE_CHECKING:
     from src.storage.mongo import MongoStorage
 
 logger = logging.getLogger(__name__)
-
-# System prompt for the timezone agent
-SYSTEM_PROMPT = """You are a friendly timezone assistant. Help users set their timezone.
-
-## Tools
-- lookup_configured_city: Check team's preset cities first
-- lookup_tz_abbreviation: Timezone codes (PT, EST, CET, MSK)
-- geocode_city: Any city worldwide (supports: NY, LA, MSK, СПб, Москва, Питер)
-- save_timezone: Call when you have a valid IANA timezone
-
-## Process
-1. User gives city/timezone → look it up with tools
-2. If FOUND: → call save_timezone with the IANA timezone
-3. If user confirms (да, yes, ага, конечно, верно, ok, yep) → call save_timezone(CURRENT_TZ)
-4. If NOT_FOUND: → ask user for clarification (see examples below)
-
-## CRITICAL: Handling NOT_FOUND
-
-When a tool returns NOT_FOUND, you MUST:
-1. Tell the user you couldn't find it
-2. Ask for a city name (not state/country)
-3. NEVER invent or guess a timezone
-4. NEVER call save_timezone after NOT_FOUND
-
-WRONG: Tool returns NOT_FOUND for "Kentucky" → save_timezone("Europe/Berlin")
-RIGHT: Tool returns NOT_FOUND for "Kentucky" → "Не нашёл Kentucky. Это штат, а не город. Напиши город, например Louisville или Lexington."
-
-## Language
-Respond in the same language as the user's message.
-Russian user → respond in Russian.
-English user → respond in English.
-
-## Examples
-
-### City found:
-User: "Москва"
-→ geocode_city("Москва") → "FOUND: Moscow → Europe/Moscow"
-→ save_timezone("Europe/Moscow")
-
-### Abbreviation:
-User: "NY"
-→ geocode_city("NY") → "FOUND: New York → America/New_York"
-→ save_timezone("America/New_York")
-
-### Confirmation (CURRENT_TZ in context):
-User: "да"
-Context: CURRENT_TZ=Europe/Prague
-→ save_timezone("Europe/Prague")
-
-### NOT_FOUND - ask for city:
-User: "Кентуки"
-→ geocode_city("Кентуки") → "NOT_FOUND: 'Кентуки' не найден..."
-→ "Не нашёл Кентуки. Напиши город, например Lexington или Louisville."
-
-### NOT_FOUND - country:
-User: "США"
-→ geocode_city("США") → "NOT_FOUND..."
-→ "США - это страна. В каком городе ты находишься?"
-"""
 
 
 def _sanitize_response(text: str) -> str:
@@ -131,12 +73,13 @@ class AgentHandler:
 
         # Initialize LLM (using OpenAI-compatible API with NVIDIA NIM)
         # Timeout must be under Telegram's 30s webhook limit
+        agent_config = settings.config.llm.agent
         self.llm = ChatOpenAI(
             base_url=settings.config.llm.base_url,
             api_key=settings.nvidia_api_key,  # type: ignore[arg-type]
             model=settings.config.llm.model,
-            temperature=0.3,
-            timeout=15.0,  # 15s timeout to stay within webhook limits
+            temperature=agent_config.temperature,
+            timeout=agent_config.timeout,
         )
 
         # Create the ReAct agent with tools
@@ -252,11 +195,8 @@ class AgentHandler:
         Returns:
             List of LangChain messages.
         """
-        # Build system prompt with context
-        system_content = SYSTEM_PROMPT
-        if current_tz:
-            # Add context about current timezone for confirmations
-            system_content += f"\n\nCONTEXT: CURRENT_TZ={current_tz}"
+        # Load system prompt from template (includes CURRENT_TZ context if provided)
+        system_content = get_agent_system_prompt(current_tz)
 
         messages: list[BaseMessage] = [SystemMessage(content=system_content)]
 
@@ -297,8 +237,8 @@ class AgentHandler:
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
 
-        # Build success message (Russian since most users are Russian-speaking)
-        text = f"✅ Сохранено: <b>{tz_iana}</b>"
+        # Build success message from template
+        text = get_ui_message("saved", tz_iana=tz_iana)
 
         message = OutboundMessage(
             platform=event.platform,
@@ -360,18 +300,7 @@ class AgentHandler:
 
         # Get verification URL from session context if available
         verify_url = session.context.get("verify_url", "")
-        if verify_url:
-            text = (
-                "😕 I couldn't determine your timezone from that.\n\n"
-                f'Please use the <a href="{verify_url}">web verification link</a> '
-                "to set your timezone automatically, or try again with a major city name."
-            )
-        else:
-            text = (
-                "😕 I couldn't determine your timezone from that.\n\n"
-                "Please try again with a major city name (e.g., London, Tokyo, New York) "
-                "or a timezone code (e.g., PT, CET, JST)."
-            )
+        text = get_ui_message("session_failed", verify_url=verify_url if verify_url else None)
 
         message = OutboundMessage(
             platform=event.platform,
@@ -396,7 +325,7 @@ class AgentHandler:
         Returns:
             HandlerResult with retry prompt.
         """
-        text = "⏳ Сервис медленно отвечает. Попробуй ещё раз через минуту."
+        text = get_ui_message("timeout")
 
         message = OutboundMessage(
             platform=event.platform,
@@ -422,7 +351,7 @@ class AgentHandler:
         """
         logger.error(f"Agent error in session {session.session_id}: {error}")
 
-        text = "😕 Что-то пошло не так. Попробуй ещё раз или напиши город по-другому."
+        text = get_ui_message("error")
 
         message = OutboundMessage(
             platform=event.platform,
