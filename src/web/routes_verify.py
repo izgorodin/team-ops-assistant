@@ -109,6 +109,14 @@ async def verify_timezone() -> tuple[Response, int]:
 
     await storage.upsert_user_tz_state(state)
 
+    # Add timezone to chat's active_timezones for dynamic team list
+    from src.core.chat_timezones import add_timezone_to_chat
+
+    try:
+        await add_timezone_to_chat(storage, parsed.platform, parsed.chat_id, tz_iana)
+    except Exception as e:
+        logger.warning(f"Failed to add timezone to chat (non-critical): {e}")
+
     logger.info(f"Timezone verified: {parsed.platform.value}/{parsed.user_id} -> {tz_iana}")
 
     return jsonify(
