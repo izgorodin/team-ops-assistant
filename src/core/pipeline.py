@@ -88,7 +88,24 @@ class Pipeline:
                 errors=errors,
             )
 
-        # Step 1.5: Check for relocation triggers (highest priority)
+        # Step 1.5: Check for mention triggers (help request - highest priority)
+        # These are handled immediately without needing timezone context
+        mention_triggers = [t for t in all_triggers if t.trigger_type == "mention"]
+        if mention_triggers:
+            mention_trigger = mention_triggers[0]
+            logger.info(
+                f"Mention detected for user {event.user_id}: '{mention_trigger.original_text}'"
+            )
+            return PipelineResult(
+                messages=[],
+                triggers_detected=triggers_detected,
+                triggers_handled=1,
+                errors=errors,
+                needs_state_collection=True,
+                state_collection_trigger=mention_trigger,
+            )
+
+        # Step 1.6: Check for relocation triggers (second priority)
         # Relocation triggers must be handled BEFORE context resolution
         # because they reset confidence and require re-verification
         relocation_triggers = [t for t in all_triggers if t.trigger_type == "relocation"]
