@@ -124,8 +124,23 @@ class AgentHandler:
             user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
             current_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
 
+        # For first message in session, check if it's a follow-up to a relocation
+        # that never got a response (e.g., Telegram send failed)
+        user_text = event.text
+        history = session.context.get("history", [])
+        if not history and session.goal == SessionGoal.REVERIFY_TIMEZONE:
+            # Check if session was triggered by relocation (has city in trigger_data)
+            trigger_data = session.context.get("trigger_data", {})
+            relocation_city = trigger_data.get("city")
+            if relocation_city:
+                # Prepend the relocation context so agent knows user said "Moved to Paris"
+                logger.info(
+                    f"Adding relocation context to session: city={relocation_city}"
+                )
+                user_text = f"[User said they moved to {relocation_city}] {event.text}"
+
         # Build conversation history with context
-        messages = self._build_messages(session, event.text, current_tz)
+        messages = self._build_messages(session, user_text, current_tz)
 
         try:
             # Run the agent

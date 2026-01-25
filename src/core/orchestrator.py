@@ -129,15 +129,29 @@ class MessageOrchestrator:
         """Handle case where state collection is needed.
 
         Creates a session and prompts user for timezone.
-        Distinguishes between first-time onboarding and re-verification.
+        Distinguishes between first-time onboarding, re-verification, and help request.
 
         Args:
             event: The event being processed.
             result: Pipeline result with state_collection_trigger.
 
         Returns:
-            HandlerResult with verification prompt.
+            HandlerResult with appropriate prompt.
         """
+        trigger = result.state_collection_trigger
+
+        # Handle mention/help trigger - just return help message, no session needed
+        if trigger and trigger.trigger_type == "mention":
+            logger.info(f"Help request from user {event.user_id}")
+            text = get_ui_message("help")
+            message = OutboundMessage(
+                platform=event.platform,
+                chat_id=event.chat_id,
+                text=text,
+                parse_mode="plain",
+            )
+            self.dedupe.record_response(event.platform, event.chat_id)
+            return HandlerResult(should_respond=True, messages=[message])
 
         # Generate verification token
         token = generate_verify_token(event.platform, event.user_id, event.chat_id)

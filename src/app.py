@@ -23,6 +23,7 @@ from src.core.agent_handler import AgentHandler
 from src.core.orchestrator import MessageOrchestrator
 from src.core.pipeline import Pipeline
 from src.core.state.timezone import TimezoneStateManager
+from src.core.triggers.mention import MentionDetector
 from src.core.triggers.relocation import RelocationDetector
 from src.core.triggers.time import TimeDetector
 from src.settings import Settings, get_settings
@@ -49,13 +50,14 @@ async def create_orchestrator(
     # Create pipeline components
     time_detector = TimeDetector()
     relocation_detector = RelocationDetector()
+    mention_detector = MentionDetector()
     tz_state_manager = TimezoneStateManager(storage)
     time_handler = TimeConversionHandler()
     relocation_handler = RelocationHandler(storage)
 
     # Create pipeline
     pipeline = Pipeline(
-        detectors=[time_detector, relocation_detector],
+        detectors=[time_detector, relocation_detector, mention_detector],
         state_managers={"timezone": tz_state_manager},
         action_handlers={"time": time_handler, "relocation": relocation_handler},
     )

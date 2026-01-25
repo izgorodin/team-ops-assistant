@@ -117,7 +117,7 @@ class TelegramOutbound:
             return data.get("result")
 
         except httpx.HTTPError as e:
-            logger.error(f"Telegram HTTP error: {e}")
+            logger.error(f"Telegram HTTP error: {e!r} (payload: {payload})")
             return None
 
 
