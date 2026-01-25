@@ -6,11 +6,50 @@ Contract: detect_time_with_llm(text) → bool
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 import respx
 from httpx import Response
 
 from src.core.llm_fallback import _parse_llm_response, detect_time_with_llm
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+
+# ============================================================================
+# Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def mock_api_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Mock settings to have a test API key so HTTP mocks work."""
+    from src import settings
+
+    original = getattr(settings, "_settings", None)
+
+    class MockConfig:
+        class llm:
+            base_url = "https://integrate.api.nvidia.com/v1"
+            model = "test-model"
+
+            class detection:
+                max_tokens = 100
+                temperature = 0.1
+                timeout = 10.0
+
+    class MockSettings:
+        nvidia_api_key = "test-api-key"
+        config = MockConfig()
+
+    monkeypatch.setattr(settings, "_settings", MockSettings())
+    yield
+    # Restore original
+    if original is not None:
+        monkeypatch.setattr(settings, "_settings", original)
+
 
 # ============================================================================
 # Contract Tests - Response Parsing
@@ -99,7 +138,7 @@ def test_parse_llm_response_whitespace_fails_open() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_success_true() -> None:
+async def test_llm_api_success_true(mock_api_key: None) -> None:
     """LLM API returns contains_time: true."""
     respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
         return_value=Response(
@@ -114,7 +153,7 @@ async def test_llm_api_success_true() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_success_false() -> None:
+async def test_llm_api_success_false(mock_api_key: None) -> None:
     """LLM API returns contains_time: false."""
     respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
         return_value=Response(
@@ -129,7 +168,7 @@ async def test_llm_api_success_false() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_error_fails_open() -> None:
+async def test_llm_api_error_fails_open(mock_api_key: None) -> None:
     """LLM API error should fail open (return True)."""
     respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
         return_value=Response(500, text="Internal Server Error")
@@ -141,7 +180,7 @@ async def test_llm_api_error_fails_open() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_timeout_fails_open() -> None:
+async def test_llm_api_timeout_fails_open(mock_api_key: None) -> None:
     """LLM API timeout should fail open (return True)."""
     import httpx
 
@@ -155,7 +194,7 @@ async def test_llm_api_timeout_fails_open() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_invalid_json_response() -> None:
+async def test_llm_api_invalid_json_response(mock_api_key: None) -> None:
     """LLM API returns invalid JSON in response."""
     respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
         return_value=Response(
@@ -173,7 +212,7 @@ async def test_llm_api_invalid_json_response() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_llm_api_markdown_response() -> None:
+async def test_llm_api_markdown_response(mock_api_key: None) -> None:
     """LLM API returns markdown-wrapped JSON."""
     respx.post("https://integrate.api.nvidia.com/v1/chat/completions").mock(
         return_value=Response(
