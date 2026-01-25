@@ -312,21 +312,27 @@ def _parse_extraction_response(content: str, default_confidence: float = 0.8) ->
         List of ParsedTime objects.
     """
     try:
-        # Extract JSON from response
+        # Extract JSON from response - use find() to avoid ValueError
+        json_str = ""
         if "```json" in content:
-            start = content.index("```json") + 7
-            end = content.index("```", start)
-            json_str = content[start:end].strip()
+            start = content.find("```json") + 7
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
         elif "```" in content:
-            start = content.index("```") + 3
-            end = content.index("```", start)
-            json_str = content[start:end].strip()
-        else:
+            start = content.find("```") + 3
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
+
+        # Fallback: find raw JSON object
+        if not json_str:
             start = content.find("{")
             end = content.rfind("}") + 1
             if start != -1 and end > start:
                 json_str = content[start:end]
             else:
+                logger.warning(f"No JSON found in LLM response: {content[:200]}")
                 return []
 
         result = json.loads(json_str)
