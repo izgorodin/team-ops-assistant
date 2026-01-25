@@ -79,6 +79,7 @@ class DedupeConfig(BaseModel):
 
     ttl_seconds: int = 604800  # 7 days
     throttle_seconds: int = 2
+    cache_cleanup_multiplier: int = 10  # Cleanup runs every throttle_seconds * multiplier
 
 
 class TfidfConfig(BaseModel):
@@ -118,6 +119,22 @@ class LLMOperationConfig(BaseModel):
     timeout: float = 10.0
 
 
+class LLMExtractionConfig(BaseModel):
+    """LLM extraction-specific configuration."""
+
+    max_tokens: int = 500
+    temperature: float = 0.1
+    timeout: float = 9.0
+    default_confidence: float = 0.8  # Default confidence for LLM-extracted times
+
+
+class LLMAgentConfig(BaseModel):
+    """LLM agent-specific configuration (timezone resolution)."""
+
+    temperature: float = 0.3
+    timeout: float = 15.0
+
+
 class CircuitBreakerConfig(BaseModel):
     """Circuit breaker configuration for LLM API calls."""
 
@@ -129,16 +146,15 @@ class CircuitBreakerConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration."""
 
-    model: str = "meta/llama-3.1-8b-instruct"
+    model: str = "qwen/qwen3-70b-instruct"
     base_url: str = "https://integrate.api.nvidia.com/v1"
     fallback_only: bool = True
     detection: LLMOperationConfig = Field(default_factory=LLMOperationConfig)
-    extraction: LLMOperationConfig = Field(
-        default_factory=lambda: LLMOperationConfig(max_tokens=500, timeout=9.0)
-    )
+    extraction: LLMExtractionConfig = Field(default_factory=LLMExtractionConfig)
     # Sync bridge wraps async LLM calls - outer timeout for total latency control
     sync_bridge_timeout: float = 10.0
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
+    agent: LLMAgentConfig = Field(default_factory=LLMAgentConfig)
 
 
 class HttpTimeoutsConfig(BaseModel):
@@ -160,6 +176,26 @@ class UiConfig(BaseModel):
 
     max_cities_shown: int = 4
     verification_token_hours: int = 24
+
+
+class PollingConfig(BaseModel):
+    """Telegram polling configuration for local development."""
+
+    backoff_seconds: int = 5  # Sleep on errors
+    long_polling_timeout: int = 30  # Long polling timeout
+    client_timeout: float = 60.0  # HTTP client timeout
+
+
+class TunnelConfig(BaseModel):
+    """Ngrok tunnel configuration for local development."""
+
+    default_port: int = 8000
+
+
+class TriggersConfig(BaseModel):
+    """Trigger detection configuration."""
+
+    relocation_confidence: float = 0.9  # Confidence for relocation detection
 
 
 class LoggingConfig(BaseModel):
@@ -195,6 +231,9 @@ class Configuration(BaseModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
     ui: UiConfig = Field(default_factory=UiConfig)
+    polling: PollingConfig = Field(default_factory=PollingConfig)
+    tunnel: TunnelConfig = Field(default_factory=TunnelConfig)
+    triggers: TriggersConfig = Field(default_factory=TriggersConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
 

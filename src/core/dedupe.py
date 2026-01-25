@@ -90,7 +90,9 @@ class DedupeManager:
     def cleanup_throttle_cache(self) -> None:
         """Clean up old entries from the throttle cache."""
         config = self.settings.config.dedupe
-        cutoff = datetime.utcnow() - timedelta(seconds=config.throttle_seconds * 10)
+        cutoff = datetime.utcnow() - timedelta(
+            seconds=config.throttle_seconds * config.cache_cleanup_multiplier
+        )
 
         expired_keys = [key for key, ts in self._throttle_cache.items() if ts < cutoff]
         for key in expired_keys:

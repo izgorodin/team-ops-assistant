@@ -80,6 +80,7 @@ This document describes both the current implementation (AS-IS) and the target a
 | **RelocationHandler** | `src/core/actions/relocation.py` | Reset confidence on relocation |
 | **AgentHandler** | `src/core/agent_handler.py` | LLM agent for city resolution |
 | **LLMFallback** | `src/core/llm_fallback.py` | NVIDIA NIM API for complex cases |
+| **Prompts** | `src/core/prompts.py` | Jinja2 template loading from `prompts/` |
 | **TzIdentity** | `src/core/timezone_identity.py` | Confidence decay, token generation |
 | **Models** | `src/core/models.py` | Pydantic data models + protocols |
 | **Mongo** | `src/storage/mongo.py` | MongoDB async operations |
@@ -127,7 +128,7 @@ This document describes both the current implementation (AS-IS) and the target a
 └──────────────────────────────┬──────────────────────────────────────────┘
                                ▼ regex_failed
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Layer 3: LLM Extraction (NVIDIA NIM / Qwen3)                           │
+│  Layer 3: LLM Extraction (NVIDIA NIM / Qwen3-70B)                       │
 │  ─────────────────────────────────────────────                          │
 │  • Handles: "half past seven", "в полдень", word-based                  │
 │  • Speed: 200-500ms                                                     │
@@ -137,24 +138,26 @@ This document describes both the current implementation (AS-IS) and the target a
 
 ### 1.5 Current Limitations
 
-| Area | Problem | Impact |
-|------|---------|--------|
-| **Magic Numbers** | 35 hardcoded values in code | Hard to tune without code changes |
-| **Monolithic Handler** | All logic in one pipeline | Hard to extend to new triggers |
-| **No Interfaces** | Concrete implementations only | Hard to swap/mock components |
-| **Tight Coupling** | Components know each other | Hard to test in isolation |
-| **Partial Config** | Some params in yaml, some hardcoded | Inconsistent configuration |
+| Area | Problem | Impact | Status |
+|------|---------|--------|--------|
+| **Magic Numbers** | ~~35 hardcoded values in code~~ | ~~Hard to tune without code changes~~ | ✅ RESOLVED - all values in config |
+| **Monolithic Handler** | ~~All logic in one pipeline~~ | ~~Hard to extend to new triggers~~ | ✅ RESOLVED - Pipeline + Protocols |
+| **No Interfaces** | ~~Concrete implementations only~~ | ~~Hard to swap/mock components~~ | ✅ RESOLVED - TriggerDetector, StateManager, ActionHandler |
+| **Tight Coupling** | ~~Components know each other~~ | ~~Hard to test in isolation~~ | ✅ RESOLVED - Protocol-based DI |
+| **Partial Config** | ~~Some params in yaml, some hardcoded~~ | ~~Inconsistent configuration~~ | ✅ RESOLVED - Full config + Pydantic |
 
-**Magic Numbers Found:**
+**Configuration Coverage (all in `configuration.yaml`):**
 
-| Category | Count | Examples |
-|----------|-------|----------|
-| ML hyperparameters | 7 | `ngram_range=(1,3)`, `WINDOW_SIZE=5` |
-| Parsing confidence | 7 | 0.95, 0.9, 0.85, 0.7 |
-| TZ source confidence | 3 | 0.9, 0.6, 0.5 |
-| HTTP timeouts | 3 | 10.0, 15.0, 30.0 |
-| LLM params | 2 | max_tokens: 500 |
-| UI constants | 1 | cities[:4] |
+| Category | Examples | Config Path |
+|----------|----------|-------------|
+| ML hyperparameters | ngram_range, window_size | `classifier.*` |
+| Parsing confidence | 0.95, 0.9, 0.85, 0.7 | `time_parsing.confidence.*` |
+| TZ source confidence | verified, city_pick, inferred | `confidence.*` |
+| HTTP timeouts | telegram, discord, whatsapp | `http.timeouts.*` |
+| LLM params | model, temperature, timeout | `llm.*` |
+| Polling/Tunnel | backoff, timeout, port | `polling.*`, `tunnel.*` |
+| Triggers | relocation confidence | `triggers.*` |
+| UI constants | max_cities, token_hours | `ui.*` |
 
 ---
 
@@ -314,9 +317,9 @@ dedupe:
   ttl_seconds: 604800         # 7 days
   throttle_seconds: 2         # Min time between responses
 
-# LLM fallback
+# LLM fallback (NVIDIA NIM)
 llm:
-  model: "meta/llama-3.1-8b-instruct"
+  model: "qwen/qwen3-70b-instruct"
   base_url: "https://integrate.api.nvidia.com/v1"
   fallback_only: true
   detection:
@@ -326,7 +329,15 @@ llm:
   extraction:
     max_tokens: 500
     temperature: 0.1
+    timeout: 9.0
+    default_confidence: 0.8
+  agent:
+    temperature: 0.3
     timeout: 15.0
+  circuit_breaker:
+    failure_threshold: 3
+    reset_timeout_seconds: 60.0
+    enabled: true
 
 # HTTP clients
 http:
@@ -406,21 +417,26 @@ The extensible architecture is now implemented with two trigger types:
 
 ## 4. Migration Path
 
-### Step 1: Configuration Cleanup (No Logic Changes)
+### Step 1: Configuration Cleanup ✅ COMPLETE
 
-1. Add all missing sections to `configuration.yaml`
-2. Add Pydantic models to `settings.py` for new sections
-3. Replace hardcoded values with config reads
-4. Add test: "no hardcoded numeric constants in core/"
+1. ✅ Add all missing sections to `configuration.yaml`
+2. ✅ Add Pydantic models to `settings.py` for new sections
+3. ✅ Replace hardcoded values with config reads
+4. ✅ Add test: "no hardcoded numeric constants in core/"
+5. ✅ Extract prompts to `prompts/` directory (Jinja2 templates)
 
-**Files:**
-- `configuration.yaml` — add sections
-- `src/settings.py` — add models
-- `src/core/time_parse.py` — use config
-- `src/core/time_classifier.py` — use config
-- `src/core/timezone_identity.py` — use config
+**Files Updated:**
+- `configuration.yaml` — polling, tunnel, triggers, dedupe, llm.agent sections
+- `src/settings.py` — PollingConfig, TunnelConfig, TriggersConfig, LLMAgentConfig
+- `src/core/prompts.py` — new prompt loading helper
+- `src/core/agent_handler.py` — use config + prompts
 - `src/core/llm_fallback.py` — use config
-- `src/connectors/telegram/outbound.py` — use config
+- `src/core/dedupe.py` — use config
+- `src/core/triggers/relocation.py` — use config
+- `src/connectors/telegram/polling.py` — use config
+- `src/connectors/telegram/tunnel.py` — use config
+- `prompts/agent_timezone.md` — agent system prompt
+- `prompts/ui/*.md` — UI messages (onboarding, reverify, saved, etc.)
 
 ### Step 2: Protocol Definitions (Add Interfaces)
 
