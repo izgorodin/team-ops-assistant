@@ -59,6 +59,16 @@ echo "Checking dependencies..."
 pip install -r requirements-dev.txt --quiet 2>/dev/null
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
+# Install pre-commit hooks if not already installed
+if [ ! -f ".git/hooks/pre-commit" ]; then
+    echo "Installing pre-commit hooks..."
+    pre-commit install --quiet 2>/dev/null
+    pre-commit install --hook-type pre-push --quiet 2>/dev/null
+    echo -e "${GREEN}✓ Pre-commit hooks installed${NC}"
+else
+    echo -e "${GREEN}✓ Pre-commit hooks ready${NC}"
+fi
+
 # Set default port if not specified
 PORT="${APP_PORT:-8000}"
 HOST="${APP_HOST:-0.0.0.0}"
