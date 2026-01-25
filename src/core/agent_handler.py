@@ -248,9 +248,13 @@ class AgentHandler:
         )
 
         # Add timezone to chat's active_timezones for dynamic team list
+        # Wrapped in try/except - this is bookkeeping, shouldn't block session completion
         from src.core.chat_timezones import add_timezone_to_chat
 
-        await add_timezone_to_chat(self.storage, event.platform, event.chat_id, tz_iana)
+        try:
+            await add_timezone_to_chat(self.storage, event.platform, event.chat_id, tz_iana)
+        except Exception as e:
+            logger.warning(f"Failed to add timezone to chat (non-critical): {e}")
 
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)

@@ -6,12 +6,10 @@ are used by participants in each chat.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from src.core.models import ChatState, Platform
-
 if TYPE_CHECKING:
+    from src.core.models import Platform
     from src.storage.mongo import MongoStorage
 
 
@@ -24,7 +22,7 @@ async def add_timezone_to_chat(
     """Add a timezone to a chat's active_timezones list.
 
     Called when a user sets their timezone in a chat.
-    Ensures no duplicates are added.
+    Uses atomic $addToSet operation - safe for concurrent calls.
 
     Args:
         storage: MongoDB storage instance.
@@ -32,22 +30,7 @@ async def add_timezone_to_chat(
         chat_id: Chat identifier.
         tz_iana: IANA timezone to add.
     """
-    chat_state = await storage.get_chat_state(platform, chat_id)
-
-    if chat_state is None:
-        chat_state = ChatState(
-            platform=platform,
-            chat_id=chat_id,
-            active_timezones=[tz_iana],
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-    else:
-        if tz_iana not in chat_state.active_timezones:
-            chat_state.active_timezones.append(tz_iana)
-        chat_state.updated_at = datetime.now(UTC)
-
-    await storage.upsert_chat_state(chat_state)
+    await storage.add_timezone_to_chat(platform, chat_id, tz_iana)
 
 
 def merge_timezones(config_tzs: list[str], chat_tzs: list[str]) -> list[str]:

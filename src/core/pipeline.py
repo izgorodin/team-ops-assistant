@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
     from src.core.models import DetectedTrigger
     from src.core.protocols import ActionHandler, StateManager, TriggerDetector
+    from src.storage.mongo import MongoStorage
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class Pipeline:
         detectors: list[TriggerDetector] | None = None,
         state_managers: Mapping[str, StateManager] | None = None,
         action_handlers: Mapping[str, ActionHandler] | None = None,
+        storage: MongoStorage | None = None,
     ) -> None:
         """Initialize the pipeline.
 
@@ -48,10 +50,12 @@ class Pipeline:
             detectors: List of trigger detectors to use.
             state_managers: Dict mapping state type to manager (e.g., {"timezone": TimezoneStateManager()}).
             action_handlers: Dict mapping trigger type to handler (e.g., {"time": TimeConversionHandler()}).
+            storage: MongoDB storage instance for chat state lookups.
         """
         self.detectors = detectors or []
         self.state_managers: Mapping[str, StateManager] = state_managers or {}
         self.action_handlers: Mapping[str, ActionHandler] = action_handlers or {}
+        self.storage = storage
         self._settings = get_settings()
 
     async def process(self, event: NormalizedEvent) -> PipelineResult:
@@ -219,11 +223,9 @@ class Pipeline:
         chat_timezones: list[str] = []
 
         # Get chat's active timezones from storage
-        if "timezone" in self.state_managers:
+        if self.storage:
             try:
-                tz_manager = self.state_managers["timezone"]
-                storage = tz_manager.storage  # type: ignore[attr-defined]
-                chat_state = await storage.get_chat_state(event.platform, event.chat_id)
+                chat_state = await self.storage.get_chat_state(event.platform, event.chat_id)
                 if chat_state and chat_state.active_timezones:
                     chat_timezones = chat_state.active_timezones
             except Exception as e:

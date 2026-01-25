@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.core.chat_timezones import add_timezone_to_chat, merge_timezones
-from src.core.models import ChatState, Platform
+from src.core.models import Platform
 from src.storage.mongo import MongoStorage
 
 
@@ -25,52 +25,17 @@ class TestChatActiveTimezones:
         storage.db = MagicMock()
         return storage
 
-    async def test_add_timezone_to_chat_creates_new_chat_state(
+    async def test_add_timezone_to_chat_delegates_to_storage(
         self, mock_storage: MongoStorage
     ) -> None:
-        """Should create ChatState if chat doesn't exist."""
-        mock_storage.get_chat_state = AsyncMock(return_value=None)
-        mock_storage.upsert_chat_state = AsyncMock()
+        """Should delegate to storage's atomic add_timezone_to_chat method."""
+        mock_storage.add_timezone_to_chat = AsyncMock()
 
         await add_timezone_to_chat(mock_storage, Platform.TELEGRAM, "chat_123", "Europe/Moscow")
 
-        mock_storage.upsert_chat_state.assert_called_once()
-        call_args = mock_storage.upsert_chat_state.call_args[0][0]
-        assert isinstance(call_args, ChatState)
-        assert "Europe/Moscow" in call_args.active_timezones
-
-    async def test_add_timezone_to_chat_appends_to_existing(
-        self, mock_storage: MongoStorage
-    ) -> None:
-        """Should append to existing active_timezones."""
-        existing = ChatState(
-            platform=Platform.TELEGRAM,
-            chat_id="chat_123",
-            active_timezones=["America/New_York"],
+        mock_storage.add_timezone_to_chat.assert_called_once_with(
+            Platform.TELEGRAM, "chat_123", "Europe/Moscow"
         )
-        mock_storage.get_chat_state = AsyncMock(return_value=existing)
-        mock_storage.upsert_chat_state = AsyncMock()
-
-        await add_timezone_to_chat(mock_storage, Platform.TELEGRAM, "chat_123", "Europe/Moscow")
-
-        call_args = mock_storage.upsert_chat_state.call_args[0][0]
-        assert "America/New_York" in call_args.active_timezones
-        assert "Europe/Moscow" in call_args.active_timezones
-
-    async def test_add_timezone_to_chat_no_duplicates(self, mock_storage: MongoStorage) -> None:
-        """Should not add duplicate timezones."""
-        existing = ChatState(
-            platform=Platform.TELEGRAM,
-            chat_id="chat_123",
-            active_timezones=["Europe/Moscow"],
-        )
-        mock_storage.get_chat_state = AsyncMock(return_value=existing)
-        mock_storage.upsert_chat_state = AsyncMock()
-
-        await add_timezone_to_chat(mock_storage, Platform.TELEGRAM, "chat_123", "Europe/Moscow")
-
-        call_args = mock_storage.upsert_chat_state.call_args[0][0]
-        assert call_args.active_timezones.count("Europe/Moscow") == 1
 
 
 class TestMergeTimezones:
@@ -112,3 +77,72 @@ class TestMergeTimezones:
         result = merge_timezones(config_tzs, chat_tzs)
 
         assert result[0] == "Europe/London"
+
+
+class TestPipelineContextResolution:
+    """Integration tests for Pipeline._resolve_context with chat timezones."""
+
+    @pytest.fixture
+    def mock_storage(self) -> MongoStorage:
+        """Create a mock storage instance."""
+        storage = MagicMock(spec=MongoStorage)
+        storage.db = MagicMock()
+        return storage
+
+    async def test_resolve_context_merges_config_and_chat_timezones(
+        self, mock_storage: MongoStorage
+    ) -> None:
+        """Pipeline should merge config timezones with chat's active_timezones."""
+        from src.core.models import ChatState, NormalizedEvent
+        from src.core.pipeline import Pipeline
+
+        # Setup: chat has active timezones
+        chat_state = ChatState(
+            platform=Platform.TELEGRAM,
+            chat_id="chat_123",
+            active_timezones=["Europe/Moscow", "Asia/Tokyo"],
+        )
+        mock_storage.get_chat_state = AsyncMock(return_value=chat_state)
+
+        # Create pipeline with storage
+        pipeline = Pipeline(storage=mock_storage)
+
+        # Create event
+        event = NormalizedEvent(
+            platform=Platform.TELEGRAM,
+            event_id="evt_001",
+            chat_id="chat_123",
+            user_id="user_456",
+            text="3 pm",
+            message_id="msg_789",
+        )
+
+        # Resolve context
+        context = await pipeline._resolve_context(event, [])
+
+        # Assert: config timezones (from settings) + chat timezones are merged
+        assert "Europe/Moscow" in context.target_timezones
+        assert "Asia/Tokyo" in context.target_timezones
+
+    async def test_resolve_context_works_without_storage(self) -> None:
+        """Pipeline should work with just config timezones when no storage."""
+        from src.core.models import NormalizedEvent
+        from src.core.pipeline import Pipeline
+
+        # Create pipeline without storage
+        pipeline = Pipeline(storage=None)
+
+        event = NormalizedEvent(
+            platform=Platform.TELEGRAM,
+            event_id="evt_001",
+            chat_id="chat_123",
+            user_id="user_456",
+            text="3 pm",
+            message_id="msg_789",
+        )
+
+        # Should not raise, returns config timezones only
+        context = await pipeline._resolve_context(event, [])
+
+        # Context should have at least config timezones
+        assert context.target_timezones is not None
