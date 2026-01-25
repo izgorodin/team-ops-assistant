@@ -79,7 +79,9 @@ class DedupeConfig(BaseModel):
 
     ttl_seconds: int = 604800  # 7 days
     throttle_seconds: int = 2
-    cache_cleanup_multiplier: int = 10  # Cleanup runs every throttle_seconds * multiplier
+    cache_cleanup_multiplier: int = (
+        10  # Retention cutoff: entries older than throttle_seconds * multiplier are removed
+    )
 
 
 class TfidfConfig(BaseModel):

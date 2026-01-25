@@ -79,7 +79,7 @@ dedupe:
   ttl_seconds: 604800
   # Throttle: minimum seconds between responses in same chat
   throttle_seconds: 2
-  # Cache cleanup multiplier (cleanup runs every throttle_seconds * multiplier)
+  # Cache cleanup multiplier (retention cutoff: entries older than throttle_seconds * multiplier are removed)
   cache_cleanup_multiplier: 10
 
 # ML Classifier settings

@@ -80,12 +80,18 @@ class DedupeManager:
     def record_response(self, platform: Platform, chat_id: str) -> None:
         """Record that a response was sent to a chat.
 
+        Also triggers periodic cache cleanup to prevent memory leaks.
+
         Args:
             platform: Chat platform.
             chat_id: Chat identifier.
         """
         cache_key = f"{platform.value}:{chat_id}"
         self._throttle_cache[cache_key] = datetime.utcnow()
+
+        # Periodic cleanup: run every N responses (where N = cache_cleanup_multiplier)
+        if len(self._throttle_cache) % self.settings.config.dedupe.cache_cleanup_multiplier == 0:
+            self.cleanup_throttle_cache()
 
     def cleanup_throttle_cache(self) -> None:
         """Clean up old entries from the throttle cache."""
