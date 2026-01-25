@@ -106,8 +106,8 @@ classifier:
   
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
-  # Qwen3 model for timezone resolution
-  model: "qwen/qwen3-70b-instruct"
+  # Llama 3.1 70B - reliable tool calling for agent workflows
+  model: "meta/llama-3.1-70b-instruct"
   # NVIDIA API base URL
   base_url: "https://integrate.api.nvidia.com/v1"
   # Use LLM only as fallback when rules-based parsing fails

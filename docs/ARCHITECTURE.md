@@ -319,7 +319,7 @@ dedupe:
 
 # LLM fallback (NVIDIA NIM)
 llm:
-  model: "qwen/qwen3-70b-instruct"
+  model: "meta/llama-3.1-70b-instruct"
   base_url: "https://integrate.api.nvidia.com/v1"
   fallback_only: true
   detection:
