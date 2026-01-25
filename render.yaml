@@ -27,6 +27,8 @@ services:
       # Telegram Bot
       - key: TELEGRAM_BOT_TOKEN
         sync: false  # Set manually in dashboard (secret)
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false  # Set manually in dashboard (secret)
 
       # Discord Bot
       - key: DISCORD_BOT_TOKEN
@@ -44,6 +46,8 @@ services:
       - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false  # Set manually in dashboard (secret)
       - key: WHATSAPP_VERIFY_TOKEN
+        sync: false  # Set manually in dashboard (secret)
+      - key: WHATSAPP_APP_SECRET
         sync: false  # Set manually in dashboard (secret)
 
       # LLM API (NVIDIA NIM)

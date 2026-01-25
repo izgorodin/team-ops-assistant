@@ -82,6 +82,19 @@ dedupe:
   # Cache cleanup multiplier (retention cutoff: entries older than throttle_seconds * multiplier are removed)
   cache_cleanup_multiplier: 10
 
+# Rate limiting settings
+rate_limits:
+  # Enable/disable rate limiting
+  enabled: true
+  # Per-user rate limit
+  per_user:
+    requests: 20
+    window_seconds: 60
+  # Per-chat rate limit
+  per_chat:
+    requests: 60
+    window_seconds: 60
+
 # ML Classifier settings
 classifier:
   # Probability thresholds for time detection

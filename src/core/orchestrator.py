@@ -24,6 +24,7 @@ from src.core.models import (
     SessionStatus,
 )
 from src.core.prompts import get_ui_message
+from src.core.rate_limiter import get_rate_limit_manager
 from src.core.timezone_identity import generate_verify_token, get_verify_url
 from src.settings import get_settings
 
@@ -99,11 +100,20 @@ class MessageOrchestrator:
             logger.debug(f"Throttled chat: {event.chat_id}")
             return HandlerResult(should_respond=False)
 
-        # 4. Process through pipeline
+        # 4. Rate limit check
+        rate_limiter = get_rate_limit_manager()
+        is_allowed, limit_type = rate_limiter.check_rate_limit(
+            event.platform.value, event.user_id, event.chat_id
+        )
+        if not is_allowed:
+            logger.info(f"Rate limited ({limit_type}): user={event.user_id} chat={event.chat_id}")
+            return HandlerResult(should_respond=False)
+
+        # 5. Process through pipeline
         logger.debug(f"Processing event through pipeline for user {event.user_id}")
         result = await self.pipeline.process(event)
 
-        # 5. Check if state collection is needed
+        # 6. Check if state collection is needed
         if result.needs_state_collection and result.state_collection_trigger:
             logger.info(f"State collection needed for user {event.user_id}")
             state_result = await self._handle_state_collection(event, result)
@@ -112,7 +122,7 @@ class MessageOrchestrator:
                 await self.dedupe.mark_processed(event.platform, event.event_id, event.chat_id)
             return state_result
 
-        # 6. No triggers or successful handling - return result
+        # 7. No triggers or successful handling - return result
         if result.messages:
             # Mark as processed for dedupe
             await self.dedupe.mark_processed(event.platform, event.event_id, event.chat_id)
