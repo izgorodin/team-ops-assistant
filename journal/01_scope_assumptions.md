@@ -45,8 +45,10 @@ WhatsApp implementation includes:
 
 > **Note:** WhatsApp has a 24-hour messaging window.
 > Template messages for out-of-window messaging are not yet implemented.
-3. Add signature verification
-4. Test with Meta sandbox
+
+Not implemented yet (post-MVP):
+- Signature verification
+- Testing with Meta sandbox
 
 ## Core Features (MVP)
 

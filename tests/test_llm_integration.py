@@ -10,6 +10,7 @@ Run with: pytest tests/test_llm_integration.py -v -s
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from dotenv import load_dotenv
@@ -20,21 +21,25 @@ from src.core.agent_tools import AGENT_TOOLS
 from src.core.llm_fallback import extract_times_with_llm
 from src.settings import get_settings
 
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
+
 # Load environment
 load_dotenv()
 
-# Skip all tests if no API key
-pytestmark = pytest.mark.skipif(
+# Skip marker for tests requiring live API
+_skip_if_no_api_key = pytest.mark.skipif(
     not os.getenv("NVIDIA_API_KEY"),
     reason="NVIDIA_API_KEY not set - skipping integration tests",
 )
 
 
+@_skip_if_no_api_key
 class TestAgentToolCalling:
     """Test agent's ability to call tools correctly."""
 
     @pytest.fixture
-    def agent(self):
+    def agent(self) -> CompiledStateGraph[Any]:
         """Create agent with real LLM."""
         from pydantic import SecretStr
 
@@ -49,7 +54,7 @@ class TestAgentToolCalling:
         return create_react_agent(llm, AGENT_TOOLS)
 
     @pytest.mark.asyncio
-    async def test_english_city_london(self, agent):
+    async def test_english_city_london(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should resolve London to Europe/London."""
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": "I live in London. Save my timezone."}]}
@@ -60,7 +65,7 @@ class TestAgentToolCalling:
         assert "Europe/London" in all_content
 
     @pytest.mark.asyncio
-    async def test_english_city_new_york(self, agent):
+    async def test_english_city_new_york(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should resolve New York to America/New_York."""
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": "I'm in New York. Please save my timezone."}]}
@@ -71,7 +76,7 @@ class TestAgentToolCalling:
         assert "America/New_York" in all_content
 
     @pytest.mark.asyncio
-    async def test_russian_city_moscow(self, agent):
+    async def test_russian_city_moscow(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should resolve Москва to Europe/Moscow."""
         result = await agent.ainvoke(
             {
@@ -86,7 +91,7 @@ class TestAgentToolCalling:
         assert "Europe/Moscow" in all_content
 
     @pytest.mark.asyncio
-    async def test_abbreviation_nyc(self, agent):
+    async def test_abbreviation_nyc(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should resolve NYC abbreviation."""
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": "I am in NYC. Save timezone."}]}
@@ -97,7 +102,7 @@ class TestAgentToolCalling:
         assert "America/New_York" in all_content
 
     @pytest.mark.asyncio
-    async def test_abbreviation_la(self, agent):
+    async def test_abbreviation_la(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should resolve LA abbreviation."""
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": "I'm in LA. Please save my timezone."}]}
@@ -108,7 +113,7 @@ class TestAgentToolCalling:
         assert "America/Los_Angeles" in all_content
 
     @pytest.mark.asyncio
-    async def test_multi_word_city_los_angeles(self, agent):
+    async def test_multi_word_city_los_angeles(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should handle multi-word city names."""
         result = await agent.ainvoke(
             {
@@ -123,7 +128,7 @@ class TestAgentToolCalling:
         assert "America/Los_Angeles" in all_content
 
     @pytest.mark.asyncio
-    async def test_ambiguous_input_asks_clarification(self, agent):
+    async def test_ambiguous_input_asks_clarification(self, agent: CompiledStateGraph[Any]) -> None:
         """Agent should ask for clarification on ambiguous input."""
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": "Yes, that is correct."}]}
@@ -134,11 +139,12 @@ class TestAgentToolCalling:
         assert "SAVE:" not in all_content
 
 
+@_skip_if_no_api_key
 class TestLLMFallbackTimeExtraction:
     """Test LLM fallback for time extraction when regex fails."""
 
     @pytest.mark.asyncio
-    async def test_extract_simple_time(self):
+    async def test_extract_simple_time(self) -> None:
         """LLM should extract simple time mentions."""
         result = await extract_times_with_llm("Let's meet at 3pm")
         assert result is not None
@@ -147,7 +153,7 @@ class TestLLMFallbackTimeExtraction:
         assert result[0].minute == 0
 
     @pytest.mark.asyncio
-    async def test_extract_time_with_timezone(self):
+    async def test_extract_time_with_timezone(self) -> None:
         """LLM should extract time with timezone hint."""
         result = await extract_times_with_llm("Call me at 10am PST")
         assert result is not None
@@ -157,7 +163,7 @@ class TestLLMFallbackTimeExtraction:
         assert result[0].timezone_hint in ("America/Los_Angeles", "PST", None)
 
     @pytest.mark.asyncio
-    async def test_extract_european_format(self):
+    async def test_extract_european_format(self) -> None:
         """LLM should extract European time format."""
         result = await extract_times_with_llm("Meeting at 14h30")
         assert result is not None
@@ -166,7 +172,7 @@ class TestLLMFallbackTimeExtraction:
         assert result[0].minute == 30
 
     @pytest.mark.asyncio
-    async def test_extract_russian_time(self):
+    async def test_extract_russian_time(self) -> None:
         """LLM should extract Russian time mentions."""
         result = await extract_times_with_llm("Созвон в 15:00 по Москве")
         assert result is not None
@@ -175,14 +181,14 @@ class TestLLMFallbackTimeExtraction:
         assert result[0].minute == 0
 
     @pytest.mark.asyncio
-    async def test_no_time_returns_empty(self):
+    async def test_no_time_returns_empty(self) -> None:
         """LLM should return empty list when no time mentioned."""
         result = await extract_times_with_llm("Hello, how are you today?")
         assert result is not None
         assert len(result) == 0
 
     @pytest.mark.asyncio
-    async def test_extract_tomorrow_time(self):
+    async def test_extract_tomorrow_time(self) -> None:
         """LLM should detect tomorrow prefix."""
         result = await extract_times_with_llm("Let's talk tomorrow at 9am")
         assert result is not None
@@ -193,14 +199,14 @@ class TestLLMFallbackTimeExtraction:
 
 
 class TestModelConfiguration:
-    """Test that model configuration is correct."""
+    """Test that model configuration is correct (runs in CI without API key)."""
 
-    def test_model_name_is_qwen3(self):
+    def test_model_name_is_qwen3(self) -> None:
         """Verify correct model is configured."""
         settings = get_settings()
         assert settings.config.llm.model == "qwen/qwen3-next-80b-a3b-instruct"
 
-    def test_base_url_is_nvidia(self):
+    def test_base_url_is_nvidia(self) -> None:
         """Verify NVIDIA NIM API is used."""
         settings = get_settings()
         assert "nvidia" in settings.config.llm.base_url.lower()

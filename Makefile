@@ -1,7 +1,7 @@
 # Team Ops Assistant - Development Commands
 # See CLAUDE.md for full documentation
 
-.PHONY: help install dev test lint format typecheck check run clean
+.PHONY: help install dev test lint format typecheck check all run clean
 
 # Default target
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make format     - Format code with ruff"
 	@echo "  make typecheck  - Run pyright type checker"
 	@echo "  make check      - Run all checks (lint + typecheck + test)"
+	@echo "  make all        - Alias for 'make check'"
 	@echo "  make run        - Start the application"
 	@echo "  make clean      - Remove cache files"
 
@@ -40,6 +41,9 @@ typecheck:
 # Combined check (CI-like)
 check: lint typecheck test
 	@echo "✅ All checks passed!"
+
+# Alias for check
+all: check
 
 # Run application
 run:
