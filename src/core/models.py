@@ -21,6 +21,7 @@ class Platform(str, Enum):
     TELEGRAM = "telegram"
     DISCORD = "discord"
     WHATSAPP = "whatsapp"
+    SLACK = "slack"
 
 
 class NormalizedEvent(BaseModel, frozen=True):

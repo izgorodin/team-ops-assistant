@@ -1,4 +1,4 @@
-"""Contract tests for WhatsApp connector (skeleton)."""
+"""Contract tests for WhatsApp connector."""
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ class TestWhatsAppNormalization:
         assert event.chat_id == "15559876543"
         assert event.display_name == "John Doe"
         assert event.event_id == "wamid.ABC123xyz"
+        assert event.message_id == "wamid.ABC123xyz"
 
     def test_normalize_non_whatsapp_webhook(self) -> None:
         """Test that non-WhatsApp webhooks are ignored."""

@@ -1,13 +1,11 @@
-"""WhatsApp Cloud API outbound connector (SKELETON).
+"""WhatsApp Cloud API outbound connector.
 
 Sends messages to WhatsApp via the Cloud API.
 
-TODO: Complete implementation
-- Implement proper authentication
-- Handle rate limits
-- Support message templates (required for some scenarios)
-- Implement retry logic with exponential backoff
-- Handle different message types (text, template, interactive)
+WhatsApp Cloud API docs: https://developers.facebook.com/docs/whatsapp/cloud-api/messages/text-messages
+
+Note: WhatsApp has a 24-hour messaging window. Template messages are needed
+for initiating conversations or messaging outside this window.
 """
 
 from __future__ import annotations
@@ -27,13 +25,11 @@ WHATSAPP_API_BASE = "https://graph.facebook.com/v18.0"
 
 
 class WhatsAppOutbound:
-    """WhatsApp Cloud API outbound message sender (SKELETON).
+    """WhatsApp Cloud API outbound message sender.
 
-    This is a skeleton implementation. For full WhatsApp support:
-    1. Use message templates for initiating conversations (24h window rule)
-    2. Handle different message types (text, template, interactive, media)
-    3. Implement proper error handling for API responses
-    4. Handle rate limits and quota management
+    Uses WhatsApp Cloud API to send text messages.
+    Note: For initiating conversations or messaging outside the 24h window,
+    template messages are required (use send_template_message).
     """
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
@@ -79,45 +75,52 @@ class WhatsAppOutbound:
 
         Returns:
             WhatsApp API response on success, None on failure.
-
-        TODO: Implement this method
-        - POST to /{phone_number_id}/messages
-        - Handle 24-hour messaging window
-        - Support template messages for out-of-window sends
         """
         if message.platform != Platform.WHATSAPP:
             logger.error(f"WhatsAppOutbound received non-WhatsApp message: {message.platform}")
             return None
 
-        # TODO: Implement WhatsApp API call
-        # Example implementation:
-        #
-        # url = f"{self.api_base}/messages"
-        # payload = {
-        #     "messaging_product": "whatsapp",
-        #     "recipient_type": "individual",
-        #     "to": message.chat_id,  # Phone number
-        #     "type": "text",
-        #     "text": {"body": message.text}
-        # }
-        #
-        # # For replies within a conversation
-        # if message.reply_to_message_id:
-        #     payload["context"] = {"message_id": message.reply_to_message_id}
-        #
-        # client = await self.get_http_client()
-        # response = await client.post(url, json=payload)
-        # return response.json()
+        url = f"{self.api_base}/messages"
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": message.chat_id,  # Phone number
+            "type": "text",
+            "text": {"body": message.text},
+        }
 
-        logger.warning("WhatsApp outbound not implemented - message not sent")
-        return None
+        # For replies within a conversation
+        if message.reply_to_message_id:
+            payload["context"] = {"message_id": message.reply_to_message_id}
+
+        client = await self.get_http_client()
+
+        try:
+            response = await client.post(url, json=payload)
+            data = response.json()
+
+            if not response.is_success:
+                error = data.get("error", {})
+                error_msg = error.get("message", "Unknown error")
+                error_code = error.get("code", 0)
+                logger.error(
+                    f"WhatsApp API error {response.status_code} (code {error_code}): {error_msg} "
+                    f"(to={message.chat_id})"
+                )
+                return None
+
+            return data
+
+        except httpx.HTTPError as e:
+            logger.error(f"WhatsApp HTTP error: {e!r} (to={message.chat_id})")
+            return None
 
     async def send_template_message(
         self,
-        to: str,  # noqa: ARG002
-        template_name: str,  # noqa: ARG002
-        language_code: str = "en_US",  # noqa: ARG002
-        components: list[dict[str, Any]] | None = None,  # noqa: ARG002
+        to: str,
+        template_name: str,
+        language_code: str = "en_US",
+        components: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any] | None:
         """Send a template message via WhatsApp.
 
@@ -132,12 +135,39 @@ class WhatsAppOutbound:
 
         Returns:
             WhatsApp API response on success, None on failure.
-
-        TODO: Implement this method
         """
-        # TODO: Implement template message sending
-        logger.warning("WhatsApp template messages not implemented")
-        return None
+        url = f"{self.api_base}/messages"
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language_code},
+            },
+        }
+
+        if components:
+            payload["template"]["components"] = components
+
+        client = await self.get_http_client()
+
+        try:
+            response = await client.post(url, json=payload)
+            data = response.json()
+
+            if not response.is_success:
+                error = data.get("error", {})
+                error_msg = error.get("message", "Unknown error")
+                logger.error(f"WhatsApp template error: {error_msg} (to={to})")
+                return None
+
+            return data
+
+        except httpx.HTTPError as e:
+            logger.error(f"WhatsApp HTTP error: {e!r} (to={to})")
+            return None
 
 
 # Global outbound instance

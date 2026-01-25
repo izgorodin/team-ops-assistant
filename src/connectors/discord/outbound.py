@@ -1,12 +1,8 @@
-"""Discord outbound connector (SKELETON).
+"""Discord outbound connector.
 
-Sends messages to Discord channels.
+Sends messages to Discord channels via the REST API (v10).
 
-TODO: Complete implementation
-- Set up Discord.py or HTTP API client
-- Implement proper rate limiting
-- Handle message formatting (embeds, mentions)
-- Implement retry logic
+Discord API docs: https://discord.com/developers/docs/resources/channel#create-message
 """
 
 from __future__ import annotations
@@ -26,13 +22,10 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 
 
 class DiscordOutbound:
-    """Discord outbound message sender (SKELETON).
+    """Discord outbound message sender.
 
-    This is a skeleton implementation. For full Discord support:
-    1. Use discord.py library for gateway-based sending
-    2. Or implement HTTP API with proper rate limit handling
-    3. Support embeds for rich formatting
-    4. Handle permissions and channel validation
+    Uses Discord REST API v10 to send messages to channels.
+    Requires a bot token with MESSAGE_CONTENT intent and Send Messages permission.
     """
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
@@ -73,31 +66,38 @@ class DiscordOutbound:
 
         Returns:
             Discord API response on success, None on failure.
-
-        TODO: Implement this method
-        - POST to /channels/{channel_id}/messages
-        - Handle rate limits (429 responses)
-        - Support embeds for rich formatting
         """
         if message.platform != Platform.DISCORD:
             logger.error(f"DiscordOutbound received non-Discord message: {message.platform}")
             return None
 
-        # TODO: Implement Discord API call
-        # Example implementation:
-        #
-        # url = f"{DISCORD_API_BASE}/channels/{message.chat_id}/messages"
-        # payload = {"content": message.text}
-        #
-        # if message.reply_to_message_id:
-        #     payload["message_reference"] = {"message_id": message.reply_to_message_id}
-        #
-        # client = await self.get_http_client()
-        # response = await client.post(url, json=payload)
-        # return response.json()
+        url = f"{DISCORD_API_BASE}/channels/{message.chat_id}/messages"
+        payload: dict[str, Any] = {"content": message.text}
 
-        logger.warning("Discord outbound not implemented - message not sent")
-        return None
+        # Add message reference for replies
+        if message.reply_to_message_id:
+            payload["message_reference"] = {"message_id": message.reply_to_message_id}
+
+        client = await self.get_http_client()
+
+        try:
+            response = await client.post(url, json=payload)
+            data = response.json()
+
+            if not response.is_success:
+                error_msg = data.get("message", "Unknown error")
+                error_code = data.get("code", 0)
+                logger.error(
+                    f"Discord API error {response.status_code} (code {error_code}): {error_msg} "
+                    f"(channel={message.chat_id})"
+                )
+                return None
+
+            return data
+
+        except httpx.HTTPError as e:
+            logger.error(f"Discord HTTP error: {e!r} (channel={message.chat_id})")
+            return None
 
 
 # Global outbound instance

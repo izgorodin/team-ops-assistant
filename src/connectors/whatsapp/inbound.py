@@ -1,31 +1,11 @@
-"""WhatsApp Cloud API inbound connector (SKELETON).
+"""WhatsApp Cloud API inbound connector.
 
 Handles incoming WhatsApp webhook events and normalizes them to NormalizedEvent.
 
-TODO: Complete implementation
-- Implement webhook signature verification
-- Handle all message types (text, media, location, etc.)
-- Process message status updates
-- Handle business account limitations
+WhatsApp Cloud API docs: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks
 
-WEBHOOK VERIFICATION NOTES:
-WhatsApp Cloud API requires webhook verification during setup:
-1. Meta sends GET request with hub.mode, hub.challenge, hub.verify_token
-2. Verify hub.verify_token matches your configured token
-3. Respond with hub.challenge value (plain text, 200 OK)
-
-Example verification endpoint:
-```python
-@app.route("/hooks/whatsapp", methods=["GET"])
-async def verify_whatsapp_webhook():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-
-    if mode == "subscribe" and token == settings.whatsapp_verify_token:
-        return challenge, 200
-    return "Forbidden", 403
-```
+Note: WhatsApp webhooks require verification during setup.
+See app.py for the verification endpoint implementation.
 """
 
 from __future__ import annotations
@@ -149,6 +129,7 @@ def _normalize_single_message(
     return NormalizedEvent(
         platform=Platform.WHATSAPP,
         event_id=message_id,
+        message_id=message_id,
         chat_id=chat_id,
         user_id=from_id,
         username=None,  # WhatsApp doesn't have usernames

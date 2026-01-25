@@ -1,4 +1,4 @@
-"""Contract tests for Discord connector (skeleton)."""
+"""Contract tests for Discord connector."""
 
 from __future__ import annotations
 
@@ -33,6 +33,13 @@ class TestDiscordNormalization:
 
         assert event is not None
         assert event.event_id == "987654321098765432_123456789012345678"
+
+    def test_message_id_preserved(self) -> None:
+        """Test that message_id is the Discord message ID."""
+        event = normalize_discord_message(EXAMPLE_MESSAGE_CREATE)
+
+        assert event is not None
+        assert event.message_id == "123456789012345678"
 
     def test_normalize_missing_fields(self) -> None:
         """Test that messages with missing fields are rejected."""

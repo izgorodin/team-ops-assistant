@@ -1,12 +1,7 @@
-"""Discord inbound connector (SKELETON).
+"""Discord inbound connector.
 
-Handles incoming Discord events and normalizes them to NormalizedEvent.
-
-TODO: Complete implementation
-- Set up Discord.py or discord-interactions library
-- Implement message content intent handling
-- Handle slash commands if desired
-- Set up proper event subscription
+Handles incoming Discord MESSAGE_CREATE events and normalizes them to NormalizedEvent.
+Uses the Discord API v10 webhook/interaction format.
 """
 
 from __future__ import annotations
@@ -21,12 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_discord_message(payload: dict[str, Any]) -> NormalizedEvent | None:
-    """Normalize a Discord message event to a NormalizedEvent.
-
-    This is a skeleton implementation. For full Discord support:
-    1. Use discord.py or similar library for gateway connection
-    2. Handle MESSAGE_CREATE events
-    3. Implement proper permission checking
+    """Normalize a Discord MESSAGE_CREATE event to a NormalizedEvent.
 
     Args:
         payload: Discord message payload (MESSAGE_CREATE event data).
@@ -34,24 +24,6 @@ def normalize_discord_message(payload: dict[str, Any]) -> NormalizedEvent | None
     Returns:
         NormalizedEvent if this is a processable message, None otherwise.
     """
-    # TODO: Implement full Discord message normalization
-
-    # Expected payload structure (Discord MESSAGE_CREATE):
-    # {
-    #     "id": "message_id",
-    #     "channel_id": "channel_id",
-    #     "guild_id": "guild_id",  # optional for DMs
-    #     "author": {
-    #         "id": "user_id",
-    #         "username": "username",
-    #         "discriminator": "1234",
-    #         "global_name": "Display Name",
-    #     },
-    #     "content": "message text",
-    #     "timestamp": "2024-01-01T00:00:00.000000+00:00",
-    #     "referenced_message": {...}  # if replying
-    # }
-
     message_id = payload.get("id", "")
     channel_id = payload.get("channel_id", "")
     content = payload.get("content", "")
@@ -89,6 +61,7 @@ def normalize_discord_message(payload: dict[str, Any]) -> NormalizedEvent | None
     return NormalizedEvent(
         platform=Platform.DISCORD,
         event_id=f"{channel_id}_{message_id}",
+        message_id=message_id,
         chat_id=channel_id,
         user_id=user_id,
         username=username,

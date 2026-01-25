@@ -248,6 +248,7 @@ class Settings:
         self.mongodb_uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         self.telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
         self.discord_bot_token: str = os.getenv("DISCORD_BOT_TOKEN", "")
+        self.slack_bot_token: str = os.getenv("SLACK_BOT_TOKEN", "")
         self.whatsapp_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
         self.whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
         self.whatsapp_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
