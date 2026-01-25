@@ -112,7 +112,7 @@ This project uses centralized AI configuration via [AGENTS.md](./AGENTS.md) stan
    - Scopes: `bot`
    - Permissions: `Send Messages`, `Read Message History`
 6. Use generated URL to invite bot to server
-7. For webhooks, configure at: `https://your-domain.com/hooks/discord`
+7. _(Optional, advanced)_ Discord bots normally connect via the gateway (not webhooks). The `/hooks/discord` endpoint is provided for custom proxy / integration-testing setups only.
 
 ### WhatsApp (Business API)
 
