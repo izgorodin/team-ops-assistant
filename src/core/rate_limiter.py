@@ -111,7 +111,9 @@ class RateLimitManager:
         self._user_limiter = RateLimiter(user_config)
         self._chat_limiter = RateLimiter(chat_config)
 
-    def check_rate_limit(self, platform: str, user_id: str, chat_id: str) -> tuple[bool, str | None]:
+    def check_rate_limit(
+        self, platform: str, user_id: str, chat_id: str
+    ) -> tuple[bool, str | None]:
         """Check if request passes all rate limits.
 
         Args:

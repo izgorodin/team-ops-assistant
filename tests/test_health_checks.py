@@ -122,9 +122,7 @@ class TestLivenessEndpoint:
     """Tests for /live endpoint."""
 
     @pytest.mark.asyncio
-    async def test_live_always_returns_alive(
-        self, app_with_mock: tuple[Any, AsyncMock]
-    ) -> None:
+    async def test_live_always_returns_alive(self, app_with_mock: tuple[Any, AsyncMock]) -> None:
         """Liveness probe always returns alive status."""
         app, _ = app_with_mock
 

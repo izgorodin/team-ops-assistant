@@ -50,11 +50,14 @@ class TestSlackSignatureVerification:
     def _compute_slack_signature(self, body: bytes, timestamp: str, secret: str) -> str:
         """Helper to compute valid Slack signature."""
         base_string = f"v0:{timestamp}:{body.decode('utf-8')}"
-        return "v0=" + hmac.new(
-            secret.encode("utf-8"),
-            base_string.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
+        return (
+            "v0="
+            + hmac.new(
+                secret.encode("utf-8"),
+                base_string.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+        )
 
     def test_verify_valid_signature(self) -> None:
         """Valid signature should return True."""
@@ -137,11 +140,14 @@ class TestWhatsAppSignatureVerification:
 
     def _compute_whatsapp_signature(self, body: bytes, secret: str) -> str:
         """Helper to compute valid WhatsApp signature."""
-        return "sha256=" + hmac.new(
-            secret.encode("utf-8"),
-            body,
-            hashlib.sha256,
-        ).hexdigest()
+        return (
+            "sha256="
+            + hmac.new(
+                secret.encode("utf-8"),
+                body,
+                hashlib.sha256,
+            ).hexdigest()
+        )
 
     def test_verify_valid_signature(self) -> None:
         """Valid signature should return True."""
@@ -234,9 +240,7 @@ class TestWebhookEndpointVerification:
         monkeypatch.setattr(settings, "_settings", MockSettings())
 
     @pytest.mark.asyncio
-    async def test_telegram_webhook_rejects_invalid_secret(
-        self, mock_settings: None
-    ) -> None:
+    async def test_telegram_webhook_rejects_invalid_secret(self, mock_settings: None) -> None:
         """Telegram webhook should reject requests with invalid secret."""
         _ = mock_settings  # Fixture used for side effects
         from unittest.mock import AsyncMock, patch
@@ -262,9 +266,7 @@ class TestWebhookEndpointVerification:
                 assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_slack_webhook_rejects_invalid_signature(
-        self, mock_settings: None
-    ) -> None:
+    async def test_slack_webhook_rejects_invalid_signature(self, mock_settings: None) -> None:
         """Slack webhook should reject requests with invalid signature."""
         _ = mock_settings  # Fixture used for side effects
         from unittest.mock import AsyncMock, patch
@@ -293,9 +295,7 @@ class TestWebhookEndpointVerification:
                 assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_whatsapp_webhook_rejects_invalid_signature(
-        self, mock_settings: None
-    ) -> None:
+    async def test_whatsapp_webhook_rejects_invalid_signature(self, mock_settings: None) -> None:
         """WhatsApp webhook should reject requests with invalid signature."""
         _ = mock_settings  # Fixture used for side effects
         from unittest.mock import AsyncMock, patch

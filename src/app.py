@@ -67,7 +67,9 @@ def verify_telegram_signature(secret_header: str, expected_secret: str) -> bool:
     return hmac.compare_digest(secret_header, expected_secret)
 
 
-def verify_slack_signature(body: bytes, timestamp: str, signature: str, signing_secret: str) -> bool:
+def verify_slack_signature(
+    body: bytes, timestamp: str, signature: str, signing_secret: str
+) -> bool:
     """Verify Slack request signature using HMAC-SHA256.
 
     Slack sends:
@@ -100,11 +102,14 @@ def verify_slack_signature(body: bytes, timestamp: str, signature: str, signing_
 
     # Compute expected signature
     base_string = f"v0:{timestamp}:{body.decode('utf-8')}"
-    expected = "v0=" + hmac.new(
-        signing_secret.encode("utf-8"),
-        base_string.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "v0="
+        + hmac.new(
+            signing_secret.encode("utf-8"),
+            base_string.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(expected, signature)
 
@@ -126,11 +131,14 @@ def verify_whatsapp_signature(body: bytes, signature: str, app_secret: str) -> b
         # If no secret configured, skip verification (backwards compatible)
         return True
 
-    expected = "sha256=" + hmac.new(
-        app_secret.encode("utf-8"),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "sha256="
+        + hmac.new(
+            app_secret.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(expected, signature)
 
@@ -365,7 +373,9 @@ def create_app() -> Quart:
             signature = request.headers.get("X-Slack-Signature", "")
 
             # Verify signature (skip for URL verification challenge)
-            if not verify_slack_signature(body, timestamp, signature, settings.slack_signing_secret):
+            if not verify_slack_signature(
+                body, timestamp, signature, settings.slack_signing_secret
+            ):
                 logger.warning("Slack webhook: invalid signature")
                 return jsonify({"error": "Unauthorized"}), 401
 
