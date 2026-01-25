@@ -19,7 +19,7 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window = window_seconds
         self.requests: dict[str, list[float]] = defaultdict(list)
-    
+
     def is_allowed(self, key: str) -> bool:
         now = time()
         # Clean old requests

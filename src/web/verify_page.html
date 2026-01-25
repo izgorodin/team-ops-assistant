@@ -11,7 +11,7 @@
             margin: 0;
             padding: 0;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -21,7 +21,7 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .container {
             background: white;
             border-radius: 16px;
@@ -31,42 +31,42 @@
             width: 100%;
             text-align: center;
         }
-        
+
         .logo {
             font-size: 48px;
             margin-bottom: 20px;
         }
-        
+
         h1 {
             color: #333;
             font-size: 24px;
             margin-bottom: 10px;
         }
-        
+
         .subtitle {
             color: #666;
             margin-bottom: 30px;
         }
-        
+
         .timezone-display {
             background: #f5f7fa;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
         }
-        
+
         .timezone-label {
             color: #666;
             font-size: 14px;
             margin-bottom: 8px;
         }
-        
+
         .timezone-value {
             color: #333;
             font-size: 20px;
             font-weight: 600;
         }
-        
+
         .btn {
             display: inline-block;
             padding: 14px 32px;
@@ -79,32 +79,32 @@
             width: 100%;
             margin-bottom: 12px;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
-        
+
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .btn-secondary {
             background: #f5f7fa;
             color: #333;
         }
-        
+
         .btn-secondary:hover {
             background: #e8ecf1;
         }
-        
+
         .divider {
             display: flex;
             align-items: center;
@@ -112,7 +112,7 @@
             color: #999;
             font-size: 14px;
         }
-        
+
         .divider::before,
         .divider::after {
             content: '';
@@ -120,16 +120,16 @@
             height: 1px;
             background: #ddd;
         }
-        
+
         .divider span {
             padding: 0 15px;
         }
-        
+
         .city-list {
             display: grid;
             gap: 8px;
         }
-        
+
         .city-btn {
             background: #f5f7fa;
             border: 2px solid transparent;
@@ -139,43 +139,43 @@
             transition: all 0.2s;
             text-align: left;
         }
-        
+
         .city-btn:hover {
             border-color: #667eea;
             background: #f0f3ff;
         }
-        
+
         .city-btn.selected {
             border-color: #667eea;
             background: #f0f3ff;
         }
-        
+
         .city-name {
             font-weight: 600;
             color: #333;
         }
-        
+
         .city-tz {
             font-size: 12px;
             color: #666;
         }
-        
+
         .message {
             padding: 16px;
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        
+
         .message.success {
             background: #d4edda;
             color: #155724;
         }
-        
+
         .message.error {
             background: #f8d7da;
             color: #721c24;
         }
-        
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -186,7 +186,7 @@
             animation: spin 1s linear infinite;
             margin-right: 8px;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -198,38 +198,38 @@
             <div class="logo">🌍</div>
             <h1>Verify Your Timezone</h1>
             <p class="subtitle">So the bot can convert times for you</p>
-            
+
             <!-- Success/Error Messages -->
             <div v-if="message" :class="['message', messageType]">
                 {{ message }}
             </div>
-            
+
             <!-- Auto-detected timezone -->
             <div class="timezone-display" v-if="!success">
                 <div class="timezone-label">Detected timezone:</div>
                 <div class="timezone-value">{{ detectedTimezone }}</div>
             </div>
-            
+
             <!-- Confirm button -->
-            <button 
+            <button
                 v-if="!success"
-                class="btn btn-primary" 
+                class="btn btn-primary"
                 @click="confirmTimezone"
                 :disabled="loading"
             >
                 <span v-if="loading" class="loading"></span>
                 {{ loading ? 'Confirming...' : 'Confirm Timezone' }}
             </button>
-            
+
             <!-- Divider -->
             <div class="divider" v-if="!success && cities.length > 0">
                 <span>or pick a city</span>
             </div>
-            
+
             <!-- City picker -->
             <div class="city-list" v-if="!success && cities.length > 0">
-                <button 
-                    v-for="city in cities" 
+                <button
+                    v-for="city in cities"
                     :key="city.tz"
                     :class="['city-btn', { selected: selectedCity === city.tz }]"
                     @click="selectCity(city)"
@@ -238,7 +238,7 @@
                     <div class="city-tz">{{ city.tz }}</div>
                 </button>
             </div>
-            
+
             <!-- Success state -->
             <div v-if="success">
                 <p style="color: #666; margin-top: 20px;">
@@ -247,10 +247,10 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         const { createApp, ref, onMounted } = Vue;
-        
+
         createApp({
             setup() {
                 const token = ref('{{TOKEN}}');
@@ -261,7 +261,7 @@
                 const message = ref('');
                 const messageType = ref('');
                 const success = ref(false);
-                
+
                 onMounted(() => {
                     // Auto-detect timezone from browser
                     try {
@@ -272,20 +272,20 @@
                         messageType.value = 'error';
                     }
                 });
-                
+
                 async function confirmTimezone() {
                     await submitTimezone(detectedTimezone.value);
                 }
-                
+
                 async function selectCity(city) {
                     selectedCity.value = city.tz;
                     await submitTimezone(city.tz);
                 }
-                
+
                 async function submitTimezone(tz) {
                     loading.value = true;
                     message.value = '';
-                    
+
                     try {
                         const response = await fetch('/api/verify', {
                             method: 'POST',
@@ -297,9 +297,9 @@
                                 tz_iana: tz
                             })
                         });
-                        
+
                         const data = await response.json();
-                        
+
                         if (response.ok) {
                             message.value = data.message || 'Timezone saved successfully!';
                             messageType.value = 'success';
@@ -315,7 +315,7 @@
                         loading.value = false;
                     }
                 }
-                
+
                 return {
                     token,
                     cities,

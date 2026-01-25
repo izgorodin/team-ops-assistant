@@ -4,25 +4,25 @@
 app:
   name: "Team Ops Assistant"
   version: "0.1.0"
-  
+
 # MongoDB database name
 database:
   name: "team_ops"
-  
+
 # Timezone settings
 timezone:
   # Default timezone when none can be determined
   default: "UTC"
-  
+
   # Team timezones to show in conversions
   team_timezones:
     - "America/Los_Angeles"  # Pacific
-    - "America/New_York"     # Eastern  
+    - "America/New_York"     # Eastern
     - "Europe/London"        # UK
     - "Europe/Berlin"        # Central Europe
     - "Asia/Tokyo"           # Japan
     - "Australia/Sydney"     # Australia
-    
+
   # Cities for "Pick City" fallback (timezone selection)
   team_cities:
     - name: "Los Angeles"
@@ -72,7 +72,7 @@ time_parsing:
     range: 0.85
     # "at 3" - most ambiguous
     at_h: 0.7
-  
+
 # Deduplication settings
 dedupe:
   # TTL for dedupe events in seconds (7 days)
@@ -103,7 +103,7 @@ classifier:
   logistic_regression:
     max_iter: 1000
     random_state: 42
-  
+
 # LLM settings (NVIDIA NIM API - OpenAI compatible)
 llm:
   # Qwen3 Next 80B - reliable tool calling for agent workflows

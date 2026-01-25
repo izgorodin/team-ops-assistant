@@ -13,7 +13,7 @@ Several documentation files incorrectly state that Discord/WhatsApp connectors a
 
 Update all documentation to reflect actual implementation status:
 - Discord: Fully implemented (webhook + outbound)
-- WhatsApp: Fully implemented (webhook + outbound)  
+- WhatsApp: Fully implemented (webhook + outbound)
 - Slack: Fully implemented (webhook + outbound)
 
 ## Files to Update

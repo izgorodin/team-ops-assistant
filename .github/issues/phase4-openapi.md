@@ -21,7 +21,7 @@ paths:
       responses:
         '200':
           description: Application is healthy
-          
+
   /hooks/telegram:
     post:
       summary: Telegram webhook endpoint
