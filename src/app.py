@@ -60,6 +60,7 @@ async def create_orchestrator(
         detectors=[time_detector, relocation_detector, mention_detector],
         state_managers={"timezone": tz_state_manager},
         action_handlers={"time": time_handler, "relocation": relocation_handler},
+        storage=storage,
     )
 
     # Create agent handler and orchestrator

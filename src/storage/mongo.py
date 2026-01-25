@@ -222,6 +222,31 @@ class MongoStorage:
             upsert=True,
         )
 
+    async def add_timezone_to_chat(self, platform: Platform, chat_id: str, tz_iana: str) -> None:
+        """Atomically add a timezone to a chat's active_timezones list.
+
+        Uses $addToSet for atomic, idempotent updates - safe for concurrent calls.
+
+        Args:
+            platform: Chat platform.
+            chat_id: Chat identifier.
+            tz_iana: IANA timezone to add.
+        """
+        await self.db.chats.update_one(
+            {"platform": platform.value, "chat_id": chat_id},
+            {
+                "$addToSet": {"active_timezones": tz_iana},
+                "$set": {"updated_at": datetime.utcnow()},
+                "$setOnInsert": {
+                    "platform": platform.value,
+                    "chat_id": chat_id,
+                    "default_tz": None,
+                    "created_at": datetime.utcnow(),
+                },
+            },
+            upsert=True,
+        )
+
     def _doc_to_chat_state(self, doc: dict[str, Any]) -> ChatState:
         """Convert MongoDB document to ChatState."""
         return ChatState(
