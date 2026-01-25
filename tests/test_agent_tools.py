@@ -88,7 +88,9 @@ class TestGeocodeCity:
         """Test that invalid inputs return NOT_FOUND, not hallucinated cities."""
         result = geocode_city.invoke({"city_name": invalid_input})
         # Result should start with NOT_FOUND (not "FOUND:")
-        assert result.startswith("NOT_FOUND"), f"Expected NOT_FOUND for {invalid_input!r}, got: {result}"
+        assert result.startswith("NOT_FOUND"), (
+            f"Expected NOT_FOUND for {invalid_input!r}, got: {result}"
+        )
 
     def test_state_name_matches_city(self) -> None:
         """Test that state names matching real cities are found (not bugs).

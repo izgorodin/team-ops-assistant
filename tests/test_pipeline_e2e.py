@@ -69,32 +69,69 @@ NEGATIVE_CASES = [e for e in CONTROL_CORPUS if not e.expected_times]
 # ============================================================================
 
 
-@pytest.mark.xfail(reason="Target 90% detection accuracy - WIP", strict=False)
-@pytest.mark.parametrize(
-    "entry",
-    POSITIVE_CASES,
-    ids=[f"pos:{e.line_number}" for e in POSITIVE_CASES],
-)
-def test_e2e_detection_positive(entry: ControlEntry) -> None:
-    """E2E: Classifier should detect time references in positive cases."""
-    result = contains_time_reference(entry.phrase)
-    assert result is True, (
-        f"Pipeline should detect time in: '{entry.phrase}' "
-        f"(expected: {entry.expected_times}, notes: {entry.notes})"
+def test_e2e_detection_positive_accuracy() -> None:
+    """E2E: Classifier should detect time references in positive cases (target: 85%)."""
+    if not POSITIVE_CASES:
+        pytest.skip("No positive cases in control corpus")
+
+    threshold = 0.85  # Current: ~89%, allow some margin
+    failures: list[ControlEntry] = []
+
+    for entry in POSITIVE_CASES:
+        result = contains_time_reference(entry.phrase)
+        if result is not True:
+            failures.append(entry)
+
+    total = len(POSITIVE_CASES)
+    passed = total - len(failures)
+    accuracy = passed / total
+
+    if failures:
+        print(f"\n{'=' * 60}")
+        print(f"Detection Positive Failures ({len(failures)}/{total}):")
+        print(f"{'=' * 60}")
+        for entry in failures[:15]:
+            print(f"  Line {entry.line_number}: '{entry.phrase}' ({entry.notes})")
+        if len(failures) > 15:
+            print(f"  ... and {len(failures) - 15} more")
+        print(f"{'=' * 60}")
+
+    assert accuracy >= threshold, (
+        f"Detection positive accuracy {accuracy:.1%} below {threshold:.0%} "
+        f"({len(failures)}/{total} failures)"
     )
 
 
-@pytest.mark.xfail(reason="Target 90% detection accuracy - WIP", strict=False)
-@pytest.mark.parametrize(
-    "entry",
-    NEGATIVE_CASES,
-    ids=[f"neg:{e.line_number}" for e in NEGATIVE_CASES],
-)
-def test_e2e_detection_negative(entry: ControlEntry) -> None:
-    """E2E: Classifier should reject negative cases."""
-    result = contains_time_reference(entry.phrase)
-    assert result is False, (
-        f"Pipeline should NOT detect time in: '{entry.phrase}' (notes: {entry.notes})"
+def test_e2e_detection_negative_accuracy() -> None:
+    """E2E: Classifier should reject negative cases (target: 90%)."""
+    if not NEGATIVE_CASES:
+        pytest.skip("No negative cases in control corpus")
+
+    threshold = 0.90
+    failures: list[ControlEntry] = []
+
+    for entry in NEGATIVE_CASES:
+        result = contains_time_reference(entry.phrase)
+        if result is not False:
+            failures.append(entry)
+
+    total = len(NEGATIVE_CASES)
+    passed = total - len(failures)
+    accuracy = passed / total
+
+    if failures:
+        print(f"\n{'=' * 60}")
+        print(f"Detection Negative Failures ({len(failures)}/{total}):")
+        print(f"{'=' * 60}")
+        for entry in failures[:15]:
+            print(f"  Line {entry.line_number}: '{entry.phrase}' ({entry.notes})")
+        if len(failures) > 15:
+            print(f"  ... and {len(failures) - 15} more")
+        print(f"{'=' * 60}")
+
+    assert accuracy >= threshold, (
+        f"Detection negative accuracy {accuracy:.1%} below {threshold:.0%} "
+        f"({len(failures)}/{total} failures)"
     )
 
 
@@ -103,22 +140,40 @@ def test_e2e_detection_negative(entry: ControlEntry) -> None:
 # ============================================================================
 
 
-@pytest.mark.xfail(reason="Target 90% extraction accuracy - WIP", strict=False)
-@pytest.mark.parametrize(
-    "entry",
-    POSITIVE_CASES,
-    ids=[f"extract:{e.line_number}" for e in POSITIVE_CASES],
-)
-def test_e2e_extraction(entry: ControlEntry) -> None:
-    """E2E: Regex should extract correct times from positive cases."""
-    parsed = parse_times(entry.phrase)
-    parsed_times = [f"{p.hour:02d}:{p.minute:02d}" for p in parsed]
+def test_e2e_extraction_accuracy() -> None:
+    """E2E: Regex should extract correct times from positive cases (target: 75%)."""
+    if not POSITIVE_CASES:
+        pytest.skip("No positive cases in control corpus")
 
-    for expected in entry.expected_times:
-        assert expected in parsed_times, (
-            f"Expected '{expected}' not in {parsed_times} "
-            f"for: '{entry.phrase}' (notes: {entry.notes})"
-        )
+    threshold = 0.75  # Current: ~77%, many languages not yet supported
+    failures: list[tuple[ControlEntry, list[str]]] = []
+
+    for entry in POSITIVE_CASES:
+        parsed = parse_times(entry.phrase)
+        parsed_times = [f"{p.hour:02d}:{p.minute:02d}" for p in parsed]
+
+        if not all(t in parsed_times for t in entry.expected_times):
+            failures.append((entry, parsed_times))
+
+    total = len(POSITIVE_CASES)
+    passed = total - len(failures)
+    accuracy = passed / total
+
+    if failures:
+        print(f"\n{'=' * 60}")
+        print(f"Extraction Failures ({len(failures)}/{total}):")
+        print(f"{'=' * 60}")
+        for entry, got in failures[:15]:
+            print(f"  Line {entry.line_number}: '{entry.phrase}'")
+            print(f"    expected: {entry.expected_times}, got: {got}")
+        if len(failures) > 15:
+            print(f"  ... and {len(failures) - 15} more")
+        print(f"{'=' * 60}")
+
+    assert accuracy >= threshold, (
+        f"Extraction accuracy {accuracy:.1%} below {threshold:.0%} "
+        f"({len(failures)}/{total} failures)"
+    )
 
 
 # ============================================================================
