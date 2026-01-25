@@ -16,11 +16,12 @@ Multi-platform TeamOps assistant bot that detects time mentions and replies with
 
 ## Supported Platforms
 
-| Platform | Status |
-|----------|--------|
-| Telegram | MVP Complete |
-| Discord | Skeleton |
-| WhatsApp | Skeleton |
+| Platform | Status | Webhook Endpoint |
+|----------|--------|------------------|
+| Telegram | ✅ Complete | `/hooks/telegram` |
+| Slack | ✅ Complete | `/hooks/slack` |
+| Discord | ✅ Complete | `/hooks/discord` |
+| WhatsApp | ✅ Complete | `/hooks/whatsapp` |
 
 ## Quick Start
 
@@ -78,6 +79,53 @@ This project uses centralized AI configuration via [AGENTS.md](./AGENTS.md) stan
 | `.github/copilot-instructions.md` | GitHub Copilot (symlink) |
 | `.github/instructions/*.md` | Path-specific rules |
 | `.claude/settings.json` | Claude Code settings |
+
+## Platform Setup
+
+### Telegram
+
+1. Message [@BotFather](https://t.me/BotFather) on Telegram
+2. Send `/newbot` and follow prompts
+3. Copy the bot token to `TELEGRAM_BOT_TOKEN`
+4. Set webhook: `https://your-domain.com/hooks/telegram`
+
+### Slack
+
+1. Go to [Slack API](https://api.slack.com/apps) → Create New App
+2. Choose "From scratch", select workspace
+3. **OAuth & Permissions** → Add scopes:
+   - `chat:write` - Send messages
+   - `app_mentions:read` - Detect @mentions
+   - `channels:history` - Read channel messages
+   - `users:read` - Get user info
+4. Install to Workspace → Copy **Bot User OAuth Token** to `SLACK_BOT_TOKEN`
+5. **Event Subscriptions** → Enable, set URL: `https://your-domain.com/hooks/slack`
+6. Subscribe to events: `message.channels`, `app_mention`
+
+### Discord
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. New Application → Bot → Add Bot
+3. Copy token to `DISCORD_BOT_TOKEN`
+4. **Privileged Gateway Intents**: Enable Message Content Intent
+5. OAuth2 → URL Generator:
+   - Scopes: `bot`
+   - Permissions: `Send Messages`, `Read Message History`
+6. Use generated URL to invite bot to server
+7. For webhooks, configure at: `https://your-domain.com/hooks/discord`
+
+### WhatsApp (Business API)
+
+1. Create [Meta Developer Account](https://developers.facebook.com/)
+2. Create App → Business → WhatsApp
+3. **WhatsApp** → API Setup:
+   - Copy **Access Token** to `WHATSAPP_ACCESS_TOKEN`
+   - Copy **Phone Number ID** to `WHATSAPP_PHONE_NUMBER_ID`
+4. Configure webhook URL: `https://your-domain.com/hooks/whatsapp`
+5. Set `WHATSAPP_VERIFY_TOKEN` to any secret string (used for webhook verification)
+6. Subscribe to `messages` webhook field
+
+> **Note:** WhatsApp requires HTTPS and business verification for production use.
 
 ## Documentation
 
