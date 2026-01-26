@@ -8,9 +8,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
-import logging
+import hashlib
+import hmac
+import time
 from typing import Any
 
+import structlog
 from quart import Quart, Response, jsonify, request
 
 from src.connectors.discord.inbound import normalize_discord_message
@@ -38,7 +41,112 @@ from src.settings import Settings, get_settings
 from src.storage.mongo import MongoStorage, get_storage
 from src.web.routes_verify import verify_bp
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+
+# ============================================================================
+# Webhook Signature Verification
+# ============================================================================
+
+
+def verify_telegram_signature(secret_header: str, expected_secret: str) -> bool:
+    """Verify Telegram webhook secret token.
+
+    Telegram sends the secret in X-Telegram-Bot-Api-Secret-Token header.
+
+    Args:
+        secret_header: Value from X-Telegram-Bot-Api-Secret-Token header.
+        expected_secret: Expected secret token set during webhook configuration.
+
+    Returns:
+        True if valid, False otherwise.
+    """
+    if not expected_secret:
+        # If no secret configured, skip verification (backwards compatible)
+        return True
+    return hmac.compare_digest(secret_header, expected_secret)
+
+
+def verify_slack_signature(
+    body: bytes, timestamp: str, signature: str, signing_secret: str
+) -> bool:
+    """Verify Slack request signature using HMAC-SHA256.
+
+    Slack sends:
+    - X-Slack-Request-Timestamp: Unix timestamp
+    - X-Slack-Signature: v0=<signature>
+
+    Args:
+        body: Raw request body.
+        timestamp: Value from X-Slack-Request-Timestamp header.
+        signature: Value from X-Slack-Signature header.
+        signing_secret: Slack signing secret.
+
+    Returns:
+        True if valid, False otherwise.
+    """
+    if not signing_secret:
+        # If no secret configured, skip verification (backwards compatible)
+        return True
+
+    # Check timestamp to prevent replay attacks (5 minutes tolerance)
+    try:
+        request_time = int(timestamp)
+        current_time = int(time.time())
+        if abs(current_time - request_time) > 300:
+            logger.warning("Slack request timestamp too old or in the future")
+            return False
+    except (ValueError, TypeError):
+        logger.warning("Invalid Slack timestamp format")
+        return False
+
+    # Compute expected signature
+    try:
+        body_text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        logger.warning("Slack request body contains invalid UTF-8")
+        return False
+
+    base_string = f"v0:{timestamp}:{body_text}"
+    expected = (
+        "v0="
+        + hmac.new(
+            signing_secret.encode("utf-8"),
+            base_string.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+    )
+
+    return hmac.compare_digest(expected, signature)
+
+
+def verify_whatsapp_signature(body: bytes, signature: str, app_secret: str) -> bool:
+    """Verify WhatsApp webhook signature using HMAC-SHA256.
+
+    WhatsApp sends X-Hub-Signature-256 header with format: sha256=<signature>
+
+    Args:
+        body: Raw request body.
+        signature: Value from X-Hub-Signature-256 header.
+        app_secret: WhatsApp app secret.
+
+    Returns:
+        True if valid, False otherwise.
+    """
+    if not app_secret:
+        # If no secret configured, skip verification (backwards compatible)
+        return True
+
+    expected = (
+        "sha256="
+        + hmac.new(
+            app_secret.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+    )
+
+    return hmac.compare_digest(expected, signature)
 
 
 async def create_orchestrator(
@@ -151,17 +259,88 @@ def create_app() -> Quart:
 
         logger.info("Shutdown complete")
 
-    # Health check endpoint
+    # Request context for structured logging
+    @app.before_request
+    async def bind_request_context() -> None:
+        """Bind request context for structured logging."""
+        import uuid
+
+        from src.core.logging_config import bind_contextvars, clear_contextvars
+
+        clear_contextvars()
+        bind_contextvars(
+            request_id=str(uuid.uuid4())[:8],
+            path=request.path,
+        )
+
+    @app.after_request
+    async def log_request(response: Response) -> Response:
+        """Log request completion."""
+        logger.debug(
+            "Request completed",
+            status_code=response.status_code,
+            method=request.method,
+        )
+        return response
+
+    # Health check endpoints
+
     @app.route("/health", methods=["GET"])
-    async def health_check() -> Response:
-        """Health check endpoint for monitoring."""
-        return jsonify({"status": "ok"})
+    async def health_check() -> tuple[Response, int]:
+        """Deep health check with dependency status.
+
+        Checks MongoDB connectivity and returns degraded status if unhealthy.
+        Used by Render and other orchestrators for health monitoring.
+        """
+        storage = get_storage()
+        mongo_ok = await storage.check_connection()
+
+        checks = {
+            "mongodb": mongo_ok,
+            "status": "ok" if mongo_ok else "degraded",
+        }
+        status_code = 200 if mongo_ok else 503
+        return jsonify(checks), status_code
+
+    @app.route("/ready", methods=["GET"])
+    async def readiness_check() -> tuple[Response, int]:
+        """Readiness probe - can the service accept traffic?
+
+        Checks that all dependencies are connected and pipeline is initialized.
+        Kubernetes/Render uses this to know when to route traffic to the instance.
+        """
+        storage = get_storage()
+        mongo_ok = await storage.check_connection()
+        pipeline_ok = hasattr(app, "pipeline") and app.pipeline is not None  # type: ignore[attr-defined]
+
+        checks = {
+            "mongodb": mongo_ok,
+            "pipeline": pipeline_ok,
+        }
+        all_ok = all(checks.values())
+        status_code = 200 if all_ok else 503
+        return jsonify(checks), status_code
+
+    @app.route("/live", methods=["GET"])
+    async def liveness_check() -> Response:
+        """Liveness probe - is the process alive?
+
+        Simple check that the process can respond to requests.
+        Used by orchestrators to detect hung/crashed processes.
+        """
+        return jsonify({"status": "alive"})
 
     # Telegram webhook endpoint
     @app.route("/hooks/telegram", methods=["POST"])
     async def telegram_webhook() -> Response | tuple[Response, int]:
         """Handle incoming Telegram webhook updates."""
         try:
+            # Verify webhook secret token
+            secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+            if not verify_telegram_signature(secret_header, settings.telegram_webhook_secret):
+                logger.warning("Telegram webhook: invalid secret token")
+                return jsonify({"error": "Unauthorized"}), 401
+
             update = await request.get_json()
             if not update:
                 return jsonify({"error": "Invalid JSON"}), 400
@@ -191,6 +370,19 @@ def create_app() -> Quart:
     async def slack_webhook() -> Response | tuple[Response, int]:
         """Handle incoming Slack Events API webhooks."""
         try:
+            # Get raw body for signature verification
+            raw_body = await request.get_data(as_text=False)
+            body = raw_body if isinstance(raw_body, bytes) else raw_body.encode("utf-8")
+            timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
+            signature = request.headers.get("X-Slack-Signature", "")
+
+            # Verify signature (skip for URL verification challenge)
+            if not verify_slack_signature(
+                body, timestamp, signature, settings.slack_signing_secret
+            ):
+                logger.warning("Slack webhook: invalid signature")
+                return jsonify({"error": "Unauthorized"}), 401
+
             payload = await request.get_json()
             if not payload:
                 return jsonify({"error": "Invalid JSON"}), 400
@@ -273,6 +465,16 @@ def create_app() -> Quart:
     async def whatsapp_webhook() -> Response | tuple[Response, int]:
         """Handle incoming WhatsApp Cloud API webhook events."""
         try:
+            # Get raw body for signature verification
+            raw_body = await request.get_data(as_text=False)
+            body = raw_body if isinstance(raw_body, bytes) else raw_body.encode("utf-8")
+            signature = request.headers.get("X-Hub-Signature-256", "")
+
+            # Verify signature
+            if not verify_whatsapp_signature(body, signature, settings.whatsapp_app_secret):
+                logger.warning("WhatsApp webhook: invalid signature")
+                return jsonify({"error": "Unauthorized"}), 401
+
             payload = await request.get_json()
             if not payload:
                 return jsonify({"error": "Invalid JSON"}), 400

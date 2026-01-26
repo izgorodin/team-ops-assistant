@@ -71,6 +71,21 @@ class MongoStorage:
             self._client = None
             self._db = None
 
+    async def check_connection(self) -> bool:
+        """Check if MongoDB is reachable.
+
+        Returns:
+            True if connection is healthy, False otherwise.
+        """
+        if self._client is None:
+            return False
+        try:
+            await self._client.admin.command("ping")
+            return True
+        except Exception:
+            logger.warning("MongoDB health check failed", exc_info=True)
+            return False
+
     async def _ensure_indexes(self) -> None:
         """Ensure all required indexes exist."""
         config = self.settings.config.dedupe

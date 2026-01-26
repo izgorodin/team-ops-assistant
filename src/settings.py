@@ -5,7 +5,6 @@ Loads configuration from environment variables (.env) and configuration.yaml.
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -82,6 +81,22 @@ class DedupeConfig(BaseModel):
     cache_cleanup_multiplier: int = (
         10  # Retention cutoff: entries older than throttle_seconds * multiplier are removed
     )
+
+
+class RateLimitConfig(BaseModel):
+    """Rate limit configuration for a single limit type."""
+
+    requests: int = 20
+    window_seconds: int = 60
+
+
+class RateLimitsConfig(BaseModel):
+    """Rate limiting configuration."""
+
+    enabled: bool = True
+    per_user: RateLimitConfig = Field(default_factory=RateLimitConfig)
+    per_chat: RateLimitConfig = Field(default_factory=RateLimitConfig)
+    max_notifications: int = 3  # Notify user N times about rate limit, then be silent
 
 
 class TfidfConfig(BaseModel):
@@ -230,6 +245,7 @@ class Configuration(BaseModel):
     confidence: ConfidenceConfig = Field(default_factory=ConfidenceConfig)
     time_parsing: TimeParsingConfig = Field(default_factory=TimeParsingConfig)
     dedupe: DedupeConfig = Field(default_factory=DedupeConfig)
+    rate_limits: RateLimitsConfig = Field(default_factory=RateLimitsConfig)
     classifier: ClassifierConfig = Field(default_factory=ClassifierConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -253,6 +269,11 @@ class Settings:
         self.whatsapp_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
         self.whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
         self.whatsapp_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+        self.whatsapp_app_secret: str = os.getenv("WHATSAPP_APP_SECRET", "")
+
+        # Webhook signature verification secrets
+        self.telegram_webhook_secret: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+        self.slack_signing_secret: str = os.getenv("SLACK_SIGNING_SECRET", "")
         self.together_api_key: str = os.getenv("TOGETHER_API_KEY", "")
         self.nvidia_api_key: str = os.getenv("NVIDIA_API_KEY", "")
         self.app_secret_key: str = os.getenv("APP_SECRET_KEY", "dev-secret-key")
@@ -284,10 +305,9 @@ class Settings:
 
     def _setup_logging(self) -> None:
         """Configure logging based on settings."""
-        logging.basicConfig(
-            level=getattr(logging, self.config.logging.level, logging.INFO),
-            format=self.config.logging.format,
-        )
+        from src.core.logging_config import configure_logging
+
+        configure_logging(level=self.config.logging.level)
 
 
 # Global settings instance

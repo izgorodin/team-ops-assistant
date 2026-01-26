@@ -15,109 +15,6 @@ from src.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# City abbreviations for common inputs (expand before lookup)
-CITY_ABBREVIATIONS: dict[str, str] = {
-    # US cities
-    "ny": "new york",
-    "nyc": "new york",
-    "la": "los angeles",
-    "sf": "san francisco",
-    "dc": "washington",
-    "chi": "chicago",
-    "phx": "phoenix",
-    "bos": "boston",
-    "atl": "atlanta",
-    "sea": "seattle",
-    # Russia (Latin + Cyrillic)
-    "msk": "moscow",
-    "москва": "moscow",
-    "мск": "moscow",
-    "spb": "saint petersburg",
-    "спб": "saint petersburg",
-    "питер": "saint petersburg",
-    "санкт-петербург": "saint petersburg",
-    "петербург": "saint petersburg",
-    "екб": "yekaterinburg",
-    "екатеринбург": "yekaterinburg",
-    "нск": "novosibirsk",
-    "новосиб": "novosibirsk",
-    "новосибирск": "novosibirsk",
-    "казань": "kazan",
-    "нижний новгород": "nizhny novgorod",
-    "нижний": "nizhny novgorod",
-    "самара": "samara",
-    "омск": "omsk",
-    "челябинск": "chelyabinsk",
-    "ростов": "rostov-on-don",
-    "ростов-на-дону": "rostov-on-don",
-    "уфа": "ufa",
-    "красноярск": "krasnoyarsk",
-    "пермь": "perm",
-    "воронеж": "voronezh",
-    "волгоград": "volgograd",
-    "краснодар": "krasnodar",
-    "сочи": "sochi",
-    "владивосток": "vladivostok",
-    "хабаровск": "khabarovsk",
-    "иркутск": "irkutsk",
-    "тюмень": "tyumen",
-    "тбилиси": "tbilisi",
-    "киев": "kiev",
-    "київ": "kiev",
-    "минск": "minsk",
-    "рига": "riga",
-    "таллин": "tallinn",
-    "вильнюс": "vilnius",
-    "варшава": "warsaw",
-    "прага": "prague",
-    "берлин": "berlin",
-    "мюнхен": "munich",
-    "вена": "vienna",
-    "будапешт": "budapest",
-    "белград": "belgrade",
-    "стамбул": "istanbul",
-    "дубай": "dubai",
-    "тель-авив": "tel aviv",
-    "тель авив": "tel aviv",
-    # Europe
-    "ldn": "london",
-    "lon": "london",
-    "лондон": "london",
-    "par": "paris",
-    "париж": "paris",
-    "ber": "berlin",
-    "ams": "amsterdam",
-    "амстердам": "amsterdam",
-    "рим": "rome",
-    "мадрид": "madrid",
-    "барселона": "barcelona",
-    "лиссабон": "lisbon",
-    # Asia
-    "hk": "hong kong",
-    "гонконг": "hong kong",
-    "sg": "singapore",
-    "сингапур": "singapore",
-    "tok": "tokyo",
-    "токио": "tokyo",
-    "bkk": "bangkok",
-    "бангкок": "bangkok",
-    "пекин": "beijing",
-    "шанхай": "shanghai",
-    "сеул": "seoul",
-    "бали": "denpasar",  # Bali → Denpasar (main city)
-    "пхукет": "phuket",
-    # Americas
-    "торонто": "toronto",
-    "ванкувер": "vancouver",
-    "монреаль": "montreal",
-    "мехико": "mexico city",
-    "сан-паулу": "sao paulo",
-    "буэнос-айрес": "buenos aires",
-    # Australia
-    "сидней": "sydney",
-    "мельбурн": "melbourne",
-}
-
 # Singleton geonamescache instance (lazy init)
 _gc: GeonamesCache | None = None
 
@@ -128,6 +25,59 @@ def _get_geonames_cache() -> GeonamesCache:
     if _gc is None:
         _gc = GeonamesCache()
     return _gc
+
+
+def _normalize_city_with_llm(city_name: str) -> str | None:
+    """Use LLM to normalize city name to English.
+
+    Handles abbreviations (NY, MSK), non-Latin scripts (Москва, дубай),
+    and common variations.
+
+    Args:
+        city_name: City name in any language/format.
+
+    Returns:
+        Normalized English city name, or None if normalization failed.
+    """
+    from langchain_openai import ChatOpenAI
+
+    settings = get_settings()
+
+    # Quick ASCII check - if already ASCII, skip LLM
+    if city_name.isascii() and len(city_name) > 3 and " " not in city_name:
+        # Probably already English, no need for LLM
+        return None
+
+    try:
+        llm = ChatOpenAI(
+            base_url=settings.config.llm.base_url,
+            api_key=settings.nvidia_api_key,  # type: ignore[arg-type]
+            model=settings.config.llm.model,
+            temperature=0,
+            timeout=5.0,
+        ).bind(max_tokens=50)
+
+        prompt = f"""Convert this city input to its standard English name.
+Input: "{city_name}"
+
+Rules:
+- Abbreviations: NY → New York, LA → Los Angeles, MSK → Moscow, SPB → Saint Petersburg
+- Non-English: Москва → Moscow, Лондон → London, дубай → Dubai
+- Keep as-is if already English
+
+Output ONLY the city name, nothing else. If unsure, output: UNKNOWN"""
+
+        result = llm.invoke(prompt)
+        normalized = str(result.content).strip()
+
+        if normalized and normalized != "UNKNOWN" and normalized.lower() != city_name.lower():
+            logger.debug(f"LLM normalized '{city_name}' → '{normalized}'")
+            return normalized
+
+    except Exception as e:
+        logger.warning(f"LLM city normalization failed: {e}")
+
+    return None
 
 
 @tool
@@ -182,24 +132,40 @@ def lookup_tz_abbreviation(abbrev: str) -> str:
 def geocode_city(city_name: str) -> str:
     """Look up any city worldwide to find its timezone.
 
-    Uses geonamescache with 190k+ cities. Supports abbreviations like NY, MSK, СПб.
-    Use this when the city is not in the configured list.
+    Uses geonamescache with 190k+ cities. Supports any language input -
+    will automatically normalize non-English names using LLM.
 
     Args:
-        city_name: Name of the city to look up (supports abbreviations)
+        city_name: Name of the city to look up (any language)
 
     Returns:
         FOUND: city → IANA timezone if found
         NOT_FOUND: message if city cannot be found
     """
-    return _lookup_city_geonames(city_name)
+    # 1. Try direct lookup first
+    result = _lookup_city_geonames(city_name)
+    if result.startswith("FOUND:"):
+        return result
+
+    # 2. If not found, try LLM normalization
+    normalized = _normalize_city_with_llm(city_name)
+    if normalized:
+        result = _lookup_city_geonames(normalized)
+        if result.startswith("FOUND:"):
+            return result
+
+    # 3. Not found even after normalization
+    return (
+        f"NOT_FOUND: '{city_name}' не найден. "
+        "Напиши город точнее (например: Moscow, London, Tokyo)."
+    )
 
 
 def _lookup_city_geonames(city_name: str) -> str:
     """Lookup city timezone using geonamescache (190k+ cities).
 
     Args:
-        city_name: City name to look up (can be abbreviation like NY, MSK).
+        city_name: City name to look up (English).
 
     Returns:
         FOUND: City → IANA timezone if found
@@ -207,14 +173,10 @@ def _lookup_city_geonames(city_name: str) -> str:
     """
     normalized = city_name.lower().strip()
 
-    # 1. Expand abbreviations (NY → new york, MSK → moscow)
-    if normalized in CITY_ABBREVIATIONS:
-        normalized = CITY_ABBREVIATIONS[normalized]
-
     gc = _get_geonames_cache()
     cities = gc.get_cities()
 
-    # 2. Exact match (case-insensitive) - collect all and pick by population
+    # 1. Exact match (case-insensitive) - collect all and pick by population
     exact_matches: list[tuple[str, str, int]] = []
     for city_data in cities.values():
         if city_data["name"].lower() == normalized:
@@ -226,7 +188,7 @@ def _lookup_city_geonames(city_name: str) -> str:
         best = max(exact_matches, key=lambda x: x[2])
         return f"FOUND: {best[0]} → {best[1]}"
 
-    # 3. Prefix match for partial inputs (only if single match)
+    # 2. Prefix match for partial inputs (only if single match)
     prefix_matches: list[tuple[str, str, int]] = []
     for city_data in cities.values():
         if city_data["name"].lower().startswith(normalized) and len(normalized) >= 3:
@@ -236,11 +198,8 @@ def _lookup_city_geonames(city_name: str) -> str:
     if len(prefix_matches) == 1:
         return f"FOUND: {prefix_matches[0][0]} → {prefix_matches[0][1]}"
 
-    # 4. Not found
-    return (
-        f"NOT_FOUND: '{city_name}' не найден. "
-        "Напиши город точнее (например: Moscow, London, Tokyo)."
-    )
+    # 3. Not found
+    return f"NOT_FOUND: '{city_name}'"
 
 
 @tool
