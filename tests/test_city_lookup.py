@@ -2,29 +2,13 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from src.core.agent_tools import _lookup_city_geonames, geocode_city
 
 
-class TestCityLookupGeonames:
-    """Tests for _lookup_city_geonames function."""
-
-    def test_ny_abbreviation(self) -> None:
-        """Test NY abbreviation resolves to New York."""
-        result = _lookup_city_geonames("NY")
-        assert "FOUND:" in result
-        assert "America/New_York" in result
-
-    def test_nyc_abbreviation(self) -> None:
-        """Test NYC abbreviation resolves to New York."""
-        result = _lookup_city_geonames("NYC")
-        assert "FOUND:" in result
-        assert "America/New_York" in result
-
-    def test_ny_lowercase(self) -> None:
-        """Test lowercase ny works."""
-        result = _lookup_city_geonames("ny")
-        assert "FOUND:" in result
-        assert "America/New_York" in result
+class TestLookupCityGeonames:
+    """Tests for _lookup_city_geonames function (direct English lookup only)."""
 
     def test_moscow_english(self) -> None:
         """Test Moscow in English."""
@@ -32,36 +16,12 @@ class TestCityLookupGeonames:
         assert "FOUND:" in result
         assert "Europe/Moscow" in result
 
-    def test_moscow_cyrillic(self) -> None:
-        """Test Moscow in Russian (москва)."""
-        result = _lookup_city_geonames("москва")
-        assert "FOUND:" in result
-        assert "Europe/Moscow" in result
-
-    def test_msk_abbreviation(self) -> None:
-        """Test MSK abbreviation for Moscow."""
-        result = _lookup_city_geonames("msk")
-        assert "FOUND:" in result
-        assert "Europe/Moscow" in result
-
-    def test_spb_cyrillic(self) -> None:
-        """Test СПб abbreviation for Saint Petersburg."""
-        result = _lookup_city_geonames("спб")
-        assert "FOUND:" in result
-        assert "Europe/Moscow" in result  # Same timezone as Moscow
-
     def test_london_prioritizes_uk(self) -> None:
         """Test London returns UK, not Canada."""
         result = _lookup_city_geonames("London")
         assert "FOUND:" in result
         assert "Europe/London" in result
         assert "America/Toronto" not in result
-
-    def test_la_abbreviation(self) -> None:
-        """Test LA abbreviation for Los Angeles."""
-        result = _lookup_city_geonames("LA")
-        assert "FOUND:" in result
-        assert "America/Los_Angeles" in result
 
     def test_los_angeles_prioritizes_us(self) -> None:
         """Test Los Angeles returns US, not Spain."""
@@ -82,33 +42,100 @@ class TestCityLookupGeonames:
         assert "FOUND:" in result
         assert "Europe/Berlin" in result
 
+    def test_new_york_full_name(self) -> None:
+        """Test New York (full name) returns NYC timezone."""
+        result = _lookup_city_geonames("new york")
+        assert "FOUND:" in result
+        assert "America/New_York" in result
+
     def test_not_found_gibberish(self) -> None:
         """Test gibberish returns NOT_FOUND."""
         result = _lookup_city_geonames("xyz123abc")
         assert "NOT_FOUND:" in result
 
-    def test_not_found_provides_examples(self) -> None:
-        """Test NOT_FOUND message includes helpful examples."""
-        result = _lookup_city_geonames("abracadabra")
+    def test_not_found_abbreviation_without_llm(self) -> None:
+        """Test abbreviations return NOT_FOUND without LLM (raw lookup only)."""
+        result = _lookup_city_geonames("NY")
         assert "NOT_FOUND:" in result
-        assert "Moscow" in result or "London" in result or "Tokyo" in result
+
+    def test_not_found_cyrillic_without_llm(self) -> None:
+        """Test Cyrillic returns NOT_FOUND without LLM (raw lookup only)."""
+        result = _lookup_city_geonames("москва")
+        assert "NOT_FOUND:" in result
 
 
-class TestGeocodeCity:
-    """Tests for geocode_city tool function."""
+class TestGeocodeCityWithLLM:
+    """Tests for geocode_city tool with mocked LLM normalization."""
 
-    def test_geocode_city_is_sync(self) -> None:
-        """Test that geocode_city is a sync function (not async)."""
-        # The @tool decorator should work with sync function
-        result = geocode_city.invoke("NY")
-        assert "FOUND:" in result
-        assert "America/New_York" in result
+    def test_ny_abbreviation(self) -> None:
+        """Test NY abbreviation resolves via LLM."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value="New York"):
+            result = geocode_city.invoke({"city_name": "NY"})
+            assert "FOUND:" in result
+            assert "America/New_York" in result
 
-    def test_geocode_city_handles_cyrillic(self) -> None:
-        """Test geocode_city handles Cyrillic input."""
-        result = geocode_city.invoke("москва")
-        assert "FOUND:" in result
-        assert "Europe/Moscow" in result
+    def test_nyc_abbreviation(self) -> None:
+        """Test NYC abbreviation resolves via LLM."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value="New York"):
+            result = geocode_city.invoke({"city_name": "NYC"})
+            assert "FOUND:" in result
+            assert "America/New_York" in result
+
+    def test_moscow_cyrillic(self) -> None:
+        """Test Moscow in Russian (москва) via LLM."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value="Moscow"):
+            result = geocode_city.invoke({"city_name": "москва"})
+            assert "FOUND:" in result
+            assert "Europe/Moscow" in result
+
+    def test_msk_abbreviation(self) -> None:
+        """Test MSK abbreviation for Moscow via LLM."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value="Moscow"):
+            result = geocode_city.invoke({"city_name": "msk"})
+            assert "FOUND:" in result
+            assert "Europe/Moscow" in result
+
+    def test_spb_cyrillic(self) -> None:
+        """Test СПб abbreviation for Saint Petersburg via LLM."""
+        with patch(
+            "src.core.agent_tools._normalize_city_with_llm",
+            return_value="Saint Petersburg",
+        ):
+            result = geocode_city.invoke({"city_name": "спб"})
+            assert "FOUND:" in result
+            assert "Europe/Moscow" in result  # Same timezone as Moscow
+
+    def test_la_abbreviation(self) -> None:
+        """Test LA abbreviation for Los Angeles via LLM."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value="Los Angeles"):
+            result = geocode_city.invoke({"city_name": "LA"})
+            assert "FOUND:" in result
+            assert "America/Los_Angeles" in result
+
+    def test_sf_abbreviation(self) -> None:
+        """Test SF abbreviation for San Francisco via LLM."""
+        with patch(
+            "src.core.agent_tools._normalize_city_with_llm",
+            return_value="San Francisco",
+        ):
+            result = geocode_city.invoke({"city_name": "sf"})
+            assert "FOUND:" in result
+            assert "America/Los_Angeles" in result
+
+    def test_english_city_no_llm_needed(self) -> None:
+        """Test English city names don't need LLM."""
+        # LLM should not be called for English city names
+        with patch("src.core.agent_tools._normalize_city_with_llm") as mock_normalize:
+            result = geocode_city.invoke({"city_name": "London"})
+            assert "FOUND:" in result
+            assert "Europe/London" in result
+            mock_normalize.assert_not_called()
+
+    def test_llm_returns_none(self) -> None:
+        """Test graceful handling when LLM returns None."""
+        with patch("src.core.agent_tools._normalize_city_with_llm", return_value=None):
+            result = geocode_city.invoke({"city_name": "unknowncity"})
+            assert "NOT_FOUND:" in result
 
 
 class TestPopulationPriority:
@@ -120,9 +147,3 @@ class TestPopulationPriority:
         assert "FOUND:" in result
         # Should return the largest New York (NYC), not New York in other states
         assert "America/New_York" in result
-
-    def test_sf_abbreviation(self) -> None:
-        """Test SF abbreviation for San Francisco."""
-        result = _lookup_city_geonames("sf")
-        assert "FOUND:" in result
-        assert "America/Los_Angeles" in result

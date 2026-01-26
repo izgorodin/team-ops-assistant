@@ -53,7 +53,7 @@ class TestGeocodeCity:
         assert "FOUND:" in result
         assert expected_tz in result
 
-    # Russian cities - mapped via CITY_ABBREVIATIONS
+    # Russian cities - normalized via LLM
     @pytest.mark.parametrize(
         ("city", "expected_tz"),
         [
