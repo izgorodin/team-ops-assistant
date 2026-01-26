@@ -140,7 +140,7 @@ class AgentHandler:
         # Check for rejection (нет, no) - ask for correct city
         reject_words = {"нет", "no", "неверно", "не", "nope"}
         if user_text in reject_words:
-            text = "Хорошо, напишите город в котором вы сейчас находитесь:"
+            text = get_ui_message("ask_city")
             return await self._continue_session(session, event, text)
 
         # User provided a city name - try to geocode it (with LLM normalization for Cyrillic)
@@ -181,7 +181,7 @@ class AgentHandler:
             return await self._fail_session(session, event)
 
         await self.storage.update_session(session)
-        text = f"Не нашёл город '{event.text}'. Напишите город точнее (например: Moscow, London, Tokyo):"
+        text = get_ui_message("city_not_found", city_name=event.text)
         message = OutboundMessage(
             platform=event.platform,
             chat_id=event.chat_id,
@@ -274,8 +274,26 @@ class AgentHandler:
         Returns:
             IANA timezone if found, None otherwise.
         """
+        from langchain_core.messages import ToolMessage
+
         for msg in messages:
-            content = str(msg.content) if hasattr(msg, "content") else str(msg)
+            # Debug: log message types and content
+            msg_type = type(msg).__name__
+            content = ""
+
+            # Handle ToolMessage specifically
+            if isinstance(msg, ToolMessage):
+                content = str(msg.content) if msg.content else ""
+                logger.debug(f"ToolMessage: {content}")
+            elif hasattr(msg, "content"):
+                content = str(msg.content)
+            else:
+                content = str(msg)
+
+            logger.debug(
+                f"Message type={msg_type}, content preview: {content[:100] if content else 'empty'}"
+            )
+
             if "SAVE:" in content:
                 # Extract timezone after SAVE:
                 tz_part = content.split("SAVE:")[1].strip()
@@ -284,7 +302,10 @@ class AgentHandler:
                     tz_part = tz_part.split()[0]
                 if "\n" in tz_part:
                     tz_part = tz_part.split("\n")[0]
+                logger.info(f"Extracted timezone from messages: {tz_part}")
                 return tz_part
+
+        logger.warning(f"No SAVE: found in {len(messages)} messages")
         return None
 
     def _build_messages(

@@ -1,2 +1,2 @@
-🌍 Какой твой город? (для часового пояса)
-Примеры: NY, Москва, London, Berlin
+🌍 What's your city? (for timezone)
+Examples: NY, Moscow, London, Berlin

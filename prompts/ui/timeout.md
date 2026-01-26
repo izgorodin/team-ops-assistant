@@ -1,1 +1,1 @@
-⏳ Сервис медленно отвечает. Попробуй ещё раз через минуту.
+⏳ Service is slow to respond. Please try again in a minute.
