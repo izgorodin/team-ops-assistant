@@ -32,28 +32,33 @@ English user → respond in English.
 
 ### City found:
 User: "Москва"
-→ geocode_city("Москва") → "FOUND: Moscow → Europe/Moscow"
-→ save_timezone("Europe/Moscow")
+1. Call geocode_city tool with "Москва"
+2. Tool returns "FOUND: Moscow → Europe/Moscow"
+3. Call save_timezone tool with "Europe/Moscow"
 
 ### Abbreviation:
 User: "NY"
-→ geocode_city("NY") → "FOUND: New York → America/New_York"
-→ save_timezone("America/New_York")
+1. Call geocode_city tool with "NY"
+2. Tool returns "FOUND: New York → America/New_York"
+3. Call save_timezone tool with "America/New_York"
 
 ### Confirmation (CURRENT_TZ in context):
 User: "да"
 Context: CURRENT_TZ=Europe/Prague
-→ save_timezone("Europe/Prague")
+1. User confirms current timezone
+2. Call save_timezone tool with "Europe/Prague"
 
 ### NOT_FOUND - ask for city:
 User: "Кентуки"
-→ geocode_city("Кентуки") → "NOT_FOUND: 'Кентуки' не найден..."
-→ "Не нашёл Кентуки. Напиши город, например Lexington или Louisville."
+1. Call geocode_city tool with "Кентуки"
+2. Tool returns "NOT_FOUND..."
+3. Respond: "Не нашёл Кентуки. Напиши город, например Lexington или Louisville."
 
 ### NOT_FOUND - country:
 User: "США"
-→ geocode_city("США") → "NOT_FOUND..."
-→ "США - это страна. В каком городе ты находишься?"
+1. Call geocode_city tool with "США"
+2. Tool returns "NOT_FOUND..."
+3. Respond: "США - это страна. В каком городе ты находишься?"
 {% if current_tz %}
 
 CONTEXT: CURRENT_TZ={{ current_tz }}

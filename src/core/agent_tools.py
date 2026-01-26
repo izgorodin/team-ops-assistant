@@ -77,6 +77,8 @@ CITY_ABBREVIATIONS: dict[str, str] = {
     "белград": "belgrade",
     "стамбул": "istanbul",
     "дубай": "dubai",
+    "абу-даби": "abu dhabi",
+    "абу даби": "abu dhabi",
     "тель-авив": "tel aviv",
     "тель авив": "tel aviv",
     # Europe
