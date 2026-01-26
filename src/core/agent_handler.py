@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from openai import APITimeoutError
 
 from src.core.agent_tools import AGENT_TOOLS
 from src.core.models import (
@@ -164,8 +165,13 @@ class AgentHandler:
             # Agent is asking for clarification
             return await self._continue_session(session, event, response_text)
 
-        except TimeoutError:
-            logger.error(f"Agent timeout in session {session.session_id}")
+        except (TimeoutError, APITimeoutError) as e:
+            logger.error(f"Agent timeout in session {session.session_id}: {e}")
+            # Try to extract timezone from partial results (if tool already found it)
+            partial_tz = self._extract_timezone_from_partial_messages(user_text)
+            if partial_tz:
+                logger.info(f"Recovering timezone from partial results: {partial_tz}")
+                return await self._complete_session(session, event, partial_tz)
             return await self._handle_agent_timeout(session, event)
         except Exception as e:
             logger.exception(f"Agent error: {e}")
@@ -397,4 +403,51 @@ class AgentHandler:
         for city in cities:
             if city.tz == tz_iana:
                 return city.name
+        return None
+
+    def _extract_timezone_from_partial_messages(self, user_text: str) -> str | None:
+        """Try to extract timezone directly from user input if agent timed out.
+
+        If the agent timed out after the user sent a city name, try to geocode it
+        directly without the agent using geonamescache. This is a fallback for
+        timeout recovery - avoids losing user input when LLM is slow.
+
+        Args:
+            user_text: Original user text (may contain city name).
+
+        Returns:
+            IANA timezone if we can find the city, None otherwise.
+        """
+        from src.core.agent_tools import _lookup_city_geonames
+
+        # Try to find city in user text - simple heuristic
+        # Remove common prefixes like "переехал в", "moved to", "я в", "I'm in"
+        city_candidates = [
+            user_text,
+            user_text.lstrip("в").strip(),  # "в Москву" → "Москву"
+            user_text.lstrip("на").strip(),  # "на Мадейру" → "Мадейру"
+        ]
+
+        # Also extract from relocation context like "[User said they moved to Paris] ..."
+        import re
+
+        reloc_match = re.search(r"\[User said they moved to ([^\]]+)\]", user_text)
+        if reloc_match:
+            city_candidates.insert(0, reloc_match.group(1))
+
+        for candidate in city_candidates:
+            if not candidate or len(candidate) < 2:
+                continue
+
+            # Try direct geonames lookup (no LLM, just the local database)
+            result = _lookup_city_geonames(candidate)
+            if result.startswith("FOUND:"):
+                # Extract timezone: "FOUND: City → Timezone"
+                try:
+                    tz_part = result.split("→")[1].strip()
+                    logger.info(f"Fallback geocode found: '{candidate}' → {tz_part}")
+                    return tz_part
+                except (IndexError, ValueError):
+                    continue
+
         return None
