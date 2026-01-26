@@ -10,16 +10,15 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  # Pyright - strict type checking (local hook - uses installed pyright)
+  # Pyright - strict type checking (uses venv)
   - repo: local
     hooks:
       - id: pyright
         name: pyright
-        entry: pyright
+        entry: bash -c 'source venv/bin/activate 2>/dev/null || source .venv/bin/activate && pyright src tests'
         language: system
         types: [python]
         pass_filenames: false
-        args: [src, tests]
 
   # Basic checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -33,12 +32,12 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 
-  # Pytest - tests must pass
+  # Pytest - tests must pass (uses venv)
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest --tb=short -q
+        entry: bash -c 'source venv/bin/activate 2>/dev/null || source .venv/bin/activate && pytest --tb=short -q'
         language: system
         pass_filenames: false
         always_run: true
