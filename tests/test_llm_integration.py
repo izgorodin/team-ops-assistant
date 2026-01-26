@@ -34,6 +34,7 @@ _skip_if_no_api_key = pytest.mark.skipif(
 )
 
 
+@pytest.mark.integration
 @_skip_if_no_api_key
 class TestAgentToolCalling:
     """Test agent's ability to call tools correctly."""
@@ -139,6 +140,7 @@ class TestAgentToolCalling:
         assert "SAVE:" not in all_content
 
 
+@pytest.mark.integration
 @_skip_if_no_api_key
 class TestLLMFallbackTimeExtraction:
     """Test LLM fallback for time extraction when regex fails."""

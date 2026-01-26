@@ -33,11 +33,12 @@ repos:
       - id: detect-private-key
 
   # Pytest - tests must pass (uses .venv locally, system on CI)
+  # Note: Skips integration tests (marked @pytest.mark.integration) to avoid API timeouts
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: bash -c 'if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi && pytest --tb=short -q'
+        entry: bash -c 'if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi && pytest --tb=short -q -m "not integration"'
         language: system
         pass_filenames: false
         always_run: true
