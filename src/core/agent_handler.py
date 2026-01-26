@@ -122,7 +122,7 @@ class AgentHandler:
         Returns:
             HandlerResult with confirmation or retry prompt.
         """
-        from src.core.agent_tools import _lookup_city_geonames
+        from src.core.agent_tools import geocode_city_full
 
         user_text = event.text.strip().lower()
         resolved_tz = session.context.get("resolved_tz")
@@ -143,8 +143,8 @@ class AgentHandler:
             text = "Хорошо, напишите город в котором вы сейчас находитесь:"
             return await self._continue_session(session, event, text)
 
-        # User provided a city name - try to geocode it
-        result = _lookup_city_geonames(event.text)
+        # User provided a city name - try to geocode it (with LLM normalization for Cyrillic)
+        result = geocode_city_full(event.text)
         if result.startswith("FOUND:"):
             try:
                 parts = result.replace("FOUND:", "").strip().split("→")
@@ -339,14 +339,16 @@ class AgentHandler:
             source=TimezoneSource.CITY_PICK,  # Agent-assisted is similar to city pick
         )
 
-        # Add timezone to chat's active_timezones for dynamic team list
-        # Wrapped in try/except - this is bookkeeping, shouldn't block session completion
-        from src.core.chat_timezones import add_timezone_to_chat
+        # Update user's timezone in chat - properly tracks user→tz mapping
+        # so when user relocates, old timezone is removed if no other users have it
+        from src.core.chat_timezones import update_user_timezone_in_chat
 
         try:
-            await add_timezone_to_chat(self.storage, event.platform, event.chat_id, tz_iana)
+            await update_user_timezone_in_chat(
+                self.storage, event.platform, event.chat_id, event.user_id, tz_iana
+            )
         except Exception as e:
-            logger.warning(f"Failed to add timezone to chat (non-critical): {e}")
+            logger.warning(f"Failed to update timezone in chat (non-critical): {e}")
 
         # Close the session
         await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)

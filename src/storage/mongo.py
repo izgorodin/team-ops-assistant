@@ -224,6 +224,7 @@ class MongoStorage:
             "platform": state.platform.value,
             "chat_id": state.chat_id,
             "default_tz": state.default_tz,
+            "user_timezones": state.user_timezones,
             "active_timezones": state.active_timezones,
             "updated_at": state.updated_at,
         }
@@ -237,10 +238,56 @@ class MongoStorage:
             upsert=True,
         )
 
-    async def add_timezone_to_chat(self, platform: Platform, chat_id: str, tz_iana: str) -> None:
-        """Atomically add a timezone to a chat's active_timezones list.
+    async def update_user_timezone_in_chat(
+        self, platform: Platform, chat_id: str, user_id: str, tz_iana: str
+    ) -> None:
+        """Update a user's timezone in a chat and recompute active_timezones.
 
-        Uses $addToSet for atomic, idempotent updates - safe for concurrent calls.
+        This properly handles relocation: when user changes timezone,
+        the old one is removed from active_timezones if no other users have it.
+
+        Args:
+            platform: Chat platform.
+            chat_id: Chat identifier.
+            user_id: User's platform-specific ID.
+            tz_iana: IANA timezone to set.
+        """
+        now = datetime.utcnow()
+
+        # First, ensure the chat document exists and set the user's timezone
+        await self.db.chats.update_one(
+            {"platform": platform.value, "chat_id": chat_id},
+            {
+                "$set": {
+                    f"user_timezones.{user_id}": tz_iana,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {
+                    "platform": platform.value,
+                    "chat_id": chat_id,
+                    "default_tz": None,
+                    "created_at": now,
+                },
+            },
+            upsert=True,
+        )
+
+        # Read back and recompute active_timezones from user_timezones values
+        doc = await self.db.chats.find_one({"platform": platform.value, "chat_id": chat_id})
+        if doc:
+            user_timezones: dict[str, str] = doc.get("user_timezones", {})
+            active_timezones = sorted(set(user_timezones.values()))
+
+            await self.db.chats.update_one(
+                {"platform": platform.value, "chat_id": chat_id},
+                {"$set": {"active_timezones": active_timezones}},
+            )
+
+    async def add_timezone_to_chat(self, platform: Platform, chat_id: str, tz_iana: str) -> None:
+        """Legacy method - adds timezone without user tracking.
+
+        DEPRECATED: Use update_user_timezone_in_chat() instead for proper tracking.
+        Kept for backward compatibility during migration.
 
         Args:
             platform: Chat platform.
@@ -256,6 +303,7 @@ class MongoStorage:
                     "platform": platform.value,
                     "chat_id": chat_id,
                     "default_tz": None,
+                    "user_timezones": {},
                     "created_at": datetime.utcnow(),
                 },
             },
@@ -268,6 +316,7 @@ class MongoStorage:
             platform=Platform(doc["platform"]),
             chat_id=doc["chat_id"],
             default_tz=doc.get("default_tz"),
+            user_timezones=doc.get("user_timezones", {}),
             active_timezones=doc.get("active_timezones", []),
             created_at=doc.get("created_at", datetime.utcnow()),
             updated_at=doc.get("updated_at", datetime.utcnow()),

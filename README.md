@@ -13,8 +13,42 @@ Multi-platform TeamOps assistant bot that detects time mentions and replies with
 - **Time Detection** - Automatically detects time mentions in chat
 - **Multi-Timezone Conversion** - Converts to all team timezones
 - **One-Click Verification** - Browser-based timezone verification
+- **Smart Relocation Detection** - Detects "moved to X" and updates timezone
 - **Rules-First Pipeline** - Regex handles 90%+ cases, LLM fallback only when needed
 - **Deduplication** - Prevents spam and duplicate responses
+
+## How It Works
+
+### Time Conversion
+
+```text
+👤 User: Let's meet at 15:30
+🤖 Bot:  ⏰ 15:30 → 15:30 Amsterdam, 16:30 Cyprus, 18:30 Yerevan
+```
+
+### Timezone Onboarding (First-time user)
+
+```text
+👤 User: Call at 10am tomorrow
+🤖 Bot:  👋 Hi! To convert times, I need to know your timezone.
+         Select your timezone: [link]
+```
+
+### Relocation Detection
+
+```text
+👤 User: Just moved to Miami
+🤖 Bot:  🌍 Looks like you changed location!
+         New timezone: Miami (America/New_York)
+         Correct? Reply "yes" or enter a different city.
+
+👤 User: yes
+🤖 Bot:  ✅ Timezone saved: America/New_York
+```
+
+### Cross-platform User Tracking
+
+Each chat tracks which users have which timezones. When a user relocates, their old timezone is automatically removed from the chat's active list if no other users have it.
 
 ## Supported Platforms
 

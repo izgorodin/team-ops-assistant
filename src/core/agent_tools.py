@@ -142,6 +142,31 @@ def geocode_city(city_name: str) -> str:
         FOUND: city → IANA timezone if found
         NOT_FOUND: message if city cannot be found
     """
+    result = geocode_city_full(city_name)
+    if result.startswith("NOT_FOUND:"):
+        # Provide helpful message for agent
+        return (
+            f"NOT_FOUND: '{city_name}' не найден. "
+            "Напиши город точнее (например: Moscow, London, Tokyo)."
+        )
+    return result
+
+
+def geocode_city_full(city_name: str) -> str:
+    """Full geocode lookup with LLM normalization.
+
+    This is the main entry point for geocoding - it tries geonames first,
+    then uses LLM to normalize non-English names before retrying.
+
+    Use this function from orchestrator/handlers for immediate geocoding.
+
+    Args:
+        city_name: City name in any language.
+
+    Returns:
+        FOUND: City → IANA timezone if found
+        NOT_FOUND: message if city cannot be found
+    """
     # 1. Try direct lookup first
     result = _lookup_city_geonames(city_name)
     if result.startswith("FOUND:"):
@@ -155,14 +180,13 @@ def geocode_city(city_name: str) -> str:
             return result
 
     # 3. Not found even after normalization
-    return (
-        f"NOT_FOUND: '{city_name}' не найден. "
-        "Напиши город точнее (например: Moscow, London, Tokyo)."
-    )
+    return f"NOT_FOUND: '{city_name}'"
 
 
 def _lookup_city_geonames(city_name: str) -> str:
     """Lookup city timezone using geonamescache (190k+ cities).
+
+    NOTE: Prefer geocode_city_full() which includes LLM normalization.
 
     Args:
         city_name: City name to look up (English).

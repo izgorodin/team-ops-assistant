@@ -112,8 +112,11 @@ class ChatState(BaseModel):
     platform: Platform
     chat_id: str
     default_tz: str | None = Field(default=None, description="Default timezone for this chat")
+    user_timezones: dict[str, str] = Field(
+        default_factory=dict, description="Map of user_id → tz_iana for tracking"
+    )
     active_timezones: list[str] = Field(
-        default_factory=list, description="Timezones of active participants"
+        default_factory=list, description="Computed from user_timezones values (unique)"
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

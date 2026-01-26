@@ -254,17 +254,20 @@ class MessageOrchestrator:
         )
 
     def _try_geocode_city(self, city: str) -> tuple[str, str] | None:
-        """Try to geocode a city name using geonamescache (no LLM).
+        """Try to geocode a city name using geonamescache + LLM normalization.
+
+        Handles Cyrillic names (Сочи → Sochi), abbreviations (MSK → Moscow),
+        and other non-English inputs via LLM normalization.
 
         Args:
-            city: City name to geocode.
+            city: City name to geocode (any language).
 
         Returns:
             Tuple of (city_name, tz_iana) if found, None otherwise.
         """
-        from src.core.agent_tools import _lookup_city_geonames
+        from src.core.agent_tools import geocode_city_full
 
-        result = _lookup_city_geonames(city)
+        result = geocode_city_full(city)
         if result.startswith("FOUND:"):
             try:
                 # Parse "FOUND: Moscow → Europe/Moscow"

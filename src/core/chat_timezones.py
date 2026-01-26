@@ -13,16 +13,38 @@ if TYPE_CHECKING:
     from src.storage.mongo import MongoStorage
 
 
+async def update_user_timezone_in_chat(
+    storage: MongoStorage,
+    platform: Platform,
+    chat_id: str,
+    user_id: str,
+    tz_iana: str,
+) -> None:
+    """Update a user's timezone in a chat.
+
+    This is the preferred method - it properly tracks which user has which timezone,
+    so when a user relocates, their old timezone is removed from active_timezones
+    if no other users in the chat have it.
+
+    Args:
+        storage: MongoDB storage instance.
+        platform: Chat platform.
+        chat_id: Chat identifier.
+        user_id: User's platform-specific ID.
+        tz_iana: IANA timezone to set.
+    """
+    await storage.update_user_timezone_in_chat(platform, chat_id, user_id, tz_iana)
+
+
 async def add_timezone_to_chat(
     storage: MongoStorage,
     platform: Platform,
     chat_id: str,
     tz_iana: str,
 ) -> None:
-    """Add a timezone to a chat's active_timezones list.
+    """Add a timezone to a chat's active_timezones list (legacy).
 
-    Called when a user sets their timezone in a chat.
-    Uses atomic $addToSet operation - safe for concurrent calls.
+    DEPRECATED: Use update_user_timezone_in_chat() instead for proper tracking.
 
     Args:
         storage: MongoDB storage instance.

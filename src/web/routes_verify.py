@@ -109,13 +109,16 @@ async def verify_timezone() -> tuple[Response, int]:
 
     await storage.upsert_user_tz_state(state)
 
-    # Add timezone to chat's active_timezones for dynamic team list
-    from src.core.chat_timezones import add_timezone_to_chat
+    # Update user's timezone in chat - properly tracks user→tz mapping
+    # so when user relocates, old timezone is removed if no other users have it
+    from src.core.chat_timezones import update_user_timezone_in_chat
 
     try:
-        await add_timezone_to_chat(storage, parsed.platform, parsed.chat_id, tz_iana)
+        await update_user_timezone_in_chat(
+            storage, parsed.platform, parsed.chat_id, parsed.user_id, tz_iana
+        )
     except Exception as e:
-        logger.warning(f"Failed to add timezone to chat (non-critical): {e}")
+        logger.warning(f"Failed to update timezone in chat (non-critical): {e}")
 
     logger.info(f"Timezone verified: {parsed.platform.value}/{parsed.user_id} -> {tz_iana}")
 
