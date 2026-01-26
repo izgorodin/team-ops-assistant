@@ -156,6 +156,7 @@ class MessageOrchestrator:
 
         Creates a session and prompts user for timezone.
         Distinguishes between first-time onboarding, re-verification, and help request.
+        For relocation with known city → simple confirmation flow (no LLM needed).
 
         Args:
             event: The event being processed.
@@ -178,6 +179,17 @@ class MessageOrchestrator:
             )
             self.dedupe.record_response(event.platform, event.chat_id)
             return HandlerResult(should_respond=True, messages=[message])
+
+        # Handle relocation with city → try immediate geocode for simple confirmation
+        if trigger and trigger.trigger_type == "relocation":
+            city = trigger.data.get("city", "")
+            if city:
+                geocode_result = self._try_geocode_city(city)
+                if geocode_result:
+                    resolved_city, resolved_tz = geocode_result
+                    return await self._create_confirm_relocation_session(
+                        event, resolved_city, resolved_tz, trigger.data
+                    )
 
         # Generate verification token
         token = generate_verify_token(event.platform, event.user_id, event.chat_id)
@@ -239,4 +251,90 @@ class MessageOrchestrator:
             messages=[message],
             ask_timezone=True,
             verify_url=verify_url,
+        )
+
+    def _try_geocode_city(self, city: str) -> tuple[str, str] | None:
+        """Try to geocode a city name using geonamescache (no LLM).
+
+        Args:
+            city: City name to geocode.
+
+        Returns:
+            Tuple of (city_name, tz_iana) if found, None otherwise.
+        """
+        from src.core.agent_tools import _lookup_city_geonames
+
+        result = _lookup_city_geonames(city)
+        if result.startswith("FOUND:"):
+            try:
+                # Parse "FOUND: Moscow → Europe/Moscow"
+                parts = result.replace("FOUND:", "").strip().split("→")
+                resolved_city = parts[0].strip()
+                resolved_tz = parts[1].strip()
+                logger.info(f"Geocode success: '{city}' → {resolved_city} ({resolved_tz})")
+                return (resolved_city, resolved_tz)
+            except (IndexError, ValueError) as e:
+                logger.warning(f"Failed to parse geocode result: {result} - {e}")
+        return None
+
+    async def _create_confirm_relocation_session(
+        self,
+        event: NormalizedEvent,
+        resolved_city: str,
+        resolved_tz: str,
+        trigger_data: dict,
+    ) -> HandlerResult:
+        """Create a simple confirmation session for relocation.
+
+        This is a lightweight session that doesn't need LLM agent.
+        User just confirms "yes" or provides different city.
+
+        Args:
+            event: The event being processed.
+            resolved_city: Geocoded city name.
+            resolved_tz: Resolved IANA timezone.
+            trigger_data: Original trigger data.
+
+        Returns:
+            HandlerResult with confirmation prompt.
+        """
+        session = Session(
+            session_id=str(uuid4()),
+            platform=event.platform,
+            chat_id=event.chat_id,
+            user_id=event.user_id,
+            goal=SessionGoal.CONFIRM_RELOCATION,
+            status=SessionStatus.ACTIVE,
+            context={
+                "original_text": event.text,
+                "trigger_data": trigger_data,
+                "resolved_city": resolved_city,
+                "resolved_tz": resolved_tz,
+                "attempts": 0,
+            },
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(minutes=30),
+        )
+        await self.storage.create_session(session)
+        logger.info(
+            f"Created confirm_relocation session {session.session_id} for user {event.user_id}: "
+            f"{resolved_city} → {resolved_tz}"
+        )
+
+        # Send confirmation message
+        text = get_ui_message("confirm_relocation", city_name=resolved_city, tz_iana=resolved_tz)
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=text,
+            parse_mode="html",
+        )
+
+        self.dedupe.record_response(event.platform, event.chat_id)
+
+        return HandlerResult(
+            should_respond=True,
+            messages=[message],
+            ask_timezone=True,
         )

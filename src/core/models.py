@@ -169,6 +169,7 @@ class SessionGoal(str, Enum):
 
     AWAITING_TIMEZONE = "awaiting_timezone"  # First-time timezone onboarding
     REVERIFY_TIMEZONE = "reverify_timezone"  # Re-verify after confidence decay
+    CONFIRM_RELOCATION = "confirm_relocation"  # Confirm detected relocation (simple yes/no)
     HELP_REQUEST = "help_request"  # User asked for help/info about the bot
 
 

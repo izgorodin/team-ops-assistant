@@ -96,6 +96,10 @@ class AgentHandler:
         Returns:
             HandlerResult with response messages.
         """
+        if session.goal == SessionGoal.CONFIRM_RELOCATION:
+            # Simple yes/no confirmation - no LLM needed!
+            return await self._handle_confirm_relocation(session, event)
+
         if session.goal in (SessionGoal.AWAITING_TIMEZONE, SessionGoal.REVERIFY_TIMEZONE):
             return await self._handle_timezone_session(session, event)
 
@@ -103,6 +107,88 @@ class AgentHandler:
         logger.warning(f"Unknown session goal: {session.goal}")
         await self.storage.close_session(session.session_id, SessionStatus.FAILED)
         return HandlerResult(should_respond=False)
+
+    async def _handle_confirm_relocation(
+        self, session: Session, event: NormalizedEvent
+    ) -> HandlerResult:
+        """Handle relocation confirmation - simple yes/no, no LLM needed.
+
+        User confirms pre-resolved timezone or provides different city.
+
+        Args:
+            session: Session with resolved_city and resolved_tz in context.
+            event: User's response ("да", "yes", or city name).
+
+        Returns:
+            HandlerResult with confirmation or retry prompt.
+        """
+        from src.core.agent_tools import _lookup_city_geonames
+
+        user_text = event.text.strip().lower()
+        resolved_tz = session.context.get("resolved_tz")
+
+        # Check for confirmation (да, yes, ок, ok, верно, правильно, +)
+        confirm_words = {"да", "yes", "ок", "ok", "верно", "правильно", "+", "угу", "ага", "yep"}
+        if user_text in confirm_words or user_text.startswith("да"):
+            if resolved_tz:
+                return await self._complete_session(session, event, resolved_tz)
+            # No resolved_tz - shouldn't happen, but handle gracefully
+            logger.warning(f"CONFIRM_RELOCATION session without resolved_tz: {session.session_id}")
+            await self.storage.close_session(session.session_id, SessionStatus.FAILED)
+            return HandlerResult(should_respond=False)
+
+        # Check for rejection (нет, no) - ask for correct city
+        reject_words = {"нет", "no", "неверно", "не", "nope"}
+        if user_text in reject_words:
+            text = "Хорошо, напишите город в котором вы сейчас находитесь:"
+            return await self._continue_session(session, event, text)
+
+        # User provided a city name - try to geocode it
+        result = _lookup_city_geonames(event.text)
+        if result.startswith("FOUND:"):
+            try:
+                parts = result.replace("FOUND:", "").strip().split("→")
+                new_city = parts[0].strip()
+                new_tz = parts[1].strip()
+
+                # Update session with new resolved timezone and ask again
+                session.context["resolved_city"] = new_city
+                session.context["resolved_tz"] = new_tz
+                session.context["attempts"] = session.context.get("attempts", 0) + 1
+                session.updated_at = datetime.utcnow()
+
+                # Check max attempts
+                if session.context["attempts"] >= 3:
+                    return await self._fail_session(session, event)
+
+                await self.storage.update_session(session)
+
+                text = get_ui_message("confirm_relocation", city_name=new_city, tz_iana=new_tz)
+                message = OutboundMessage(
+                    platform=event.platform,
+                    chat_id=event.chat_id,
+                    text=text,
+                    parse_mode="html",
+                )
+                return HandlerResult(should_respond=True, messages=[message])
+
+            except (IndexError, ValueError) as e:
+                logger.warning(f"Failed to parse geocode result: {result} - {e}")
+
+        # City not found - ask again
+        session.context["attempts"] = session.context.get("attempts", 0) + 1
+        if session.context["attempts"] >= 3:
+            return await self._fail_session(session, event)
+
+        await self.storage.update_session(session)
+        text = f"Не нашёл город '{event.text}'. Напишите город точнее (например: Moscow, London, Tokyo):"
+        message = OutboundMessage(
+            platform=event.platform,
+            chat_id=event.chat_id,
+            text=text,
+            parse_mode="plain",
+        )
+        return HandlerResult(should_respond=True, messages=[message])
 
     async def _handle_timezone_session(
         self, session: Session, event: NormalizedEvent
