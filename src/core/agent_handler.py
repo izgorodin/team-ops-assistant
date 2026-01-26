@@ -274,8 +274,26 @@ class AgentHandler:
         Returns:
             IANA timezone if found, None otherwise.
         """
+        from langchain_core.messages import ToolMessage
+
         for msg in messages:
-            content = str(msg.content) if hasattr(msg, "content") else str(msg)
+            # Debug: log message types and content
+            msg_type = type(msg).__name__
+            content = ""
+
+            # Handle ToolMessage specifically
+            if isinstance(msg, ToolMessage):
+                content = str(msg.content) if msg.content else ""
+                logger.debug(f"ToolMessage: {content}")
+            elif hasattr(msg, "content"):
+                content = str(msg.content)
+            else:
+                content = str(msg)
+
+            logger.debug(
+                f"Message type={msg_type}, content preview: {content[:100] if content else 'empty'}"
+            )
+
             if "SAVE:" in content:
                 # Extract timezone after SAVE:
                 tz_part = content.split("SAVE:")[1].strip()
@@ -284,7 +302,10 @@ class AgentHandler:
                     tz_part = tz_part.split()[0]
                 if "\n" in tz_part:
                     tz_part = tz_part.split("\n")[0]
+                logger.info(f"Extracted timezone from messages: {tz_part}")
                 return tz_part
+
+        logger.warning(f"No SAVE: found in {len(messages)} messages")
         return None
 
     def _build_messages(
