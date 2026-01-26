@@ -27,25 +27,29 @@ def _get_geonames_cache() -> GeonamesCache:
     return _gc
 
 
-def _normalize_city_with_llm(city_name: str) -> str | None:
-    """Use LLM to normalize city name to English.
+def _normalize_city_with_llm(city_name: str, is_retry: bool = False) -> str | None:
+    """Use LLM to normalize location to a city name.
 
-    Handles abbreviations (NY, MSK), non-Latin scripts (Москва, дубай),
-    and common variations.
+    Handles:
+    - Abbreviations (NY, MSK)
+    - Non-Latin scripts (Москва, дубай)
+    - Islands → their capitals (Madeira → Funchal)
+    - States/regions → their largest cities (Kentucky → Louisville)
 
     Args:
-        city_name: City name in any language/format.
+        city_name: Location name in any language/format.
+        is_retry: If True, this is a retry after geonames lookup failed.
 
     Returns:
-        Normalized English city name, or None if normalization failed.
+        Normalized city name, or None if normalization failed.
     """
     from langchain_openai import ChatOpenAI
 
     settings = get_settings()
 
-    # Quick ASCII check - if already ASCII, skip LLM
-    if city_name.isascii() and len(city_name) > 3 and " " not in city_name:
-        # Probably already English, no need for LLM
+    # Only skip LLM for simple ASCII on first try
+    # On retry (after geonames failed), always try LLM to resolve regions/islands
+    if not is_retry and city_name.isascii() and len(city_name) > 3 and " " not in city_name:
         return None
 
     try:
@@ -57,15 +61,17 @@ def _normalize_city_with_llm(city_name: str) -> str | None:
             timeout=5.0,
         ).bind(max_tokens=50)
 
-        prompt = f"""Convert this city input to its standard English name.
+        prompt = f"""Convert this location to a CITY name that exists in geographic databases.
 Input: "{city_name}"
 
 Rules:
-- Abbreviations: NY → New York, LA → Los Angeles, MSK → Moscow, SPB → Saint Petersburg
-- Non-English: Москва → Moscow, Лондон → London, дубай → Dubai
-- Keep as-is if already English
+- Abbreviations: NY → New York, MSK → Moscow
+- Non-English: Москва → Moscow, Мадейра → Funchal
+- Islands: Madeira → Funchal, Bali → Denpasar, Hawaii → Honolulu
+- States/regions: Kentucky → Louisville, California → Los Angeles
+- Already a city: Paris → Paris
 
-Output ONLY the city name, nothing else. If unsure, output: UNKNOWN"""
+Output ONLY the city name. If truly unknown, output: UNKNOWN"""
 
         result = llm.invoke(prompt)
         normalized = str(result.content).strip()
@@ -156,12 +162,13 @@ def geocode_city_full(city_name: str) -> str:
     """Full geocode lookup with LLM normalization.
 
     This is the main entry point for geocoding - it tries geonames first,
-    then uses LLM to normalize non-English names before retrying.
-
-    Use this function from orchestrator/handlers for immediate geocoding.
+    then uses LLM to normalize. LLM handles:
+    - Non-English names (Москва → Moscow)
+    - Islands (Madeira → Funchal)
+    - States/regions (Kentucky → Louisville)
 
     Args:
-        city_name: City name in any language.
+        city_name: Location name in any language.
 
     Returns:
         FOUND: City → IANA timezone if found
@@ -172,14 +179,21 @@ def geocode_city_full(city_name: str) -> str:
     if result.startswith("FOUND:"):
         return result
 
-    # 2. If not found, try LLM normalization
+    # 2. If not found, try LLM normalization (first pass - language normalization)
     normalized = _normalize_city_with_llm(city_name)
     if normalized:
         result = _lookup_city_geonames(normalized)
         if result.startswith("FOUND:"):
             return result
 
-    # 3. Not found even after normalization
+    # 3. Still not found - try LLM with is_retry=True (handles islands/regions → cities)
+    normalized_retry = _normalize_city_with_llm(city_name, is_retry=True)
+    if normalized_retry and normalized_retry != normalized:
+        result = _lookup_city_geonames(normalized_retry)
+        if result.startswith("FOUND:"):
+            return result
+
+    # 4. Not found even after all normalization attempts
     return f"NOT_FOUND: '{city_name}'"
 
 
