@@ -1,1 +1,1 @@
-✅ Сохранено: <b>{{ tz_iana }}</b>
+✅ Saved: <b>{{ tz_iana }}</b>

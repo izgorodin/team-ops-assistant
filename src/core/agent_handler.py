@@ -140,7 +140,7 @@ class AgentHandler:
         # Check for rejection (нет, no) - ask for correct city
         reject_words = {"нет", "no", "неверно", "не", "nope"}
         if user_text in reject_words:
-            text = "Хорошо, напишите город в котором вы сейчас находитесь:"
+            text = get_ui_message("ask_city")
             return await self._continue_session(session, event, text)
 
         # User provided a city name - try to geocode it (with LLM normalization for Cyrillic)
@@ -181,7 +181,7 @@ class AgentHandler:
             return await self._fail_session(session, event)
 
         await self.storage.update_session(session)
-        text = f"Не нашёл город '{event.text}'. Напишите город точнее (например: Moscow, London, Tokyo):"
+        text = get_ui_message("city_not_found", city_name=event.text)
         message = OutboundMessage(
             platform=event.platform,
             chat_id=event.chat_id,

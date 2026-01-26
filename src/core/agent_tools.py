@@ -146,8 +146,8 @@ def geocode_city(city_name: str) -> str:
     if result.startswith("NOT_FOUND:"):
         # Provide helpful message for agent
         return (
-            f"NOT_FOUND: '{city_name}' не найден. "
-            "Напиши город точнее (например: Moscow, London, Tokyo)."
+            f"NOT_FOUND: '{city_name}' not found. "
+            "Try a more specific city name (e.g., Moscow, London, Tokyo)."
         )
     return result
 
