@@ -101,7 +101,13 @@ def verify_slack_signature(
         return False
 
     # Compute expected signature
-    base_string = f"v0:{timestamp}:{body.decode('utf-8')}"
+    try:
+        body_text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        logger.warning("Slack request body contains invalid UTF-8")
+        return False
+
+    base_string = f"v0:{timestamp}:{body_text}"
     expected = (
         "v0="
         + hmac.new(
@@ -272,10 +278,8 @@ def create_app() -> Quart:
         """Log request completion."""
         logger.debug(
             "Request completed",
-            extra={
-                "status_code": response.status_code,
-                "method": request.method,
-            },
+            status_code=response.status_code,
+            method=request.method,
         )
         return response
 

@@ -94,6 +94,8 @@ rate_limits:
   per_chat:
     requests: 60
     window_seconds: 60
+  # Max times to notify user about rate limit (then go silent)
+  max_notifications: 3
 
 # ML Classifier settings
 classifier:

@@ -249,6 +249,7 @@ class TestGetRateLimitManager:
                             "enabled": True,
                             "per_user": RateLimitConfig(requests=5, window_seconds=30),
                             "per_chat": RateLimitConfig(requests=10, window_seconds=60),
+                            "max_notifications": 3,
                         },
                     )()
                 },

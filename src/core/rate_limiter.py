@@ -1,19 +1,24 @@
 """Rate limiter for request throttling.
 
 Implements sliding window rate limiting for per-user and per-chat limits.
+
+Note: This implementation uses in-memory storage and is suitable for single-worker
+deployments. For multi-worker production deployments, consider using Redis-based
+rate limiting to ensure consistency across workers.
 """
 
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from time import time
 from typing import TYPE_CHECKING
 
+from src.core.logging_config import get_logger
+
 if TYPE_CHECKING:
     from src.settings import RateLimitConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RateLimiter:
@@ -21,7 +26,14 @@ class RateLimiter:
 
     Tracks request timestamps in memory and enforces rate limits
     based on a configurable window size.
+
+    Note: The check-then-add pattern in is_allowed() is not atomic in async context.
+    For strict rate limiting in high-concurrency scenarios, use a distributed
+    rate limiter (e.g., Redis with Lua scripts).
     """
+
+    # Cleanup inactive keys every N checks to prevent memory growth
+    _CLEANUP_INTERVAL = 100
 
     def __init__(self, config: RateLimitConfig) -> None:
         """Initialize rate limiter with configuration.
@@ -31,6 +43,7 @@ class RateLimiter:
         """
         self.config = config
         self._requests: dict[str, list[float]] = defaultdict(list)
+        self._cleanup_counter = 0
 
     def is_allowed(self, key: str) -> bool:
         """Check if a request is allowed under the rate limit.
@@ -41,6 +54,12 @@ class RateLimiter:
         Returns:
             True if request is allowed, False if rate limited.
         """
+        # Periodic cleanup to prevent memory growth
+        self._cleanup_counter += 1
+        if self._cleanup_counter >= self._CLEANUP_INTERVAL:
+            self._cleanup_old_keys()
+            self._cleanup_counter = 0
+
         now = time()
         cutoff = now - self.config.window_seconds
 
@@ -86,6 +105,24 @@ class RateLimiter:
     def clear(self) -> None:
         """Clear all rate limit data."""
         self._requests.clear()
+        self._cleanup_counter = 0
+
+    def _cleanup_old_keys(self) -> None:
+        """Remove keys with no recent activity to prevent unbounded memory growth."""
+        now = time()
+        # Use 2x window to be safe - keys inactive for this long can be removed
+        cutoff = now - (self.config.window_seconds * 2)
+
+        keys_to_remove = [
+            key
+            for key, timestamps in list(self._requests.items())
+            if not timestamps or max(timestamps) < cutoff
+        ]
+        for key in keys_to_remove:
+            del self._requests[key]
+
+        if keys_to_remove:
+            logger.debug("Rate limiter cleanup", removed_keys=len(keys_to_remove))
 
 
 class RateLimitManager:
@@ -99,6 +136,7 @@ class RateLimitManager:
         user_config: RateLimitConfig,
         chat_config: RateLimitConfig,
         enabled: bool = True,
+        max_notifications: int = 3,
     ) -> None:
         """Initialize rate limit manager.
 
@@ -106,10 +144,14 @@ class RateLimitManager:
             user_config: Configuration for per-user rate limiting.
             chat_config: Configuration for per-chat rate limiting.
             enabled: Whether rate limiting is enabled.
+            max_notifications: Max times to notify user about rate limit before going silent.
         """
         self.enabled = enabled
+        self._max_notifications = max_notifications
         self._user_limiter = RateLimiter(user_config)
         self._chat_limiter = RateLimiter(chat_config)
+        # Track how many times we've notified each key about rate limiting
+        self._notification_counts: dict[str, int] = defaultdict(int)
 
     def check_rate_limit(
         self, platform: str, user_id: str, chat_id: str
@@ -169,10 +211,48 @@ class RateLimitManager:
         """
         return self._chat_limiter.get_retry_after(f"{platform}:{chat_id}")
 
+    def should_notify_rate_limit(self, platform: str, user_id: str) -> bool:
+        """Check if we should notify user about rate limit.
+
+        Returns True for the first N notifications, then False to prevent spam.
+        Automatically increments the notification counter.
+
+        Args:
+            platform: Platform identifier.
+            user_id: User identifier.
+
+        Returns:
+            True if we should send a rate limit notification to user.
+        """
+        key = f"{platform}:{user_id}"
+        self._notification_counts[key] += 1
+
+        should_notify = self._notification_counts[key] <= self._max_notifications
+
+        if not should_notify:
+            logger.debug(
+                "Suppressing rate limit notification",
+                user_key=key,
+                notification_count=self._notification_counts[key],
+            )
+
+        return should_notify
+
+    def reset_notification_count(self, platform: str, user_id: str) -> None:
+        """Reset notification count for a user (called when rate limit resets).
+
+        Args:
+            platform: Platform identifier.
+            user_id: User identifier.
+        """
+        key = f"{platform}:{user_id}"
+        self._notification_counts.pop(key, None)
+
     def clear(self) -> None:
         """Clear all rate limit data."""
         self._user_limiter.clear()
         self._chat_limiter.clear()
+        self._notification_counts.clear()
 
 
 # Global rate limit manager instance
@@ -195,6 +275,7 @@ def get_rate_limit_manager() -> RateLimitManager:
             user_config=config.per_user,
             chat_config=config.per_chat,
             enabled=config.enabled,
+            max_notifications=config.max_notifications,
         )
     return _rate_limit_manager
 

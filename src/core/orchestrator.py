@@ -107,6 +107,22 @@ class MessageOrchestrator:
         )
         if not is_allowed:
             logger.info(f"Rate limited ({limit_type}): user={event.user_id} chat={event.chat_id}")
+
+            # Notify user about rate limit (first N times, then stay silent)
+            if rate_limiter.should_notify_rate_limit(event.platform.value, event.user_id):
+                retry_after = (
+                    rate_limiter.get_user_retry_after(event.platform.value, event.user_id)
+                    if limit_type == "user"
+                    else rate_limiter.get_chat_retry_after(event.platform.value, event.chat_id)
+                )
+                message = OutboundMessage(
+                    platform=event.platform,
+                    chat_id=event.chat_id,
+                    text=f"⏳ Rate limit reached. Please wait {retry_after} seconds.",
+                    parse_mode="plain",
+                )
+                return HandlerResult(should_respond=True, messages=[message])
+
             return HandlerResult(should_respond=False)
 
         # 5. Process through pipeline

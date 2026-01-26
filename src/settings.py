@@ -96,6 +96,7 @@ class RateLimitsConfig(BaseModel):
     enabled: bool = True
     per_user: RateLimitConfig = Field(default_factory=RateLimitConfig)
     per_chat: RateLimitConfig = Field(default_factory=RateLimitConfig)
+    max_notifications: int = 3  # Notify user N times about rate limit, then be silent
 
 
 class TfidfConfig(BaseModel):
