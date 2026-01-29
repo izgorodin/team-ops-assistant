@@ -1,0 +1,501 @@
+phrase,has_location_change,trigger_type,location,notes
+новости из Прага,1,explicit_location,Прага,news
+созвон from Париж,1,explicit_location,Париж,mixed
+перебрался в Париж сегодня,1,explicit_location,Париж,ru loc
+снег в Москва,1,explicit_location,Москва,weather
+лечу в Тбилиси,1,explicit_location,Тбилиси,ru loc
+живу в Сеул на неделю,1,explicit_location,Сеул,ru loc
+в Киев,1,explicit_location,Киев,weather
+прилетаю в Лос-Анджелес сегодня,1,explicit_location,Лос-Анджелес,ru loc
+перебрался в Мехико сегодня,1,explicit_location,Мехико,ru loc
+сейчас в Торонто сегодня,1,explicit_location,Торонто,ru loc
+приехал в Мехико на неделю,1,explicit_location,Мехико,ru loc
+переехал to Киев,1,explicit_location,Киев,mixed
+прилетаю в Минск пока,1,explicit_location,Минск,ru loc
+переехал в Сеул на неделю,1,explicit_location,Сеул,ru loc
+переехала в Берлин,1,explicit_location,Берлин,ru loc
+переехала в Сингапур,1,explicit_location,Сингапур,ru loc
+перебрался в Мехико до пятницы,1,explicit_location,Мехико,ru loc
+приехала в Санкт-Петербург пока,1,explicit_location,Санкт-Петербург,ru loc
+теперь в Питер на неделю,1,explicit_location,Питер,ru loc
+переехала в Варшава сегодня,1,explicit_location,Варшава,ru loc
+теперь живу в Рига на неделю,1,explicit_location,Рига,ru loc
+приехал в Кейптаун сегодня,1,explicit_location,Кейптаун,ru loc
+weather in Дубай,1,explicit_location,Дубай,en weather
+переехала в Тбилиси на неделю,1,explicit_location,Тбилиси,ru loc
+переехал to Сеул,1,explicit_location,Сеул,mixed
+теперь живу в Сан-Паулу сегодня,1,explicit_location,Сан-Паулу,ru loc
+уехала в Москва,1,change_phrase,Москва,ru change
+до этого была Нью-Йорк,1,change_phrase,Нью-Йорк,ru change
+в Кейптаун,1,explicit_location,Кейптаун,weather
+теперь в Кейптаун на выходных,1,explicit_location,Кейптаун,ru loc
+лечу в Прага до пятницы,1,explicit_location,Прага,ru loc
+я сейчас in Сингапур,1,explicit_location,Сингапур,mixed
+съехала в Токио,1,change_phrase,Токио,ru change
+теперь в Токио сегодня,1,explicit_location,Токио,ru loc
+съехала в Дубай,1,change_phrase,Дубай,ru change
+живу в Кейптаун,1,explicit_location,Кейптаун,ru loc
+вы в Париж?,1,question,Париж,ru question
+погода в Лос-Анджелес,1,explicit_location,Лос-Анджелес,weather
+storm in Питер,1,explicit_location,Питер,en weather
+теперь живу в Дубай на неделю,1,explicit_location,Дубай,ru loc
+до этого был Дубай,1,change_phrase,Дубай,ru change
+приехал в Москва,1,explicit_location,Москва,ru loc
+а ты сейчас в Варшава?,1,question,Варшава,ru question
+переехал to Варшава,1,explicit_location,Варшава,mixed
+буду в Сан-Паулу,1,explicit_location,Сан-Паулу,ru loc
+переехал в Мехико на выходных,1,explicit_location,Мехико,ru loc
+теперь живу в Париж сегодня,1,explicit_location,Париж,ru loc
+теперь в Варшава до пятницы,1,explicit_location,Варшава,ru loc
+прилетаю в Сан-Франциско сегодня,1,explicit_location,Сан-Франциско,ru loc
+приехал в Киев на выходных,1,explicit_location,Киев,ru loc
+перебрался в Монреаль до пятницы,1,explicit_location,Монреаль,ru loc
+теперь живу в Стамбул на выходных,1,explicit_location,Стамбул,ru loc
+meeting в Сеул,1,explicit_location,Сеул,mixed
+буду в Рига,1,explicit_location,Рига,ru loc
+теперь в Минск на выходных,1,explicit_location,Минск,ru loc
+storm in Киев,1,explicit_location,Киев,en weather
+I am in Рим,1,explicit_location,Рим,en loc
+теперь живу в Нью-Йорк на выходных,1,explicit_location,Нью-Йорк,ru loc
+а ты сейчас в Нью-Йорк?,1,question,Нью-Йорк,ru question
+приехал в Лос-Анджелес на неделю,1,explicit_location,Лос-Анджелес,ru loc
+приехала в Дубай сегодня,1,explicit_location,Дубай,ru loc
+приехал в Токио,1,explicit_location,Токио,ru loc
+живу в Дубай на неделю,1,explicit_location,Дубай,ru loc
+перебрался в Варшава на выходных,1,explicit_location,Варшава,ru loc
+буду в Рим на неделю,1,explicit_location,Рим,ru loc
+flying to Сеул,1,explicit_location,Сеул,en loc
+живу в Токио на выходных,1,explicit_location,Токио,ru loc
+приехала в Лондон на неделю,1,explicit_location,Лондон,ru loc
+переехал в Дубай до пятницы,1,explicit_location,Дубай,ru loc
+переехал в Кейптаун сегодня,1,explicit_location,Кейптаун,ru loc
+переехал в Рига сегодня,1,explicit_location,Рига,ru loc
+был в Минск,1,change_phrase,Минск,ru change
+weather in Питер,1,explicit_location,Питер,en weather
+теперь в Сан-Паулу на неделю,1,explicit_location,Сан-Паулу,ru loc
+прилетаю в Сеул до пятницы,1,explicit_location,Сеул,ru loc
+лечу в Лондон на выходных,1,explicit_location,Лондон,ru loc
+буду в Берлин,1,explicit_location,Берлин,ru loc
+буду в Стамбул на выходных,1,explicit_location,Стамбул,ru loc
+жара в Тбилиси,1,explicit_location,Тбилиси,weather
+переехала в Торонто до пятницы,1,explicit_location,Торонто,ru loc
+живу в Сингапур на неделю,1,explicit_location,Сингапур,ru loc
+живу в Торонто,1,explicit_location,Торонто,ru loc
+приехала в Торонто пока,1,explicit_location,Торонто,ru loc
+буду в Минск сегодня,1,explicit_location,Минск,ru loc
+we are in Сеул,1,explicit_location,Сеул,en loc
+переехала в Питер на выходных,1,explicit_location,Питер,ru loc
+we are in Кейптаун,1,explicit_location,Кейптаун,en loc
+живу в Окленд сегодня,1,explicit_location,Окленд,ru loc
+теперь в Барселона пока,1,explicit_location,Барселона,ru loc
+нахожусь в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+а ты сейчас в Прага?,1,question,Прага,ru question
+съехал в Токио,1,change_phrase,Токио,ru change
+живу в Минск,1,explicit_location,Минск,ru loc
+буду в Тбилиси сегодня,1,explicit_location,Тбилиси,ru loc
+перебрался в Киев,1,explicit_location,Киев,ru loc
+перебрался в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+раньше была Буэнос-Айрес,1,change_phrase,Буэнос-Айрес,ru change
+раньше был Москва,1,change_phrase,Москва,ru change
+теперь живу в Кейптаун,1,explicit_location,Кейптаун,ru loc
+теперь в Сидней,1,explicit_location,Сидней,ru loc
+перебрался в Токио на выходных,1,explicit_location,Токио,ru loc
+лечу в Санкт-Петербург,1,explicit_location,Санкт-Петербург,ru loc
+теперь в Лос-Анджелес,1,explicit_location,Лос-Анджелес,ru loc
+приехала в Тбилиси сегодня,1,explicit_location,Тбилиси,ru loc
+переехала в Буэнос-Айрес на неделю,1,explicit_location,Буэнос-Айрес,ru loc
+теперь в Барселона сегодня,1,explicit_location,Барселона,ru loc
+переехала в Торонто на неделю,1,explicit_location,Торонто,ru loc
+жара в Сингапур,1,explicit_location,Сингапур,weather
+приехал в Питер,1,explicit_location,Питер,ru loc
+I am in Сан-Паулу,1,explicit_location,Сан-Паулу,en loc
+съехал в Сидней,1,change_phrase,Сидней,ru change
+уехала в Рим,1,change_phrase,Рим,ru change
+переехала в Стамбул,1,explicit_location,Стамбул,ru loc
+новости из Окленд,1,explicit_location,Окленд,news
+snow in Рим,1,explicit_location,Рим,en weather
+живу в Лос-Анджелес до пятницы,1,explicit_location,Лос-Анджелес,ru loc
+буду в Минск пока,1,explicit_location,Минск,ru loc
+прилетаю в Париж,1,explicit_location,Париж,ru loc
+дождь в Окленд,1,explicit_location,Окленд,weather
+are you already in Дубай?,1,question,Дубай,en question
+теперь в Кейптаун до пятницы,1,explicit_location,Кейптаун,ru loc
+теперь живу в Буэнос-Айрес до пятницы,1,explicit_location,Буэнос-Айрес,ru loc
+мы в Санкт-Петербург?,1,question,Санкт-Петербург,ru question
+я в Минск на неделю,1,explicit_location,Минск,ru loc
+срочно из Окленд,1,explicit_location,Окленд,news
+прилетаю в Питер до пятницы,1,explicit_location,Питер,ru loc
+раньше была Сингапур,1,change_phrase,Сингапур,ru change
+теперь в Сингапур на неделю,1,explicit_location,Сингапур,ru loc
+переехала в Рим сегодня,1,explicit_location,Рим,ru loc
+прилетаю в Прага на выходных,1,explicit_location,Прага,ru loc
+приехал в Сеул на выходных,1,explicit_location,Сеул,ru loc
+сейчас в Нью-Йорк сегодня,1,explicit_location,Нью-Йорк,ru loc
+ты уже в Москва?,1,question,Москва,ru question
+сейчас в Лос-Анджелес на неделю,1,explicit_location,Лос-Анджелес,ru loc
+snow in Мехико,1,explicit_location,Мехико,en weather
+приехал в Киев пока,1,explicit_location,Киев,ru loc
+лечу в Лондон пока,1,explicit_location,Лондон,ru loc
+вы в Барселона?,1,question,Барселона,ru question
+прилетаю в Дубай пока,1,explicit_location,Дубай,ru loc
+приехала в Прага до пятницы,1,explicit_location,Прага,ru loc
+я в Барселона на неделю,1,explicit_location,Барселона,ru loc
+переехал в Окленд пока,1,explicit_location,Окленд,ru loc
+раньше был Буэнос-Айрес,1,change_phrase,Буэнос-Айрес,ru change
+переехала в Стамбул на неделю,1,explicit_location,Стамбул,ru loc
+живу в Минск на неделю,1,explicit_location,Минск,ru loc
+я в Питер пока,1,explicit_location,Питер,ru loc
+я в Сингапур сегодня,1,explicit_location,Сингапур,ru loc
+до этого была Мехико,1,change_phrase,Мехико,ru change
+я в Кейптаун сегодня,1,explicit_location,Кейптаун,ru loc
+нахожусь в Тбилиси пока,1,explicit_location,Тбилиси,ru loc
+сейчас в Берлин на неделю,1,explicit_location,Берлин,ru loc
+прилетаю в Стамбул пока,1,explicit_location,Стамбул,ru loc
+теперь живу в Сингапур до пятницы,1,explicit_location,Сингапур,ru loc
+нахожусь в Прага сегодня,1,explicit_location,Прага,ru loc
+перебрался в Лос-Анджелес сегодня,1,explicit_location,Лос-Анджелес,ru loc
+до этого была Дубай,1,change_phrase,Дубай,ru change
+прилетаю в Москва пока,1,explicit_location,Москва,ru loc
+вы в Торонто?,1,question,Торонто,ru question
+я в Варшава пока,1,explicit_location,Варшава,ru loc
+приехал в Сидней на неделю,1,explicit_location,Сидней,ru loc
+теперь живу в Монреаль до пятницы,1,explicit_location,Монреаль,ru loc
+приехала в Рим сегодня,1,explicit_location,Рим,ru loc
+приехала в Кейптаун до пятницы,1,explicit_location,Кейптаун,ru loc
+переехал to Дубай,1,explicit_location,Дубай,mixed
+буду в Киев сегодня,1,explicit_location,Киев,ru loc
+я в Сан-Франциско на неделю,1,explicit_location,Сан-Франциско,ru loc
+дождь в Сан-Паулу,1,explicit_location,Сан-Паулу,weather
+лечу в Санкт-Петербург на выходных,1,explicit_location,Санкт-Петербург,ru loc
+нахожусь в Санкт-Петербург на выходных,1,explicit_location,Санкт-Петербург,ru loc
+теперь в Рим пока,1,explicit_location,Рим,ru loc
+теперь в Рига,1,explicit_location,Рига,ru loc
+живу в Лондон,1,explicit_location,Лондон,ru loc
+нахожусь в Окленд до пятницы,1,explicit_location,Окленд,ru loc
+переехал в Торонто,1,explicit_location,Торонто,ru loc
+landing in Прага,1,explicit_location,Прага,en loc
+до этого был Киев,1,change_phrase,Киев,ru change
+буду в Сеул на выходных,1,explicit_location,Сеул,ru loc
+теперь в Нью-Йорк,1,explicit_location,Нью-Йорк,ru loc
+уехала в Дубай,1,change_phrase,Дубай,ru change
+нахожусь в Лондон,1,explicit_location,Лондон,ru loc
+переехал в Окленд на выходных,1,explicit_location,Окленд,ru loc
+we are in Нью-Йорк,1,explicit_location,Нью-Йорк,en loc
+лечу в Берлин пока,1,explicit_location,Берлин,ru loc
+переехала в Сидней на выходных,1,explicit_location,Сидней,ru loc
+теперь живу в Париж на неделю,1,explicit_location,Париж,ru loc
+moving to Мехико,1,explicit_location,Мехико,en loc
+переехала в Токио на неделю,1,explicit_location,Токио,ru loc
+переехала в Варшава на выходных,1,explicit_location,Варшава,ru loc
+flying to Монреаль,1,explicit_location,Монреаль,en loc
+съехала в Прага,1,change_phrase,Прага,ru change
+буду в Буэнос-Айрес на выходных,1,explicit_location,Буэнос-Айрес,ru loc
+теперь в Киев пока,1,explicit_location,Киев,ru loc
+живу в Сидней на выходных,1,explicit_location,Сидней,ru loc
+перебрался в Барселона на неделю,1,explicit_location,Барселона,ru loc
+прилетаю в Сан-Паулу на неделю,1,explicit_location,Сан-Паулу,ru loc
+meeting в Санкт-Петербург,1,explicit_location,Санкт-Петербург,mixed
+перебрался в Сидней на выходных,1,explicit_location,Сидней,ru loc
+лечу в Мехико до пятницы,1,explicit_location,Мехико,ru loc
+приехала в Барселона пока,1,explicit_location,Барселона,ru loc
+are you already in Берлин?,1,question,Берлин,en question
+живу в Варшава сегодня,1,explicit_location,Варшава,ru loc
+я в Санкт-Петербург,1,explicit_location,Санкт-Петербург,ru loc
+теперь живу в Буэнос-Айрес сегодня,1,explicit_location,Буэнос-Айрес,ru loc
+now in Мехико,1,explicit_location,Мехико,en loc
+до этого была Рига,1,change_phrase,Рига,ru change
+лечу в Варшава,1,explicit_location,Варшава,ru loc
+переехал в Минск на выходных,1,explicit_location,Минск,ru loc
+based in Киев,1,explicit_location,Киев,en loc
+созвон from Сан-Паулу,1,explicit_location,Сан-Паулу,mixed
+теперь в Лондон,1,explicit_location,Лондон,ru loc
+нахожусь в Париж сегодня,1,explicit_location,Париж,ru loc
+meeting в Токио,1,explicit_location,Токио,mixed
+приехал в Париж,1,explicit_location,Париж,ru loc
+созвон from Питер,1,explicit_location,Питер,mixed
+heat in Москва,1,explicit_location,Москва,en weather
+приехал в Буэнос-Айрес пока,1,explicit_location,Буэнос-Айрес,ru loc
+приехала в Сан-Паулу на неделю,1,explicit_location,Сан-Паулу,ru loc
+переехал в Буэнос-Айрес на неделю,1,explicit_location,Буэнос-Айрес,ru loc
+съехал в Сан-Паулу,1,change_phrase,Сан-Паулу,ru change
+moved to Прага,1,explicit_location,Прага,en loc
+based in Париж,1,explicit_location,Париж,en loc
+сейчас в Тбилиси до пятницы,1,explicit_location,Тбилиси,ru loc
+теперь живу в Берлин до пятницы,1,explicit_location,Берлин,ru loc
+в Варшава,1,explicit_location,Варшава,weather
+приехала в Сан-Паулу,1,explicit_location,Сан-Паулу,ru loc
+flying to Тбилиси,1,explicit_location,Тбилиси,en loc
+переехал в Варшава,1,explicit_location,Варшава,ru loc
+живу в Барселона до пятницы,1,explicit_location,Барселона,ru loc
+уехал в Окленд,1,change_phrase,Окленд,ru change
+сейчас в Берлин до пятницы,1,explicit_location,Берлин,ru loc
+сейчас в Лондон,1,explicit_location,Лондон,ru loc
+буду в Прага на неделю,1,explicit_location,Прага,ru loc
+лечу в Сан-Паулу сегодня,1,explicit_location,Сан-Паулу,ru loc
+перебрался в Лос-Анджелес до пятницы,1,explicit_location,Лос-Анджелес,ru loc
+переехал в Торонто на выходных,1,explicit_location,Торонто,ru loc
+я в Сеул сегодня,1,explicit_location,Сеул,ru loc
+переехал в Варшава на выходных,1,explicit_location,Варшава,ru loc
+я в Кейптаун,1,explicit_location,Кейптаун,ru loc
+лечу в Буэнос-Айрес сегодня,1,explicit_location,Буэнос-Айрес,ru loc
+нахожусь в Буэнос-Айрес сегодня,1,explicit_location,Буэнос-Айрес,ru loc
+съехал в Тбилиси,1,change_phrase,Тбилиси,ru change
+прилетаю в Нью-Йорк сегодня,1,explicit_location,Нью-Йорк,ru loc
+living in Тбилиси,1,explicit_location,Тбилиси,en loc
+переехал в Прага до пятницы,1,explicit_location,Прага,ru loc
+переехала в Мехико до пятницы,1,explicit_location,Мехико,ru loc
+нахожусь в Сингапур на неделю,1,explicit_location,Сингапур,ru loc
+heat in Окленд,1,explicit_location,Окленд,en weather
+прилетаю в Сидней на неделю,1,explicit_location,Сидней,ru loc
+теперь живу в Сан-Паулу,1,explicit_location,Сан-Паулу,ru loc
+съехал в Буэнос-Айрес,1,change_phrase,Буэнос-Айрес,ru change
+сейчас в Сингапур до пятницы,1,explicit_location,Сингапур,ru loc
+буду в Киев до пятницы,1,explicit_location,Киев,ru loc
+буду в Нью-Йорк,1,explicit_location,Нью-Йорк,ru loc
+переехал в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+moved to Барселона,1,explicit_location,Барселона,en loc
+приехал в Лондон на неделю,1,explicit_location,Лондон,ru loc
+жара в Питер,1,explicit_location,Питер,weather
+нахожусь в Рига сегодня,1,explicit_location,Рига,ru loc
+сейчас в Сидней пока,1,explicit_location,Сидней,ru loc
+приехала в Сидней сегодня,1,explicit_location,Сидней,ru loc
+приехал в Токио до пятницы,1,explicit_location,Токио,ru loc
+лечу в Минск,1,explicit_location,Минск,ru loc
+are you already in Барселона?,1,question,Барселона,en question
+теперь живу в Санкт-Петербург до пятницы,1,explicit_location,Санкт-Петербург,ru loc
+нахожусь в Минск пока,1,explicit_location,Минск,ru loc
+теперь живу в Питер до пятницы,1,explicit_location,Питер,ru loc
+буду в Сан-Паулу пока,1,explicit_location,Сан-Паулу,ru loc
+переехала в Буэнос-Айрес на выходных,1,explicit_location,Буэнос-Айрес,ru loc
+сейчас в Сан-Паулу пока,1,explicit_location,Сан-Паулу,ru loc
+are you already in Рим?,1,question,Рим,en question
+based in Сингапур,1,explicit_location,Сингапур,en loc
+we are in Рим,1,explicit_location,Рим,en loc
+теперь в Стамбул до пятницы,1,explicit_location,Стамбул,ru loc
+теперь в Прага на выходных,1,explicit_location,Прага,ru loc
+are we in Сидней?,1,question,Сидней,en question
+теперь в Сан-Франциско на выходных,1,explicit_location,Сан-Франциско,ru loc
+был в Сингапур,1,change_phrase,Сингапур,ru change
+ты уже в Мехико?,1,question,Мехико,ru question
+теперь в Нью-Йорк до пятницы,1,explicit_location,Нью-Йорк,ru loc
+теперь в Прага на неделю,1,explicit_location,Прага,ru loc
+жара в Сеул,1,explicit_location,Сеул,weather
+сообщают из Окленд,1,explicit_location,Окленд,news
+прилетаю в Прага сегодня,1,explicit_location,Прага,ru loc
+живу в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+нахожусь в Кейптаун сегодня,1,explicit_location,Кейптаун,ru loc
+до этого был Сеул,1,change_phrase,Сеул,ru change
+сейчас в Мехико на выходных,1,explicit_location,Мехико,ru loc
+мы в Дубай?,1,question,Дубай,ru question
+переехал в Сидней на неделю,1,explicit_location,Сидней,ru loc
+была в Берлин,1,change_phrase,Берлин,ru change
+новости из Киев,1,explicit_location,Киев,news
+теперь живу в Кейптаун на неделю,1,explicit_location,Кейптаун,ru loc
+we are in Минск,1,explicit_location,Минск,en loc
+сейчас в Лондон пока,1,explicit_location,Лондон,ru loc
+are you in Токио?,1,question,Токио,en question
+буду в Буэнос-Айрес на неделю,1,explicit_location,Буэнос-Айрес,ru loc
+flying to Киев,1,explicit_location,Киев,en loc
+мы в Питер?,1,question,Питер,ru question
+теперь в Сан-Паулу сегодня,1,explicit_location,Сан-Паулу,ru loc
+are you in Берлин?,1,question,Берлин,en question
+теперь живу в Москва,1,explicit_location,Москва,ru loc
+лечу в Барселона сегодня,1,explicit_location,Барселона,ru loc
+сейчас в Токио до пятницы,1,explicit_location,Токио,ru loc
+сейчас в Окленд,1,explicit_location,Окленд,ru loc
+приехала в Рига на неделю,1,explicit_location,Рига,ru loc
+I am in Окленд,1,explicit_location,Окленд,en loc
+переехала в Рим пока,1,explicit_location,Рим,ru loc
+weather in Мехико,1,explicit_location,Мехико,en weather
+based in Москва,1,explicit_location,Москва,en loc
+буду в Барселона сегодня,1,explicit_location,Барселона,ru loc
+прилетаю в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+была в Окленд,1,change_phrase,Окленд,ru change
+living in Рига,1,explicit_location,Рига,en loc
+are we in Лондон?,1,question,Лондон,en question
+ты в Киев?,1,question,Киев,ru question
+heat in Питер,1,explicit_location,Питер,en weather
+перебрался в Лондон на неделю,1,explicit_location,Лондон,ru loc
+раньше была Париж,1,change_phrase,Париж,ru change
+приехала в Сеул,1,explicit_location,Сеул,ru loc
+приехала в Мехико сегодня,1,explicit_location,Мехико,ru loc
+уехал в Рим,1,change_phrase,Рим,ru change
+now in Стамбул,1,explicit_location,Стамбул,en loc
+weather in Стамбул,1,explicit_location,Стамбул,en weather
+я сейчас in Лос-Анджелес,1,explicit_location,Лос-Анджелес,mixed
+ты в Лондон?,1,question,Лондон,ru question
+снег в Дубай,1,explicit_location,Дубай,weather
+теперь в Дубай на выходных,1,explicit_location,Дубай,ru loc
+flying to Варшава,1,explicit_location,Варшава,en loc
+нахожусь в Париж на выходных,1,explicit_location,Париж,ru loc
+нахожусь в Барселона сегодня,1,explicit_location,Барселона,ru loc
+приехала в Тбилиси пока,1,explicit_location,Тбилиси,ru loc
+до этого была Кейптаун,1,change_phrase,Кейптаун,ru change
+приехал в Сан-Паулу на выходных,1,explicit_location,Сан-Паулу,ru loc
+перебрался в Минск сегодня,1,explicit_location,Минск,ru loc
+теперь в Прага,1,explicit_location,Прага,ru loc
+переехал в Рим до пятницы,1,explicit_location,Рим,ru loc
+был в Варшава,1,change_phrase,Варшава,ru change
+приехал в Сан-Франциско до пятницы,1,explicit_location,Сан-Франциско,ru loc
+лечу в Париж пока,1,explicit_location,Париж,ru loc
+переехал в Сан-Франциско до пятницы,1,explicit_location,Сан-Франциско,ru loc
+are you already in Питер?,1,question,Питер,en question
+прилетаю в Тбилиси на выходных,1,explicit_location,Тбилиси,ru loc
+нахожусь в Мехико до пятницы,1,explicit_location,Мехико,ru loc
+буду в Лондон до пятницы,1,explicit_location,Лондон,ru loc
+раньше был Лондон,1,change_phrase,Лондон,ru change
+буду в Кейптаун пока,1,explicit_location,Кейптаун,ru loc
+в Сан-Паулу,1,explicit_location,Сан-Паулу,weather
+буду в Монреаль сегодня,1,explicit_location,Монреаль,ru loc
+снег в Прага,1,explicit_location,Прага,weather
+прилетаю в Барселона пока,1,explicit_location,Барселона,ru loc
+переехала в Окленд сегодня,1,explicit_location,Окленд,ru loc
+приехала в Монреаль сегодня,1,explicit_location,Монреаль,ru loc
+прилетаю в Киев сегодня,1,explicit_location,Киев,ru loc
+теперь в Сан-Паулу до пятницы,1,explicit_location,Сан-Паулу,ru loc
+нахожусь в Рим на выходных,1,explicit_location,Рим,ru loc
+are we in Сингапур?,1,question,Сингапур,en question
+переехал в Дубай,1,explicit_location,Дубай,ru loc
+переехала в Дубай до пятницы,1,explicit_location,Дубай,ru loc
+теперь в Монреаль пока,1,explicit_location,Монреаль,ru loc
+лечу в Сингапур на неделю,1,explicit_location,Сингапур,ru loc
+нахожусь в Лос-Анджелес,1,explicit_location,Лос-Анджелес,ru loc
+живу в Сингапур до пятницы,1,explicit_location,Сингапур,ru loc
+лечу в Монреаль пока,1,explicit_location,Монреаль,ru loc
+переехала в Лондон пока,1,explicit_location,Лондон,ru loc
+landing in Рига,1,explicit_location,Рига,en loc
+мы в Киев?,1,question,Киев,ru question
+лечу в Прага на неделю,1,explicit_location,Прага,ru loc
+перебрался в Торонто на неделю,1,explicit_location,Торонто,ru loc
+приехала в Торонто,1,explicit_location,Торонто,ru loc
+приехал в Стамбул на выходных,1,explicit_location,Стамбул,ru loc
+лечу в Окленд,1,explicit_location,Окленд,ru loc
+I am in Торонто,1,explicit_location,Торонто,en loc
+приехал в Сингапур пока,1,explicit_location,Сингапур,ru loc
+лечу в Дубай,1,explicit_location,Дубай,ru loc
+я в Париж сегодня,1,explicit_location,Париж,ru loc
+сейчас в Киев пока,1,explicit_location,Киев,ru loc
+сейчас в Рим,1,explicit_location,Рим,ru loc
+буду в Тбилиси на выходных,1,explicit_location,Тбилиси,ru loc
+я в Окленд,1,explicit_location,Окленд,ru loc
+репортаж из Нью-Йорк,1,explicit_location,Нью-Йорк,news
+нахожусь в Берлин на выходных,1,explicit_location,Берлин,ru loc
+сейчас в Барселона на неделю,1,explicit_location,Барселона,ru loc
+съехал в Дубай,1,change_phrase,Дубай,ru change
+живу в Рига,1,explicit_location,Рига,ru loc
+приехал в Стамбул пока,1,explicit_location,Стамбул,ru loc
+лечу в Сидней пока,1,explicit_location,Сидней,ru loc
+теперь живу в Монреаль на неделю,1,explicit_location,Монреаль,ru loc
+нахожусь в Барселона на выходных,1,explicit_location,Барселона,ru loc
+теперь живу в Окленд до пятницы,1,explicit_location,Окленд,ru loc
+переехал в Монреаль,1,explicit_location,Монреаль,ru loc
+приехала в Дубай до пятницы,1,explicit_location,Дубай,ru loc
+moving to Монреаль,1,explicit_location,Монреаль,en loc
+переехал в Окленд на неделю,1,explicit_location,Окленд,ru loc
+буду в Сингапур,1,explicit_location,Сингапур,ru loc
+now in Лондон,1,explicit_location,Лондон,en loc
+переехал to Прага,1,explicit_location,Прага,mixed
+сейчас в Торонто на неделю,1,explicit_location,Торонто,ru loc
+приехала в Минск сегодня,1,explicit_location,Минск,ru loc
+перебрался в Торонто,1,explicit_location,Торонто,ru loc
+сейчас в Москва пока,1,explicit_location,Москва,ru loc
+share PR,0,none,,task
+скидка 2.5,0,none,,number
+₽1200,0,none,,money
+балл 404,0,none,,number
+подготовь отчет,0,none,,task
+проверь таб,0,none,,task
+stop комментарий,0,none,,task
+review тикет,0,none,,task
+call later,0,none,,misc
+согласуй документ,0,none,,task
+submit note,0,none,,task
+start PR,0,none,,task
+обнови комментарий,0,none,,task
+review сборку,0,none,,task
+версия 15,0,none,,number
+update issue,0,none,,task
+стоимость 99,0,none,,money
+open описание,0,none,,task
+процент 15,0,none,,number
+заверши status,0,none,,task
+finish PR,0,none,,task
+статус 12,0,none,,number
+номер 3.0,0,none,,number
+start issue,0,none,,task
+закоммить таблицу,0,none,,task
+pause issue,0,none,,task
+отправь презентацию,0,none,,task
+через час,0,none,,misc
+room 20,0,none,,number
+итого 123,0,none,,number
+stop тикет,0,none,,task
+open презентацию,0,none,,task
+проверь таблицу,0,none,,task
+€350,0,none,,money
+invoice 20,0,none,,money
+обнови презентацию,0,none,,task
+score 4:1,0,none,,score
+запусти тикет,0,none,,task
+заверши PR,0,none,,task
+room 15,0,none,,number
+pause лог,0,none,,task
+согласуй файл,0,none,,task
+запусти план,0,none,,task
+3:2,0,none,,score
+code 3.0,0,none,,number
+stop status,0,none,,task
+ticket 404,0,none,,number
+пакет 50,0,none,,number
+исправь деплой,0,none,,task
+статус 2.5,0,none,,number
+скидка 404,0,none,,number
+запусти note,0,none,,task
+update документ,0,none,,task
+номер 5,0,none,,number
+версия 5,0,none,,number
+submit status,0,none,,task
+подготовь календарь,0,none,,task
+close note,0,none,,task
+open тикет,0,none,,task
+согласуй issue,0,none,,task
+стоимость 15,0,none,,money
+close план,0,none,,task
+fee 20,0,none,,money
+close календарь,0,none,,task
+готовлю отчёт,0,none,,neutral
+пакет 30,0,none,,number
+процент 5,0,none,,number
+релиз 100,0,none,,number
+stop draft,0,none,,task
+релиз 15,0,none,,number
+подготовь задачу,0,none,,task
+update план,0,none,,task
+update таб,0,none,,task
+close задачу,0,none,,task
+согласуй note,0,none,,task
+room 123,0,none,,number
+$15,0,none,,money
+подготовь описание,0,none,,task
+отправь описание,0,none,,task
+ticket 2.5,0,none,,number
+finish календарь,0,none,,task
+согласуй календарь,0,none,,task
+обнови файл,0,none,,task
+просто сообщение,0,none,,misc
+статус 100,0,none,,number
+итого 15,0,none,,number
+исправь задачу,0,none,,task
+invoice 99,0,none,,money
+ticket 15,0,none,,number
+отправь PR,0,none,,task
+балл 3.0,0,none,,number
+статус 50,0,none,,number
+пакет 12,0,none,,number
+подготовь PR,0,none,,task
+stop note,0,none,,task
+сделай задачу,0,none,,task
+stop презентацию,0,none,,task
+цена 99,0,none,,money
+обнови описание,0,none,,task
+review лог,0,none,,task

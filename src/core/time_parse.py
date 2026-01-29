@@ -63,6 +63,7 @@ TIMEZONE_ABBREVIATIONS: dict[str, str] = {
     # Russia
     "msk": "Europe/Moscow",
     "msd": "Europe/Moscow",  # Moscow Daylight (historical)
+    "мск": "Europe/Moscow",  # Russian abbreviation
     # Asia/Pacific
     "jst": "Asia/Tokyo",
     "kst": "Asia/Seoul",
@@ -77,6 +78,7 @@ TIMEZONE_ABBREVIATIONS: dict[str, str] = {
 
 # City names mapping to IANA
 CITY_TIMEZONES: dict[str, str] = {
+    # US
     "los angeles": "America/Los_Angeles",
     "la": "America/Los_Angeles",
     "san francisco": "America/Los_Angeles",
@@ -87,13 +89,74 @@ CITY_TIMEZONES: dict[str, str] = {
     "boston": "America/New_York",
     "chicago": "America/Chicago",
     "denver": "America/Denver",
+    # Europe
     "london": "Europe/London",
     "paris": "Europe/Paris",
     "berlin": "Europe/Berlin",
     "amsterdam": "Europe/Amsterdam",
+    # Asia-Pacific
     "tokyo": "Asia/Tokyo",
     "sydney": "Australia/Sydney",
     "melbourne": "Australia/Sydney",
+    # Russia & CIS (Russian names)
+    "москва": "Europe/Moscow",
+    "москве": "Europe/Moscow",
+    "московскому": "Europe/Moscow",
+    "московское": "Europe/Moscow",
+    "питер": "Europe/Moscow",
+    "питеру": "Europe/Moscow",
+    "петербург": "Europe/Moscow",
+    "петербургу": "Europe/Moscow",
+    "спб": "Europe/Moscow",
+    # Tbilisi
+    "тбилиси": "Asia/Tbilisi",
+    "tbilisi": "Asia/Tbilisi",
+    # Minsk
+    "минск": "Europe/Minsk",
+    "минску": "Europe/Minsk",
+    "minsk": "Europe/Minsk",
+    # Kyiv
+    "киев": "Europe/Kyiv",
+    "киеву": "Europe/Kyiv",
+    "kiev": "Europe/Kyiv",
+    "kyiv": "Europe/Kyiv",
+    # Baku
+    "баку": "Asia/Baku",
+    "baku": "Asia/Baku",
+    # Yerevan
+    "ереван": "Asia/Yerevan",
+    "еревану": "Asia/Yerevan",
+    "yerevan": "Asia/Yerevan",
+    # Kazakhstan
+    "алматы": "Asia/Almaty",
+    "almaty": "Asia/Almaty",
+    "астана": "Asia/Almaty",
+    "astana": "Asia/Almaty",
+    # Tashkent
+    "ташкент": "Asia/Tashkent",
+    "tashkent": "Asia/Tashkent",
+    # Russian regional cities
+    "самара": "Europe/Samara",
+    "самаре": "Europe/Samara",
+    "екатеринбург": "Asia/Yekaterinburg",
+    "екатеринбургу": "Asia/Yekaterinburg",
+    "новосибирск": "Asia/Novosibirsk",
+    "новосибирску": "Asia/Novosibirsk",
+    "владивосток": "Asia/Vladivostok",
+    "владивостоку": "Asia/Vladivostok",
+    "калининград": "Europe/Kaliningrad",
+    "калининграду": "Europe/Kaliningrad",
+    "иркутск": "Asia/Irkutsk",
+    "иркутску": "Asia/Irkutsk",
+    "якутск": "Asia/Yakutsk",
+    "якутску": "Asia/Yakutsk",
+    "омск": "Asia/Omsk",
+    "омску": "Asia/Omsk",
+    "уфа": "Asia/Yekaterinburg",
+    "уфе": "Asia/Yekaterinburg",
+    "казань": "Europe/Moscow",
+    "казани": "Europe/Moscow",
+    "сочи": "Europe/Moscow",
 }
 
 # Regex patterns for time parsing
@@ -134,10 +197,23 @@ PATTERNS = {
     "ru_tomorrow": re.compile(r"\bзавтра\b", re.IGNORECASE),
     # "сегодня" - today in Russian
     "ru_today": re.compile(r"\bсегодня\b", re.IGNORECASE),
+    # --- Russian timezone patterns ---
+    # "по Москве", "по Тбилиси", "по Минску" - "по" + city
+    "ru_po_city": re.compile(
+        r"\bпо\s+(москв\w*|тбилиси|минск\w*|киев\w*|баку|ереван\w*|алмат\w*|астан\w*|"
+        r"самар\w*|екатеринбург\w*|новосибирск\w*|владивосток\w*|калининград\w*|"
+        r"иркутск\w*|якутск\w*|омск\w*|уф\w*|казан\w*|сочи|питер\w*|петербург\w*)",
+        re.IGNORECASE,
+    ),
+    # "по московскому времени", "по местному времени"
+    "ru_po_time_adj": re.compile(
+        r"\bпо\s+(московском\w*|минском\w*|киевском\w*|грузинском\w*|местном\w*)\s*(?:времен\w*)?",
+        re.IGNORECASE,
+    ),
 }
 
 
-def parse_times(text: str) -> list[ParsedTime]:
+async def parse_times(text: str) -> list[ParsedTime]:
     """Parse time references from message text.
 
     First checks if text contains time reference using ML classifier.
@@ -174,6 +250,37 @@ def parse_times(text: str) -> list[ParsedTime]:
         if city_match:
             city = city_match.group(1).lower()
             tz_hint = CITY_TIMEZONES.get(city)
+
+    # Russian "по {city}" pattern - higher priority for explicit TZ
+    if not tz_hint:
+        po_city_match = PATTERNS["ru_po_city"].search(text)
+        if po_city_match:
+            city = po_city_match.group(1).lower()
+            tz_hint = CITY_TIMEZONES.get(city)
+
+    # Russian "по московскому времени" pattern
+    if not tz_hint:
+        po_adj_match = PATTERNS["ru_po_time_adj"].search(text)
+        if po_adj_match:
+            adj = po_adj_match.group(1).lower()
+            # Map adjective forms to timezones
+            adj_to_tz = {
+                "московском": "Europe/Moscow",
+                "московскому": "Europe/Moscow",
+                "минском": "Europe/Minsk",
+                "минскому": "Europe/Minsk",
+                "киевском": "Europe/Kyiv",
+                "киевскому": "Europe/Kyiv",
+                "грузинском": "Asia/Tbilisi",
+                "грузинскому": "Asia/Tbilisi",
+                "местном": None,  # Will use user's TZ
+                "местному": None,
+            }
+            # Find matching key (adjective forms vary)
+            for key, tz in adj_to_tz.items():
+                if adj.startswith(key[:6]):  # Match prefix
+                    tz_hint = tz
+                    break
 
     # Track positions already matched to avoid duplicates
     matched_positions: set[int] = set()
@@ -423,12 +530,12 @@ def parse_times(text: str) -> list[ParsedTime]:
 
     # LLM extraction fallback: classifier detected time but regex found nothing
     if not results:
-        results = _try_llm_extraction(text, tz_hint)
+        results = await _try_llm_extraction(text, tz_hint)
 
     return results
 
 
-def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
+async def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     """Try LLM extraction when regex fails.
 
     Args:
@@ -438,7 +545,6 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     Returns:
         List of parsed times from LLM, empty if fails.
     """
-    import asyncio
     import logging
 
     logger = logging.getLogger(__name__)
@@ -446,28 +552,13 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     try:
         from src.core.llm_fallback import extract_times_with_llm
 
-        # Run async function in sync context
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
+        return await extract_times_with_llm(text, tz_hint)
 
-        if loop is not None:
-            # Already in async context - need thread pool
-            import concurrent.futures
-
-            from src.settings import get_settings
-
-            timeout = get_settings().config.llm.sync_bridge_timeout
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, extract_times_with_llm(text, tz_hint))
-                return future.result(timeout=timeout)
-        else:
-            # No event loop - safe to use asyncio.run
-            return asyncio.run(extract_times_with_llm(text, tz_hint))
-
+    except ImportError as e:
+        logger.warning(f"LLM fallback module not available: {e}")
+        return []
     except Exception as e:
-        logger.warning(f"LLM extraction failed: {e}")
+        logger.exception(f"LLM extraction failed unexpectedly: {e}")
         return []
 
 
@@ -487,15 +578,28 @@ def contains_time_reference(text: str) -> bool:
         from src.core.time_classifier import contains_time_ml
 
         return contains_time_ml(text)
-    except Exception:
-        # Fallback to simple regex if classifier unavailable
-        quick_patterns = [
-            r"\d{1,2}:\d{2}",  # HH:MM
-            r"\d{1,2}\s*(am|pm)",  # H am/pm
-            r"\bat\s+\d{1,2}\b",  # at H
-        ]
-        text_lower = text.lower()
-        return any(re.search(p, text_lower, re.IGNORECASE) for p in quick_patterns)
+    except ImportError:
+        # ML classifier not available (e.g., sklearn not installed)
+        pass
+    except (RuntimeError, FileNotFoundError) as e:
+        # Classifier not trained or model file missing
+        import logging
+
+        logging.getLogger(__name__).debug(f"ML classifier unavailable: {e}")
+    except Exception as e:
+        # Unexpected error - log but don't crash
+        import logging
+
+        logging.getLogger(__name__).warning(f"ML classifier error: {e}")
+
+    # Fallback to simple regex patterns
+    quick_patterns = [
+        r"\d{1,2}:\d{2}",  # HH:MM
+        r"\d{1,2}\s*(am|pm)",  # H am/pm
+        r"\bat\s+\d{1,2}\b",  # at H
+    ]
+    text_lower = text.lower()
+    return any(re.search(p, text_lower, re.IGNORECASE) for p in quick_patterns)
 
 
 def get_highest_confidence_time(times: Sequence[ParsedTime]) -> ParsedTime | None:

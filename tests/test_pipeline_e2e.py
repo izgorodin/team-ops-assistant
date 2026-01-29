@@ -140,7 +140,7 @@ def test_e2e_detection_negative_accuracy() -> None:
 # ============================================================================
 
 
-def test_e2e_extraction_accuracy() -> None:
+async def test_e2e_extraction_accuracy() -> None:
     """E2E: Regex should extract correct times from positive cases (target: 75%)."""
     if not POSITIVE_CASES:
         pytest.skip("No positive cases in control corpus")
@@ -149,7 +149,7 @@ def test_e2e_extraction_accuracy() -> None:
     failures: list[tuple[ControlEntry, list[str]]] = []
 
     for entry in POSITIVE_CASES:
-        parsed = parse_times(entry.phrase)
+        parsed = await parse_times(entry.phrase)
         parsed_times = [f"{p.hour:02d}:{p.minute:02d}" for p in parsed]
 
         if not all(t in parsed_times for t in entry.expected_times):
@@ -181,7 +181,7 @@ def test_e2e_extraction_accuracy() -> None:
 # ============================================================================
 
 
-def test_pipeline_statistics() -> None:
+async def test_pipeline_statistics() -> None:
     """Report pipeline accuracy on control corpus."""
     detection_pos_ok = 0
     detection_neg_ok = 0
@@ -190,7 +190,7 @@ def test_pipeline_statistics() -> None:
     for entry in POSITIVE_CASES:
         if contains_time_reference(entry.phrase):
             detection_pos_ok += 1
-            parsed = parse_times(entry.phrase)
+            parsed = await parse_times(entry.phrase)
             parsed_times = [f"{p.hour:02d}:{p.minute:02d}" for p in parsed]
             if all(t in parsed_times for t in entry.expected_times):
                 extraction_ok += 1
