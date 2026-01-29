@@ -38,14 +38,10 @@ def disable_llm_extraction(request: pytest.FixtureRequest) -> Generator[None, No
         yield
 
 
-# Register custom markers
+# Register custom markers (integration marker is in pyproject.toml)
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
     config.addinivalue_line(
         "markers",
         "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    )
-    config.addinivalue_line(
-        "markers",
-        "integration: marks tests that use real external services (LLM, APIs)",
     )
