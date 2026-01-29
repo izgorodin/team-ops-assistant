@@ -6,7 +6,7 @@ Provides async MongoDB operations using Motor client.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -190,8 +190,8 @@ class MongoStorage:
             tz_iana=doc.get("tz_iana"),
             confidence=doc.get("confidence", 0.0),
             source=TimezoneSource(doc.get("source", "default")),
-            created_at=doc.get("created_at", datetime.utcnow()),
-            updated_at=doc.get("updated_at", datetime.utcnow()),
+            created_at=doc.get("created_at", datetime.now(UTC)),
+            updated_at=doc.get("updated_at", datetime.now(UTC)),
             last_verified_at=doc.get("last_verified_at"),
         )
 
@@ -252,7 +252,7 @@ class MongoStorage:
             user_id: User's platform-specific ID.
             tz_iana: IANA timezone to set.
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # First, ensure the chat document exists and set the user's timezone
         await self.db.chats.update_one(
@@ -298,13 +298,13 @@ class MongoStorage:
             {"platform": platform.value, "chat_id": chat_id},
             {
                 "$addToSet": {"active_timezones": tz_iana},
-                "$set": {"updated_at": datetime.utcnow()},
+                "$set": {"updated_at": datetime.now(UTC)},
                 "$setOnInsert": {
                     "platform": platform.value,
                     "chat_id": chat_id,
                     "default_tz": None,
                     "user_timezones": {},
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(UTC),
                 },
             },
             upsert=True,
@@ -318,8 +318,8 @@ class MongoStorage:
             default_tz=doc.get("default_tz"),
             user_timezones=doc.get("user_timezones", {}),
             active_timezones=doc.get("active_timezones", []),
-            created_at=doc.get("created_at", datetime.utcnow()),
-            updated_at=doc.get("updated_at", datetime.utcnow()),
+            created_at=doc.get("created_at", datetime.now(UTC)),
+            updated_at=doc.get("updated_at", datetime.now(UTC)),
         )
 
     # Deduplication operations
@@ -425,7 +425,7 @@ class MongoStorage:
                     "status": session.status.value,
                     "context": session.context,
                     "bot_message_id": session.bot_message_id,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(UTC),
                 }
             },
         )
@@ -442,7 +442,7 @@ class MongoStorage:
             {
                 "$set": {
                     "status": status.value,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(UTC),
                 }
             },
         )
@@ -460,8 +460,8 @@ class MongoStorage:
             status=SessionStatus(doc["status"]),
             context=doc.get("context", {"attempts": 0, "history": []}),
             bot_message_id=doc.get("bot_message_id"),
-            created_at=doc.get("created_at", datetime.utcnow()),
-            updated_at=doc.get("updated_at", datetime.utcnow()),
+            created_at=doc.get("created_at", datetime.now(UTC)),
+            updated_at=doc.get("updated_at", datetime.now(UTC)),
             expires_at=doc["expires_at"],
         )
 

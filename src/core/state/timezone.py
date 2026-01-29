@@ -116,7 +116,7 @@ class TimezoneStateManager:
             source: Where this value came from.
             confidence: Confidence in this value.
         """
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         from src.core.models import UserTzState
 
@@ -126,7 +126,7 @@ class TimezoneStateManager:
         except ValueError:
             source_enum = TimezoneSource.DEFAULT
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         state = UserTzState(
             platform=platform,
             user_id=user_id,

@@ -47,7 +47,7 @@ class ConfidenceConfig(BaseModel):
 
     threshold: float = 0.7  # Below this, prompt for verification
     verified: float = 1.0  # Web-verified timezone
-    city_pick: float = 0.85  # User selected from city picker
+    city_pick: float = 1.0  # User selected from city picker (explicit action = full confidence)
     message_explicit: float = 0.9  # Timezone explicit in message (e.g., "PST")
     inferred: float = 0.6  # Inferred from user history
     chat_default: float = 0.5  # Chat-level default timezone
@@ -283,8 +283,6 @@ class Settings:
         # Public URL for verification links (defaults to localhost for dev)
         self.app_base_url: str = os.getenv("APP_BASE_URL", f"http://localhost:{self.app_port}")
         self.verify_token_secret: str = os.getenv("VERIFY_TOKEN_SECRET", "dev-verify-secret")
-        # Public URL for verification links (defaults to localhost for dev)
-        self.app_base_url: str = os.getenv("APP_BASE_URL", f"http://localhost:{self.app_port}")
 
         # Load configuration from YAML
         self.config = self._load_configuration()

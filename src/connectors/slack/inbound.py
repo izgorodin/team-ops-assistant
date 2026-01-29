@@ -6,7 +6,7 @@ Handles incoming Slack Events API webhooks and normalizes them to NormalizedEven
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.models import NormalizedEvent, Platform
@@ -83,9 +83,9 @@ def normalize_slack_event(payload: dict[str, Any]) -> NormalizedEvent | None:
 
     # Extract timestamp as datetime
     try:
-        timestamp = datetime.utcfromtimestamp(float(ts.split(".")[0]))
+        timestamp = datetime.fromtimestamp(float(ts.split(".")[0]), tz=UTC)
     except (ValueError, TypeError):
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
     # Check for thread reply (thread_ts indicates a reply)
     thread_ts = event.get("thread_ts")

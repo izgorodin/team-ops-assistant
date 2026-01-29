@@ -15,12 +15,18 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def disable_llm_extraction() -> Generator[None, None, None]:
-    """Disable LLM extraction fallback in all tests for speed.
+def disable_llm_extraction(request: pytest.FixtureRequest) -> Generator[None, None, None]:
+    """Disable LLM extraction fallback in non-integration tests for speed.
 
     When regex fails, parse_times would call LLM API which is slow.
     This fixture makes LLM extraction return empty list.
+
+    Tests marked with @pytest.mark.integration skip this mock and use real LLM.
     """
+    # Skip mocking for integration tests
+    if "integration" in request.keywords:
+        yield
+        return
 
     async def mock_extract(*args, **kwargs):
         return []
@@ -32,10 +38,14 @@ def disable_llm_extraction() -> Generator[None, None, None]:
         yield
 
 
-# Register slow marker
+# Register custom markers
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
     config.addinivalue_line(
         "markers",
         "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    )
+    config.addinivalue_line(
+        "markers",
+        "integration: marks tests that use real external services (LLM, APIs)",
     )

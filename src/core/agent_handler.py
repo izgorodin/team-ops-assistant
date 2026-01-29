@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -155,7 +155,7 @@ class AgentHandler:
                 session.context["resolved_city"] = new_city
                 session.context["resolved_tz"] = new_tz
                 session.context["attempts"] = session.context.get("attempts", 0) + 1
-                session.updated_at = datetime.utcnow()
+                session.updated_at = datetime.now(UTC)
 
                 # Check max attempts
                 if session.context["attempts"] >= 3:
@@ -405,7 +405,7 @@ class AgentHandler:
         history.append({"role": "user", "content": event.text})
         history.append({"role": "assistant", "content": response_text})
         session.context["history"] = history
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(UTC)
 
         # Check max attempts (hardcoded to 3 for now)
         if session.context["attempts"] >= 3:
