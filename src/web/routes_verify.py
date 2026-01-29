@@ -6,7 +6,7 @@ Provides the web-based timezone verification UX.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from quart import Blueprint, Response, jsonify, request
@@ -96,7 +96,7 @@ async def verify_timezone() -> tuple[Response, int]:
     # Store timezone
     storage = get_storage()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     state = UserTzState(
         platform=parsed.platform,
         user_id=parsed.user_id,

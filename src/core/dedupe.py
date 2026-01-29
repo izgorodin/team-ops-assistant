@@ -5,7 +5,7 @@ Ensures idempotent processing and prevents spam.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from src.core.models import DedupeEvent, Platform
@@ -53,7 +53,7 @@ class DedupeManager:
             platform=platform,
             event_id=event_id,
             chat_id=chat_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
         await self.storage.insert_dedupe_event(event)
 
@@ -74,7 +74,7 @@ class DedupeManager:
         if last_response is None:
             return False
 
-        elapsed = (datetime.utcnow() - last_response).total_seconds()
+        elapsed = (datetime.now(UTC) - last_response).total_seconds()
         return elapsed < config.throttle_seconds
 
     def record_response(self, platform: Platform, chat_id: str) -> None:
@@ -87,7 +87,7 @@ class DedupeManager:
             chat_id: Chat identifier.
         """
         cache_key = f"{platform.value}:{chat_id}"
-        self._throttle_cache[cache_key] = datetime.utcnow()
+        self._throttle_cache[cache_key] = datetime.now(UTC)
 
         # Periodic cleanup: run every N responses (where N = cache_cleanup_multiplier)
         if len(self._throttle_cache) % self.settings.config.dedupe.cache_cleanup_multiplier == 0:
@@ -96,7 +96,7 @@ class DedupeManager:
     def cleanup_throttle_cache(self) -> None:
         """Clean up old entries from the throttle cache."""
         config = self.settings.config.dedupe
-        cutoff = datetime.utcnow() - timedelta(
+        cutoff = datetime.now(UTC) - timedelta(
             seconds=config.throttle_seconds * config.cache_cleanup_multiplier
         )
 

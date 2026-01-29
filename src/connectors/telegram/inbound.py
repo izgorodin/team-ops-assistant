@@ -6,7 +6,7 @@ Handles incoming Telegram webhook updates and normalizes them to NormalizedEvent
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.models import NormalizedEvent, Platform
@@ -59,7 +59,7 @@ def normalize_telegram_update(update: dict[str, Any]) -> NormalizedEvent | None:
     event_id = f"{chat_id}_{message_id}"
 
     # Extract timestamp
-    timestamp = datetime.utcfromtimestamp(message.get("date", 0))
+    timestamp = datetime.fromtimestamp(message.get("date", 0), tz=UTC)
 
     # Check for reply
     reply_to = message.get("reply_to_message", {})

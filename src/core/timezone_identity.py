@@ -158,7 +158,7 @@ class TimezoneIdentityManager:
             else:
                 confidence = config.chat_default
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         state = UserTzState(
             platform=platform,
             user_id=user_id,
@@ -216,7 +216,7 @@ def generate_verify_token(
     secret = settings.verify_token_secret
 
     # Create token payload
-    expires_at = datetime.utcnow() + timedelta(hours=expires_hours)
+    expires_at = datetime.now(UTC) + timedelta(hours=expires_hours)
     nonce = secrets.token_urlsafe(8)
 
     # Payload format: platform|user_id|chat_id|expires_timestamp|nonce
@@ -255,15 +255,15 @@ def parse_verify_token(token: str) -> VerifyToken | None:
             return None
 
         # Check expiry
-        expires_at = datetime.utcfromtimestamp(int(expires_str))
-        if datetime.utcnow() > expires_at:
+        expires_at = datetime.fromtimestamp(int(expires_str), tz=UTC)
+        if datetime.now(UTC) > expires_at:
             return None
 
         return VerifyToken(
             platform=Platform(platform_str),
             user_id=user_id,
             chat_id=chat_id,
-            created_at=datetime.utcnow(),  # Not stored in token
+            created_at=datetime.now(UTC),  # Not stored in token
             expires_at=expires_at,
         )
     except (ValueError, KeyError):

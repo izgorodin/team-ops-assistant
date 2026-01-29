@@ -11,7 +11,7 @@ See app.py for the verification endpoint implementation.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.models import NormalizedEvent, Platform
@@ -114,9 +114,9 @@ def _normalize_single_message(
     # Parse timestamp
     timestamp_str = msg.get("timestamp", "")
     try:
-        timestamp = datetime.utcfromtimestamp(int(timestamp_str))
+        timestamp = datetime.fromtimestamp(int(timestamp_str), tz=UTC)
     except (ValueError, TypeError):
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
     # WhatsApp uses phone number as chat ID for 1:1 chats
     # For groups, would need to extract from context

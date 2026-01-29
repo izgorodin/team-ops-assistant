@@ -7,7 +7,7 @@ Uses the Discord API v10 webhook/interaction format.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.models import NormalizedEvent, Platform
@@ -52,7 +52,7 @@ def normalize_discord_message(payload: dict[str, Any]) -> NormalizedEvent | None
     try:
         timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
     # Check for reply
     referenced = payload.get("referenced_message")
