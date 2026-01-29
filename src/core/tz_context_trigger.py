@@ -309,25 +309,48 @@ def evaluate_on_test() -> dict[str, float]:
     }
 
 
-# Global classifier instance (lazy loaded)
+# Global classifier instance (lazy loaded with thread-safe initialization)
+import threading
+
 _classifier: TzContextTrigger | None = None
+_classifier_lock = threading.Lock()
+
+
+def reset_classifier() -> None:
+    """Reset global classifier (useful for testing)."""
+    global _classifier
+    with _classifier_lock:
+        _classifier = None
 
 
 def get_classifier() -> TzContextTrigger:
-    """Get trained classifier (loads from disk if needed)."""
+    """Get trained classifier (loads from disk if needed).
+
+    Thread-safe with double-checked locking pattern.
+    """
     global _classifier
 
-    if _classifier is None:
-        _classifier = TzContextTrigger()
+    # Fast path: already initialized
+    if _classifier is not None:
+        return _classifier
+
+    # Slow path: acquire lock and initialize
+    with _classifier_lock:
+        # Double-check after acquiring lock
+        if _classifier is not None:
+            return _classifier
+
+        new_classifier = TzContextTrigger()
         if MODEL_PATH.exists():
-            _classifier.load()
+            new_classifier.load()
         else:
             # Train on first use if no saved model
             texts, binary_labels, type_labels = load_training_data()
-            _classifier.train(texts, binary_labels, type_labels)
-            _classifier.save()
+            new_classifier.train(texts, binary_labels, type_labels)
+            new_classifier.save()
 
-    return _classifier
+        _classifier = new_classifier
+        return _classifier
 
 
 # ============================================================================
@@ -335,8 +358,14 @@ def get_classifier() -> TzContextTrigger:
 # ============================================================================
 
 # Common TZ abbreviations that strongly indicate explicit_tz
+# Negative lookaheads exclude:
+# - Ticket IDs: MSK-2024-001, EST-123
+# - File references: "PST файл", "PST file"
 _TZ_ABBREV_PATTERN = re.compile(
-    r"\b(мск|msk|pst|pdt|est|edt|cst|cdt|gmt|utc|cet|cest|bst|jst|kst|ist|aest|aedt|nzst)\b",
+    r"\b(мск|msk|pst|pdt|est|edt|cst|cdt|gmt|utc|cet|cest|bst|jst|kst|ist|aest|aedt|nzst)\b"
+    r"(?!-\d)"  # Not followed by ticket ID pattern
+    r"(?!\s+файл\b)"  # Not followed by "файл" (file in Russian)
+    r"(?!\s+file\b)",  # Not followed by "file"
     re.IGNORECASE,
 )
 
@@ -353,7 +382,7 @@ _UTC_OFFSET_PATTERN = re.compile(r"(utc|gmt)\s*[+-]\s*\d{1,2}", re.IGNORECASE)
 # Clarification question patterns
 _CLARIFICATION_PATTERNS = [
     re.compile(r"это\s+по\s+(москов|москв|мск|местн)", re.IGNORECASE),
-    re.compile(r"по\s+каком[у|у]\s+(времен|зон)", re.IGNORECASE),
+    re.compile(r"по\s+каком(?:у)?\s+(времен|зон)", re.IGNORECASE),
     re.compile(r"какая\s+(таймзона|timezone|зона)", re.IGNORECASE),
     re.compile(r"what\s+timezone", re.IGNORECASE),
     re.compile(r"which\s+tz", re.IGNORECASE),

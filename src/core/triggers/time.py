@@ -48,7 +48,7 @@ class TimeDetector:
             List of detected time triggers. Empty if no times found.
         """
         # Use existing time parsing infrastructure
-        parsed_times = parse_times(event.text)
+        parsed_times = await parse_times(event.text)
 
         if not parsed_times:
             return []
@@ -63,7 +63,9 @@ class TimeDetector:
             # 1. If explicit TZ in message (Мск, PST, "по Тбилиси") → use that
             # 2. Otherwise → use user's verified timezone
             source_tz = pt.timezone_hint
-            is_explicit_tz = source_tz is not None and tz_trigger.triggered
+            # Explicit TZ is determined solely by whether a TZ was parsed from the message.
+            # tz_trigger is kept for LLM gating but not for is_explicit_tz determination.
+            is_explicit_tz = source_tz is not None
 
             # If TZ trigger fired but regex couldn't extract TZ, use LLM
             needs_llm_resolution = (

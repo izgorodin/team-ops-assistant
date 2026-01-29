@@ -19,67 +19,67 @@ from src.core.time_parse import contains_time_reference, parse_times
 class TestTimeParsing:
     """Tests for time parsing functionality."""
 
-    def test_parse_hh_mm_format(self) -> None:
+    async def test_parse_hh_mm_format(self) -> None:
         """Test parsing HH:MM format."""
-        times = parse_times("Let's meet at 14:30")
+        times = await parse_times("Let's meet at 14:30")
 
         assert len(times) == 1
         assert times[0].hour == 14
         assert times[0].minute == 30
 
-    def test_parse_h_ampm_format(self) -> None:
+    async def test_parse_h_ampm_format(self) -> None:
         """Test parsing H am/pm format."""
-        times = parse_times("Call at 3pm")
+        times = await parse_times("Call at 3pm")
 
         assert len(times) == 1
         assert times[0].hour == 15
         assert times[0].minute == 0
 
-    def test_parse_12_pm(self) -> None:
+    async def test_parse_12_pm(self) -> None:
         """Test parsing 12pm (noon)."""
-        times = parse_times("Lunch at 12pm")
+        times = await parse_times("Lunch at 12pm")
 
         assert len(times) == 1
         assert times[0].hour == 12
 
-    def test_parse_12_am(self) -> None:
+    async def test_parse_12_am(self) -> None:
         """Test parsing 12am (midnight)."""
-        times = parse_times("Midnight call at 12am")
+        times = await parse_times("Midnight call at 12am")
 
         assert len(times) == 1
         assert times[0].hour == 0
 
-    def test_parse_with_timezone_hint(self) -> None:
+    async def test_parse_with_timezone_hint(self) -> None:
         """Test parsing with timezone abbreviation."""
-        times = parse_times("Meeting at 3pm PST")
+        times = await parse_times("Meeting at 3pm PST")
 
         assert len(times) == 1
         assert times[0].hour == 15
         assert times[0].timezone_hint == "America/Los_Angeles"
 
-    def test_parse_with_city_hint(self) -> None:
+    async def test_parse_with_city_hint(self) -> None:
         """Test parsing with city name."""
-        times = parse_times("Call at 10am London time")
+        times = await parse_times("Call at 10am London time")
 
         assert len(times) == 1
         assert times[0].timezone_hint == "Europe/London"
 
-    def test_parse_tomorrow(self) -> None:
+    async def test_parse_tomorrow(self) -> None:
         """Test parsing with tomorrow prefix."""
-        times = parse_times("Tomorrow at 9am")
+        times = await parse_times("Tomorrow at 9am")
 
         assert len(times) == 1
         assert times[0].is_tomorrow is True
 
-    def test_parse_multiple_times(self) -> None:
+    async def test_parse_multiple_times(self) -> None:
         """Test parsing multiple times in one message."""
-        times = parse_times("From 10:00 to 14:30")
+        times = await parse_times("From 10:00 to 14:30")
 
         assert len(times) == 2
 
-    def test_parse_no_times(self) -> None:
+    async def test_parse_no_times(self) -> None:
         """Test message with no times."""
-        times = parse_times("Hello everyone!")
+        times = await parse_times("Hello everyone!")
 
         assert len(times) == 0
 

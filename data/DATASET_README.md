@@ -25,6 +25,14 @@ Dataset for training ML classifiers to detect time references and timezone conte
 | `tz_context_trigger_synthetic.csv` | Auto-generated | Augmentation (optional) |
 | `tz_context_trigger.pkl` | Trained model | - |
 
+### Location Change Trigger
+
+| File | Description | Purpose |
+|------|-------------|---------|
+| `tz_location_change_train.csv` | Training data | ML classifier training |
+| `tz_location_change_test.csv` | Test set | Model evaluation |
+| `location_change_trigger.pkl` | Trained model | - |
+
 ### Other
 
 | File | Description |
@@ -83,6 +91,52 @@ phrase,has_tz_context,trigger_type,source_tz,notes
 - TZ abbreviation in other context: "PST файл", "MSK-123 тикет"
 - Numbers that look like times: "версия 3.0", "room 15"
 - Relative time: "через час", "in 2 hours"
+
+---
+
+## Location Change Trigger Dataset
+
+Detects when a message mentions a location that might indicate user's physical location change.
+
+### Format
+
+```csv
+phrase,has_location,trigger_type,notes
+"переехал в Берлин",1,explicit_location,RU relocation verb
+"я в Москве",1,explicit_location,RU presence phrase
+"привет, как дела?",0,none,greeting
+```
+
+### Columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `phrase` | string | Message text |
+| `has_location` | 0/1 | Does message mention location change? |
+| `trigger_type` | enum | `explicit_location`, `change_phrase`, `question`, `none` |
+| `notes` | string | Category/explanation |
+
+### Trigger Types
+
+| Type | Description | Examples |
+|------|-------------|----------|
+| `explicit_location` | Direct location mention | "я в Берлине", "I'm in London" |
+| `change_phrase` | Relocation/travel phrase | "переехал в Москву", "moving to Paris" |
+| `question` | Location question | "ты где сейчас?", "where are you?" |
+| `none` | No location context | "привет", "let's meet" |
+
+### Labeling Rules
+
+**Mark as location trigger (1) when:**
+- Relocation verbs: переехал, moved to, relocating
+- Presence verbs: я в, I'm in, living in, based in
+- Travel verbs: лечу в, flying to, landing in
+
+**Mark as `none` (0) when:**
+- Greetings without location: "привет", "hi there"
+- Work updates: "закоммитил", "done with review"
+- Version numbers: "v3.0", "iOS 17"
+- Just city name without context: "Москва - красивый город"
 
 ---
 

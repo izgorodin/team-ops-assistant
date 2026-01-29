@@ -213,7 +213,7 @@ PATTERNS = {
 }
 
 
-def parse_times(text: str) -> list[ParsedTime]:
+async def parse_times(text: str) -> list[ParsedTime]:
     """Parse time references from message text.
 
     First checks if text contains time reference using ML classifier.
@@ -530,12 +530,12 @@ def parse_times(text: str) -> list[ParsedTime]:
 
     # LLM extraction fallback: classifier detected time but regex found nothing
     if not results:
-        results = _try_llm_extraction(text, tz_hint)
+        results = await _try_llm_extraction(text, tz_hint)
 
     return results
 
 
-def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
+async def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     """Try LLM extraction when regex fails.
 
     Args:
@@ -545,7 +545,6 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     Returns:
         List of parsed times from LLM, empty if fails.
     """
-    import asyncio
     import logging
 
     logger = logging.getLogger(__name__)
@@ -553,28 +552,13 @@ def _try_llm_extraction(text: str, tz_hint: str | None) -> list[ParsedTime]:
     try:
         from src.core.llm_fallback import extract_times_with_llm
 
-        # Run async function in sync context
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
+        return await extract_times_with_llm(text, tz_hint)
 
-        if loop is not None:
-            # Already in async context - need thread pool
-            import concurrent.futures
-
-            from src.settings import get_settings
-
-            timeout = get_settings().config.llm.sync_bridge_timeout
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, extract_times_with_llm(text, tz_hint))
-                return future.result(timeout=timeout)
-        else:
-            # No event loop - safe to use asyncio.run
-            return asyncio.run(extract_times_with_llm(text, tz_hint))
-
+    except ImportError as e:
+        logger.warning(f"LLM fallback module not available: {e}")
+        return []
     except Exception as e:
-        logger.warning(f"LLM extraction failed: {e}")
+        logger.exception(f"LLM extraction failed unexpectedly: {e}")
         return []
 
 
@@ -594,15 +578,28 @@ def contains_time_reference(text: str) -> bool:
         from src.core.time_classifier import contains_time_ml
 
         return contains_time_ml(text)
-    except Exception:
-        # Fallback to simple regex if classifier unavailable
-        quick_patterns = [
-            r"\d{1,2}:\d{2}",  # HH:MM
-            r"\d{1,2}\s*(am|pm)",  # H am/pm
-            r"\bat\s+\d{1,2}\b",  # at H
-        ]
-        text_lower = text.lower()
-        return any(re.search(p, text_lower, re.IGNORECASE) for p in quick_patterns)
+    except ImportError:
+        # ML classifier not available (e.g., sklearn not installed)
+        pass
+    except (RuntimeError, FileNotFoundError) as e:
+        # Classifier not trained or model file missing
+        import logging
+
+        logging.getLogger(__name__).debug(f"ML classifier unavailable: {e}")
+    except Exception as e:
+        # Unexpected error - log but don't crash
+        import logging
+
+        logging.getLogger(__name__).warning(f"ML classifier error: {e}")
+
+    # Fallback to simple regex patterns
+    quick_patterns = [
+        r"\d{1,2}:\d{2}",  # HH:MM
+        r"\d{1,2}\s*(am|pm)",  # H am/pm
+        r"\bat\s+\d{1,2}\b",  # at H
+    ]
+    text_lower = text.lower()
+    return any(re.search(p, text_lower, re.IGNORECASE) for p in quick_patterns)
 
 
 def get_highest_confidence_time(times: Sequence[ParsedTime]) -> ParsedTime | None:

@@ -81,21 +81,42 @@ class LLMCircuitBreaker:
         self._last_failure_time = 0.0
 
 
-# Global circuit breaker instance (lazy loaded)
+# Global circuit breaker instance (lazy loaded with thread-safe initialization)
+import threading
+
 _circuit_breaker: LLMCircuitBreaker | None = None
+_circuit_breaker_lock = threading.Lock()
+
+
+def reset_circuit_breaker() -> None:
+    """Reset global circuit breaker (useful for testing)."""
+    global _circuit_breaker
+    with _circuit_breaker_lock:
+        _circuit_breaker = None
 
 
 def get_circuit_breaker() -> LLMCircuitBreaker:
-    """Get global circuit breaker instance."""
+    """Get global circuit breaker instance.
+
+    Thread-safe with double-checked locking pattern.
+    """
     global _circuit_breaker
 
-    if _circuit_breaker is None:
+    # Fast path: already initialized
+    if _circuit_breaker is not None:
+        return _circuit_breaker
+
+    # Slow path: acquire lock and initialize
+    with _circuit_breaker_lock:
+        # Double-check after acquiring lock
+        if _circuit_breaker is not None:
+            return _circuit_breaker
+
         from src.settings import get_settings
 
         config = get_settings().config.llm.circuit_breaker
         _circuit_breaker = LLMCircuitBreaker(config)
-
-    return _circuit_breaker
+        return _circuit_breaker
 
 
 # Load prompt templates
@@ -180,8 +201,11 @@ async def detect_time_with_llm(text: str) -> bool:
             response.raise_for_status()
             data = response.json()
 
-        # Parse response
-        content = data["choices"][0]["message"]["content"]
+        # Parse response with null guards
+        content = _extract_content_from_response(data)
+        if content is None:
+            logger.warning("LLM response missing content")
+            return True  # Fail open
         result = _parse_llm_response(content)
 
         logger.debug(f"LLM fallback: '{text[:50]}...' -> {result}")
@@ -193,9 +217,35 @@ async def detect_time_with_llm(text: str) -> bool:
     except httpx.TimeoutException:
         logger.error("LLM API timeout")
         return True  # Fail open
-    except Exception as e:
-        logger.error(f"LLM fallback error: {e}")
+    except (KeyError, TypeError, ValueError) as e:
+        # JSON parsing or response format issues
+        logger.warning(f"LLM response parsing error: {e}")
         return True  # Fail open
+    except Exception as e:
+        logger.exception(f"Unexpected LLM fallback error: {e}")
+        return True  # Fail open
+
+
+def _extract_content_from_response(data: dict) -> str | None:
+    """Safely extract content from LLM API response.
+
+    Args:
+        data: Parsed JSON response from LLM API.
+
+    Returns:
+        Content string or None if not found.
+    """
+    try:
+        choices = data.get("choices")
+        if not choices or not isinstance(choices, list) or len(choices) == 0:
+            return None
+        message = choices[0].get("message")
+        if not message or not isinstance(message, dict):
+            return None
+        content = message.get("content")
+        return str(content) if content is not None else None
+    except (KeyError, IndexError, TypeError):
+        return None
 
 
 def _parse_llm_response(content: str) -> bool:
@@ -209,17 +259,21 @@ def _parse_llm_response(content: str) -> bool:
     """
     # Try to extract JSON from response
     try:
-        # Look for JSON block in markdown
+        # Look for JSON block in markdown - use find() to avoid ValueError
+        json_str = ""
         if "```json" in content:
-            start = content.index("```json") + 7
-            end = content.index("```", start)
-            json_str = content[start:end].strip()
+            start = content.find("```json") + 7
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
         elif "```" in content:
-            start = content.index("```") + 3
-            end = content.index("```", start)
-            json_str = content[start:end].strip()
-        else:
-            # Try to find JSON object directly
+            start = content.find("```") + 3
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
+
+        # Fallback: find raw JSON object
+        if not json_str:
             start = content.find("{")
             end = content.rfind("}") + 1
             json_str = content[start:end] if start != -1 and end > start else content
@@ -295,7 +349,11 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
             response.raise_for_status()
             data = response.json()
 
-        content = data["choices"][0]["message"]["content"]
+        content = _extract_content_from_response(data)
+        if content is None:
+            logger.warning("LLM extraction response missing content")
+            cb.record_failure()
+            return []
         times = _parse_extraction_response(content, extraction_config.default_confidence)
 
         # Record success
@@ -312,8 +370,13 @@ async def extract_times_with_llm(text: str, tz_hint: str | None = None) -> list[
         logger.error("LLM API timeout")
         cb.record_failure()
         return []
+    except (KeyError, TypeError, ValueError) as e:
+        # JSON parsing or response format issues
+        logger.warning(f"LLM extraction response parsing error: {e}")
+        cb.record_failure()
+        return []
     except Exception as e:
-        logger.error(f"LLM extraction error: {e}")
+        logger.exception(f"Unexpected LLM extraction error: {e}")
         cb.record_failure()
         return []
 
@@ -391,20 +454,17 @@ def _parse_extraction_response(content: str, default_confidence: float = 0.8) ->
 # ============================================================================
 
 
+from dataclasses import dataclass as dc_dataclass
+
+
+@dc_dataclass(frozen=True)
 class TzResolutionResult:
     """Result of timezone resolution via LLM."""
 
-    def __init__(
-        self,
-        source_tz: str | None,
-        is_user_tz: bool,
-        confidence: float,
-        reasoning: str = "",
-    ) -> None:
-        self.source_tz = source_tz
-        self.is_user_tz = is_user_tz
-        self.confidence = confidence
-        self.reasoning = reasoning
+    source_tz: str | None
+    is_user_tz: bool
+    confidence: float
+    reasoning: str = ""
 
 
 async def resolve_timezone_context(
@@ -484,7 +544,16 @@ async def resolve_timezone_context(
             response.raise_for_status()
             data = response.json()
 
-        content = data["choices"][0]["message"]["content"]
+        content = _extract_content_from_response(data)
+        if content is None:
+            logger.warning("LLM TZ resolution response missing content")
+            cb.record_failure()
+            return TzResolutionResult(
+                source_tz=user_tz,
+                is_user_tz=True,
+                confidence=0.3,
+                reasoning="API response missing content",
+            )
         result = _parse_tz_resolution_response(content, user_tz)
 
         # Record success
@@ -514,14 +583,24 @@ async def resolve_timezone_context(
             confidence=0.3,
             reasoning="API timeout",
         )
-    except Exception as e:
-        logger.error(f"LLM TZ resolution error: {e}")
+    except (KeyError, TypeError, ValueError) as e:
+        # JSON parsing or response format issues
+        logger.warning(f"LLM TZ resolution response parsing error: {e}")
         cb.record_failure()
         return TzResolutionResult(
             source_tz=user_tz,
             is_user_tz=True,
             confidence=0.3,
-            reasoning=f"Error: {e}",
+            reasoning=f"Parse error: {e}",
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected LLM TZ resolution error: {e}")
+        cb.record_failure()
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.3,
+            reasoning=f"Unexpected error: {e}",
         )
 
 

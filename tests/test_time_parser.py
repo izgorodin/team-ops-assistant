@@ -216,63 +216,63 @@ def test_city_hint_pattern_matches(text: str) -> None:
 # ============================================================================
 
 
-def test_parse_times_returns_list() -> None:
+async def test_parse_times_returns_list() -> None:
     """Contract: parse_times returns a list."""
     # Note: This will use ML classifier, so might return [] if ML says no time
-    result = parse_times("14:30")
+    result = await parse_times("14:30")
     assert isinstance(result, list)
 
 
-def test_parse_times_extracts_hh_mm() -> None:
+async def test_parse_times_extracts_hh_mm() -> None:
     """parse_times should extract HH:MM format."""
-    result = parse_times("Meeting at 14:30")
+    result = await parse_times("Meeting at 14:30")
     assert len(result) >= 1
     assert result[0].hour == 14
     assert result[0].minute == 30
 
 
-def test_parse_times_extracts_h_ampm() -> None:
+async def test_parse_times_extracts_h_ampm() -> None:
     """parse_times should extract H am/pm format."""
-    result = parse_times("Call at 3pm")
+    result = await parse_times("Call at 3pm")
     assert len(result) >= 1
     assert result[0].hour == 15
     assert result[0].minute == 0
 
 
-def test_parse_times_extracts_h_am() -> None:
+async def test_parse_times_extracts_h_am() -> None:
     """parse_times should extract H am format."""
-    result = parse_times("Wake up at 9am")
+    result = await parse_times("Wake up at 9am")
     assert len(result) >= 1
     assert result[0].hour == 9
     assert result[0].minute == 0
 
 
-def test_parse_times_extracts_at_h() -> None:
+async def test_parse_times_extracts_at_h() -> None:
     """parse_times should extract 'at H' format when no other times."""
-    result = parse_times("meet at 3")
+    result = await parse_times("meet at 3")
     # "at H" is lower confidence, might not trigger ML
     # but if it does, should extract
     if result:
         assert result[0].hour == 3
 
 
-def test_parse_times_extracts_timezone_hint() -> None:
+async def test_parse_times_extracts_timezone_hint() -> None:
     """parse_times should extract timezone hint."""
-    result = parse_times("14:30 PST")
+    result = await parse_times("14:30 PST")
     assert len(result) >= 1
     assert result[0].timezone_hint == "America/Los_Angeles"
 
 
-def test_parse_times_extracts_tomorrow() -> None:
+async def test_parse_times_extracts_tomorrow() -> None:
     """parse_times should detect tomorrow prefix."""
-    result = parse_times("tomorrow at 9am")
+    result = await parse_times("tomorrow at 9am")
     assert len(result) >= 1
     assert result[0].is_tomorrow is True
 
 
-def test_parse_times_returns_empty_for_negative() -> None:
+async def test_parse_times_returns_empty_for_negative() -> None:
     """parse_times should return empty for non-time text."""
-    result = parse_times("I have 3 cats")
+    result = await parse_times("I have 3 cats")
     assert result == []
 
 
@@ -305,9 +305,9 @@ FALSE_POSITIVE_SINGLE_DIGIT = [
     FALSE_POSITIVE_SINGLE_DIGIT,
     ids=[f"safe:{n}" for _, n in FALSE_POSITIVE_SINGLE_DIGIT],
 )
-def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
+async def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
     """parse_times correctly rejects single-digit minute patterns."""
-    result = parse_times(phrase)
+    result = await parse_times(phrase)
     assert result == [], (
         f"Should NOT parse time from '{phrase}' ({notes}), "
         f"but got {[(t.hour, t.minute) for t in result]}"
@@ -339,12 +339,12 @@ def test_parse_times_safe_single_digit_minute(phrase: str, notes: str) -> None:
         ("Connect to server:3000", "server port"),  # should work - 00 is valid minute
     ],
 )
-def test_parse_times_rejects_two_digit_lookalikes(phrase: str, notes: str) -> None:
+async def test_parse_times_rejects_two_digit_lookalikes(phrase: str, notes: str) -> None:
     """parse_times should NOT extract times from 2-digit minute lookalikes.
 
     ML classifier should filter these - some are skip (known issues).
     """
-    result = parse_times(phrase)
+    result = await parse_times(phrase)
     assert result == [], (
         f"Should NOT parse time from '{phrase}' ({notes}), "
         f"but got {[(t.hour, t.minute) for t in result]}"
@@ -389,23 +389,23 @@ def test_hh_mm_regex_matches_two_digit_minute(phrase: str) -> None:
 # ============================================================================
 
 
-def test_parse_times_empty_string() -> None:
+async def test_parse_times_empty_string() -> None:
     """Empty string should return empty list."""
-    result = parse_times("")
+    result = await parse_times("")
     assert result == []
 
 
-def test_parse_times_handles_multiple_times() -> None:
+async def test_parse_times_handles_multiple_times() -> None:
     """Multiple times in text should all be extracted."""
-    result = parse_times("Meeting from 9am to 5pm")
+    result = await parse_times("Meeting from 9am to 5pm")
     # Should get at least 2 times
     assert len(result) >= 2
 
 
-def test_parse_times_12_hour_conversion() -> None:
+async def test_parse_times_12_hour_conversion() -> None:
     """12 PM should be 12, 12 AM should be 0."""
-    result_pm = parse_times("lunch at 12pm")
-    result_am = parse_times("midnight at 12am")
+    result_pm = await parse_times("lunch at 12pm")
+    result_am = await parse_times("midnight at 12am")
 
     if result_pm:
         assert result_pm[0].hour == 12
@@ -440,9 +440,9 @@ class TestRussianPatterns:
             ("созвон в 9", 9),
         ],
     )
-    def test_parse_russian_v_h(self, text: str, expected_hour: int) -> None:
+    async def test_parse_russian_v_h(self, text: str, expected_hour: int) -> None:
         """Russian 'в X' format should parse correctly."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert len(result) >= 1, f"Should parse time from: {text}"
         assert result[0].hour == expected_hour
         assert result[0].minute == 0
@@ -459,11 +459,11 @@ class TestRussianPatterns:
             ("созвон в 15-00", 15, 0),
         ],
     )
-    def test_parse_russian_v_hh_mm(
+    async def test_parse_russian_v_hh_mm(
         self, text: str, expected_hour: int, expected_minute: int
     ) -> None:
         """Russian 'в X:XX' and 'в X-XX' formats should parse correctly."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert len(result) >= 1, f"Should parse time from: {text}"
         assert result[0].hour == expected_hour
         assert result[0].minute == expected_minute
@@ -482,9 +482,9 @@ class TestRussianPatterns:
             ("в 12 дня", 12),  # noon
         ],
     )
-    def test_parse_russian_time_of_day(self, text: str, expected_hour: int) -> None:
+    async def test_parse_russian_time_of_day(self, text: str, expected_hour: int) -> None:
         """Russian time with утра/вечера/дня/ночи should convert correctly."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert len(result) >= 1, f"Should parse time from: {text}"
         assert result[0].hour == expected_hour
 
@@ -499,9 +499,9 @@ class TestRussianPatterns:
             "встреча завтра в 15",
         ],
     )
-    def test_parse_russian_tomorrow(self, text: str) -> None:
+    async def test_parse_russian_tomorrow(self, text: str) -> None:
         """Russian 'завтра' should set is_tomorrow flag."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert len(result) >= 1, f"Should parse time from: {text}"
         assert result[0].is_tomorrow is True
 
@@ -515,24 +515,24 @@ class TestRussianPatterns:
             "Сегодня в 5 вечера",
         ],
     )
-    def test_parse_russian_today(self, text: str) -> None:
+    async def test_parse_russian_today(self, text: str) -> None:
         """Russian 'сегодня' should parse (is_tomorrow=False)."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert len(result) >= 1, f"Should parse time from: {text}"
         assert result[0].is_tomorrow is False
 
     # --- Combined tests ---
 
-    def test_parse_russian_complex_phrase(self) -> None:
+    async def test_parse_russian_complex_phrase(self) -> None:
         """Complex Russian phrase should parse correctly."""
-        result = parse_times("Созвон завтра часиков в 5 вечера")
+        result = await parse_times("Созвон завтра часиков в 5 вечера")
         assert len(result) >= 1
         assert result[0].hour == 17
         assert result[0].is_tomorrow is True
 
-    def test_parse_russian_with_tz_hint(self) -> None:
+    async def test_parse_russian_with_tz_hint(self) -> None:
         """Russian time with timezone hint should extract both."""
-        result = parse_times("в 10 MSK")  # Moscow time
+        result = await parse_times("в 10 MSK")  # Moscow time
         assert len(result) >= 1
         assert result[0].hour == 10
         # MSK hint would need to be added to TIMEZONE_ABBREVIATIONS
@@ -547,7 +547,7 @@ class TestRussianPatterns:
             "встреча была отличной",  # no time
         ],
     )
-    def test_parse_russian_negative(self, text: str) -> None:
+    async def test_parse_russian_negative(self, text: str) -> None:
         """Russian text without time should return empty."""
-        result = parse_times(text)
+        result = await parse_times(text)
         assert result == [], f"Should NOT parse time from: {text}"

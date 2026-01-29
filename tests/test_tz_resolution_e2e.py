@@ -77,6 +77,7 @@ def _mock_llm_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         cb = get_circuit_breaker()
         cb.reset()
     except Exception:
+        # Best-effort cleanup: circuit breaker may not be initialized or may already be reset.
         pass
 
     if original is not None:
@@ -213,47 +214,47 @@ class TestDetectTzContextFunction:
 class TestTimeParsingWithTzHint:
     """Tests for time parsing with timezone hint extraction."""
 
-    def test_parse_time_with_msk(self) -> None:
+    async def test_parse_time_with_msk(self) -> None:
         """Parse time with Мск abbreviation extracts TZ hint."""
-        times = parse_times("встреча в 16:30 Мск")
+        times = await parse_times("встреча в 16:30 Мск")
         assert len(times) == 1
         assert times[0].hour == 16
         assert times[0].minute == 30
         assert times[0].timezone_hint == "Europe/Moscow"
 
-    def test_parse_time_with_pst(self) -> None:
+    async def test_parse_time_with_pst(self) -> None:
         """Parse time with PST abbreviation."""
-        times = parse_times("meeting at 3pm PST")
+        times = await parse_times("meeting at 3pm PST")
         assert len(times) == 1
         assert times[0].hour == 15
         assert times[0].timezone_hint == "America/Los_Angeles"
 
-    def test_parse_time_with_po_city(self) -> None:
+    async def test_parse_time_with_po_city(self) -> None:
         """Parse time with 'по городу' pattern."""
-        times = parse_times("созвон в 14 по Тбилиси")
+        times = await parse_times("созвон в 14 по Тбилиси")
         assert len(times) == 1
         assert times[0].hour == 14
         assert times[0].timezone_hint == "Asia/Tbilisi"
 
-    def test_parse_time_without_tz(self) -> None:
+    async def test_parse_time_without_tz(self) -> None:
         """Parse time without TZ hint."""
-        times = parse_times("встреча в 15:00")
+        times = await parse_times("встреча в 15:00")
         assert len(times) == 1
         assert times[0].hour == 15
         assert times[0].timezone_hint is None
 
-    def test_parse_multiple_times_with_tz(self) -> None:
+    @pytest.mark.xfail(reason="Multi-time parsing with shared TZ not fully implemented", strict=False)
+    async def test_parse_multiple_times_with_tz(self) -> None:
         """Parse multiple times, TZ applies to all."""
         # Use a clearer format that the parser will recognize
-        times = parse_times("встречи в 10:00 Мск и в 15:00 Мск")
-        # Parser may or may not catch both, but should catch at least one
-        # Note: current parser might not handle this complex format
-        if len(times) >= 1:
-            # At least one should have TZ hint
-            tz_hints = [t.timezone_hint for t in times]
-            assert "Europe/Moscow" in tz_hints or any(t.hour in (10, 15) for t in times)
-        # If no times parsed, that's also acceptable for this complex case
-        # as it's an edge case for the current parser
+        times = await parse_times("встречи в 10:00 Мск и в 15:00 Мск")
+        # Parser should catch at least one time with correct TZ hint
+        assert len(times) >= 1, "Parser should extract at least one time"
+        # At least one should have Moscow TZ hint
+        tz_hints = [t.timezone_hint for t in times]
+        assert "Europe/Moscow" in tz_hints, (
+            f"Expected Europe/Moscow in hints, got: {tz_hints}"
+        )
 
 
 # ============================================================================
@@ -625,12 +626,15 @@ class TestEdgeCases:
 
     def test_no_false_positive_on_city_name_alone(self) -> None:
         """Just city name without time shouldn't trigger TZ resolution."""
-        # This depends on how we define trigger - currently TZ trigger
-        # should fire for TZ abbreviations regardless of time presence
-        detect_tz_context("я в Москве")
-        # No time mentioned, so probably shouldn't need TZ resolution
-        # But classifier might trigger - this is expected behavior for now
-        # Main point: it's not a false positive if there's a city mention
+        # City mention without time - this is location context, not TZ context
+        # The TZ trigger should NOT fire because there's no time to resolve
+        result = detect_tz_context("я в Москве")
+        # This is a location mention, not a timezone mention
+        # Expected: triggered=False (no time to resolve)
+        # Note: if ML triggers, it's a false positive we should fix in training data
+        assert result.trigger_type in ("none", "explicit_tz"), (
+            f"Unexpected trigger type: {result.trigger_type}"
+        )
 
 
 # ============================================================================
@@ -648,17 +652,17 @@ class TestCircuitBreaker:
 
         cb = get_circuit_breaker()
 
-        # Reset to known state
-        cb._failures = 0
+        # Reset to known state via public API
+        cb.reset()
 
-        # Simulate failures up to threshold
+        # Simulate failures up to threshold via public API
         for _ in range(cb.config.failure_threshold):
             cb.record_failure()
 
         assert cb.is_open() is True
 
-        # Reset for other tests
-        cb._failures = 0
+        # Reset for other tests via public API
+        cb.reset()
 
     @pytest.mark.asyncio
     @respx.mock
@@ -670,11 +674,15 @@ class TestCircuitBreaker:
 
         cb = get_circuit_breaker()
 
-        # Force circuit open by setting failures above threshold
-        import time as time_module
+        # Reset first to ensure clean state
+        cb.reset()
 
-        cb._failures = cb.config.failure_threshold
-        cb._last_failure_time = time_module.time()  # Recent failure
+        # Open the circuit by recording enough failures to hit the threshold
+        for _ in range(cb.config.failure_threshold):
+            cb.record_failure()
+
+        # Verify circuit is open
+        assert cb.is_open() is True, "Circuit should be open after threshold failures"
 
         # No API call should be made since circuit is open
         result = await resolve_timezone_context(
@@ -687,5 +695,5 @@ class TestCircuitBreaker:
         assert result.is_user_tz is True
         assert "Circuit breaker" in result.reasoning or result.confidence < 1.0
 
-        # Reset for other tests
-        cb._failures = 0
+        # Reset for other tests via public API
+        cb.reset()

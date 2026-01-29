@@ -319,31 +319,48 @@ def evaluate_on_test() -> dict[str, float]:
     }
 
 
-# Global classifier instance (lazy loaded)
+# Global classifier instance (lazy loaded with thread-safe initialization)
+import threading
+
 _classifier: LocationChangeTrigger | None = None
+_classifier_lock = threading.Lock()
 
 
 def reset_classifier() -> None:
     """Reset global classifier (useful for testing)."""
     global _classifier
-    _classifier = None
+    with _classifier_lock:
+        _classifier = None
 
 
 def get_classifier() -> LocationChangeTrigger:
-    """Get trained classifier (loads from disk if needed)."""
+    """Get trained classifier (loads from disk if needed).
+
+    Thread-safe with double-checked locking pattern.
+    """
     global _classifier
 
-    if _classifier is None:
-        _classifier = LocationChangeTrigger()
+    # Fast path: already initialized
+    if _classifier is not None:
+        return _classifier
+
+    # Slow path: acquire lock and initialize
+    with _classifier_lock:
+        # Double-check after acquiring lock
+        if _classifier is not None:
+            return _classifier
+
+        new_classifier = LocationChangeTrigger()
         if MODEL_PATH.exists():
-            _classifier.load()
+            new_classifier.load()
         else:
             # Train on first use if no saved model
             texts, binary_labels, type_labels = load_training_data()
-            _classifier.train(texts, binary_labels, type_labels)
-            _classifier.save()
+            new_classifier.train(texts, binary_labels, type_labels)
+            new_classifier.save()
 
-    return _classifier
+        _classifier = new_classifier
+        return _classifier
 
 
 # ============================================================================
@@ -374,15 +391,21 @@ _CITIES_PATTERN = re.compile(
 
 
 def has_location_trigger_fast(text: str) -> bool:
-    """Fast check if text likely has location mention.
+    """Fast check if text likely has a location-related cue.
 
     Uses regex patterns for quick filtering before ML.
-    Returns True if any pattern matches.
+    Returns True if any location verb pattern OR any city pattern matches.
+
+    Note: This is intentionally broad - it triggers on:
+    1. Location verbs (RU/EN) without requiring a city name
+    2. City names without requiring a verb
+
+    The ML classifier makes the final decision; this is just for fast-path filtering.
     """
-    # Check for location verb + city pattern
+    # Check for location verbs (RU/EN), regardless of whether a city is mentioned
     if _LOCATION_VERBS_RU.search(text) or _LOCATION_VERBS_EN.search(text):
         return True
-    # Also trigger on city mentions with context verbs
+    # Also trigger on standalone city mentions from the common cities subset
     return bool(_CITIES_PATTERN.search(text))
 
 
