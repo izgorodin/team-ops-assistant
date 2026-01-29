@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import pickle
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -320,8 +321,6 @@ def evaluate_on_test() -> dict[str, float]:
 
 
 # Global classifier instance (lazy loaded with thread-safe initialization)
-import threading
-
 _classifier: LocationChangeTrigger | None = None
 _classifier_lock = threading.Lock()
 

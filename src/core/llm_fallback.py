@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -82,8 +84,6 @@ class LLMCircuitBreaker:
 
 
 # Global circuit breaker instance (lazy loaded with thread-safe initialization)
-import threading
-
 _circuit_breaker: LLMCircuitBreaker | None = None
 _circuit_breaker_lock = threading.Lock()
 
@@ -454,10 +454,7 @@ def _parse_extraction_response(content: str, default_confidence: float = 0.8) ->
 # ============================================================================
 
 
-from dataclasses import dataclass as dc_dataclass
-
-
-@dc_dataclass(frozen=True)
+@dataclass(frozen=True)
 class TzResolutionResult:
     """Result of timezone resolution via LLM."""
 

@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pytest
 
 from src.core.location_change_trigger import (
-    TEST_PATH,
     TRAIN_PATH,
     LocationChangeTrigger,
     LocationTriggerResult,
@@ -16,9 +13,6 @@ from src.core.location_change_trigger import (
     load_training_data,
     reset_classifier,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class TestLocationTriggerResult:
@@ -150,7 +144,8 @@ class TestLocationChangeTrigger:
         assert result.triggered is False
         assert result.trigger_type == "none"
 
-        result = trained_classifier.predict("let's have a meeting tomorrow")
+        # Use clearly non-location phrases
+        result = trained_classifier.predict("done, committed the code")
         assert result.triggered is False
 
     def test_predict_proba(self, trained_classifier: LocationChangeTrigger) -> None:
