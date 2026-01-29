@@ -75,6 +75,11 @@ class LLMCircuitBreaker:
             logger.info("LLM circuit breaker: success, resetting failure count")
         self._failures = 0
 
+    def reset(self) -> None:
+        """Reset circuit breaker to initial state (for testing)."""
+        self._failures = 0
+        self._last_failure_time = 0.0
+
 
 # Global circuit breaker instance (lazy loaded)
 _circuit_breaker: LLMCircuitBreaker | None = None
@@ -96,8 +101,10 @@ def get_circuit_breaker() -> LLMCircuitBreaker:
 # Load prompt templates
 DETECT_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "trigger_detect.md"
 EXTRACT_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "parse_time.md"
+TZ_RESOLVE_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "timezone_resolve.md"
 _detect_prompt_template: Template | None = None
 _extract_prompt_template: Template | None = None
+_tz_resolve_prompt_template: Template | None = None
 
 
 def _get_detect_prompt_template() -> Template:
@@ -118,6 +125,16 @@ def _get_extract_prompt_template() -> Template:
             _extract_prompt_template = Template(f.read())
     assert _extract_prompt_template is not None
     return _extract_prompt_template
+
+
+def _get_tz_resolve_prompt_template() -> Template:
+    """Load and cache timezone resolution prompt template."""
+    global _tz_resolve_prompt_template
+    if _tz_resolve_prompt_template is None:
+        with TZ_RESOLVE_PROMPT_PATH.open(encoding="utf-8") as f:
+            _tz_resolve_prompt_template = Template(f.read())
+    assert _tz_resolve_prompt_template is not None
+    return _tz_resolve_prompt_template
 
 
 async def detect_time_with_llm(text: str) -> bool:
@@ -367,3 +384,200 @@ def _parse_extraction_response(content: str, default_confidence: float = 0.8) ->
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning(f"Failed to parse LLM extraction response: {e}")
         return []
+
+
+# ============================================================================
+# Timezone Resolution (when explicit TZ unclear or clarification needed)
+# ============================================================================
+
+
+class TzResolutionResult:
+    """Result of timezone resolution via LLM."""
+
+    def __init__(
+        self,
+        source_tz: str | None,
+        is_user_tz: bool,
+        confidence: float,
+        reasoning: str = "",
+    ) -> None:
+        self.source_tz = source_tz
+        self.is_user_tz = is_user_tz
+        self.confidence = confidence
+        self.reasoning = reasoning
+
+
+async def resolve_timezone_context(
+    message: str,
+    user_tz: str | None = None,
+    detected_times: list[str] | None = None,
+    recent_messages: list[str] | None = None,
+    chat_tzs: list[str] | None = None,
+) -> TzResolutionResult:
+    """Use LLM to resolve which timezone a time reference is in.
+
+    Determines whether user is speaking about their own timezone
+    or explicitly mentioning a specific timezone.
+
+    Args:
+        message: Current message with time reference.
+        user_tz: User's verified timezone (IANA format).
+        detected_times: List of time strings detected in message.
+        recent_messages: Previous messages for context.
+        chat_tzs: Timezones of other chat participants.
+
+    Returns:
+        TzResolutionResult with source_tz, is_user_tz, confidence.
+    """
+    from src.settings import get_settings
+
+    settings = get_settings()
+
+    # Check circuit breaker first
+    cb = get_circuit_breaker()
+    if cb.is_open():
+        logger.warning("LLM circuit breaker is open, using user's TZ as fallback")
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.5,
+            reasoning="Circuit breaker open, defaulting to user timezone",
+        )
+
+    api_key = settings.nvidia_api_key
+    if not api_key:
+        logger.warning("NVIDIA_API_KEY not set, using user's TZ as fallback")
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.5,
+            reasoning="No API key, defaulting to user timezone",
+        )
+
+    # Build prompt
+    template = _get_tz_resolve_prompt_template()
+    prompt = template.render(
+        message=message,
+        recent_messages=recent_messages or [],
+        detected_times=detected_times or [],
+        user_tz=user_tz or "unknown",
+        chat_tzs=chat_tzs or [],
+    )
+
+    # Use extraction config (similar complexity)
+    extraction_config = settings.config.llm.extraction
+    try:
+        async with httpx.AsyncClient(timeout=extraction_config.timeout) as client:
+            response = await client.post(
+                f"{settings.config.llm.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.config.llm.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": extraction_config.max_tokens,
+                    "temperature": extraction_config.temperature,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["choices"][0]["message"]["content"]
+        result = _parse_tz_resolution_response(content, user_tz)
+
+        # Record success
+        cb.record_success()
+
+        logger.debug(
+            f"LLM TZ resolution: '{message[:50]}...' -> "
+            f"{result.source_tz} (is_user_tz={result.is_user_tz})"
+        )
+        return result
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"LLM API error in TZ resolution: {e.response.status_code}")
+        cb.record_failure()
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.3,
+            reasoning=f"API error: {e.response.status_code}",
+        )
+    except httpx.TimeoutException:
+        logger.error("LLM API timeout in TZ resolution")
+        cb.record_failure()
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.3,
+            reasoning="API timeout",
+        )
+    except Exception as e:
+        logger.error(f"LLM TZ resolution error: {e}")
+        cb.record_failure()
+        return TzResolutionResult(
+            source_tz=user_tz,
+            is_user_tz=True,
+            confidence=0.3,
+            reasoning=f"Error: {e}",
+        )
+
+
+def _parse_tz_resolution_response(content: str, fallback_tz: str | None) -> TzResolutionResult:
+    """Parse LLM timezone resolution response.
+
+    Args:
+        content: Raw LLM response content.
+        fallback_tz: Fallback timezone if parsing fails.
+
+    Returns:
+        TzResolutionResult parsed from response.
+    """
+    try:
+        # Extract JSON from response
+        json_str = ""
+        if "```json" in content:
+            start = content.find("```json") + 7
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
+        elif "```" in content:
+            start = content.find("```") + 3
+            end = content.find("```", start)
+            if end > start:
+                json_str = content[start:end].strip()
+
+        # Fallback: find raw JSON object
+        if not json_str:
+            start = content.find("{")
+            end = content.rfind("}") + 1
+            if start != -1 and end > start:
+                json_str = content[start:end]
+            else:
+                logger.warning(f"No JSON found in TZ resolution response: {content[:200]}")
+                return TzResolutionResult(
+                    source_tz=fallback_tz,
+                    is_user_tz=True,
+                    confidence=0.4,
+                    reasoning="Failed to parse response",
+                )
+
+        result = json.loads(json_str)
+
+        return TzResolutionResult(
+            source_tz=result.get("source_tz") or fallback_tz,
+            is_user_tz=bool(result.get("is_user_tz", True)),
+            confidence=float(result.get("confidence", 0.7)),
+            reasoning=str(result.get("reasoning", "")),
+        )
+
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        logger.warning(f"Failed to parse TZ resolution response: {e}")
+        return TzResolutionResult(
+            source_tz=fallback_tz,
+            is_user_tz=True,
+            confidence=0.4,
+            reasoning=f"Parse error: {e}",
+        )
