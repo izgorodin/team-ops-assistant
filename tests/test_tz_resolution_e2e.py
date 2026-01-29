@@ -243,7 +243,9 @@ class TestTimeParsingWithTzHint:
         assert times[0].hour == 15
         assert times[0].timezone_hint is None
 
-    @pytest.mark.xfail(reason="Multi-time parsing with shared TZ not fully implemented", strict=False)
+    @pytest.mark.xfail(
+        reason="Multi-time parsing with shared TZ not fully implemented", strict=False
+    )
     async def test_parse_multiple_times_with_tz(self) -> None:
         """Parse multiple times, TZ applies to all."""
         # Use a clearer format that the parser will recognize
@@ -252,9 +254,7 @@ class TestTimeParsingWithTzHint:
         assert len(times) >= 1, "Parser should extract at least one time"
         # At least one should have Moscow TZ hint
         tz_hints = [t.timezone_hint for t in times]
-        assert "Europe/Moscow" in tz_hints, (
-            f"Expected Europe/Moscow in hints, got: {tz_hints}"
-        )
+        assert "Europe/Moscow" in tz_hints, f"Expected Europe/Moscow in hints, got: {tz_hints}"
 
 
 # ============================================================================
