@@ -151,7 +151,7 @@ llm:
   # Agent-specific settings (timezone resolution)
   agent:
     temperature: 0.3
-    timeout: 15.0
+    timeout: 25.0  # NVIDIA API needs time with retries (keep < 30s Telegram limit)
 
 # HTTP client timeouts (seconds)
 http:

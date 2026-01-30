@@ -59,7 +59,7 @@ def _normalize_city_with_llm(city_name: str, is_retry: bool = False) -> str | No
             api_key=settings.nvidia_api_key,  # type: ignore[arg-type]
             model=settings.config.llm.model,
             temperature=0,
-            timeout=5.0,
+            timeout=15.0,  # NVIDIA API needs more time
         ).bind(max_tokens=50)
 
         prompt = load_prompt("city_normalize", city_name=city_name)
