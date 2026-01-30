@@ -10,6 +10,7 @@ import logging
 from geonamescache import GeonamesCache
 from langchain_core.tools import tool
 
+from src.core.prompts import load_prompt
 from src.core.time_parse import TIMEZONE_ABBREVIATIONS
 from src.settings import get_settings
 
@@ -61,17 +62,7 @@ def _normalize_city_with_llm(city_name: str, is_retry: bool = False) -> str | No
             timeout=5.0,
         ).bind(max_tokens=50)
 
-        prompt = f"""Convert this location to a CITY name that exists in geographic databases.
-Input: "{city_name}"
-
-Rules:
-- Abbreviations: NY → New York, MSK → Moscow
-- Non-English: Москва → Moscow, Мадейра → Funchal
-- Islands: Madeira → Funchal, Bali → Denpasar, Hawaii → Honolulu
-- States/regions: Kentucky → Louisville, California → Los Angeles
-- Already a city: Paris → Paris
-
-Output ONLY the city name. If truly unknown, output: UNKNOWN"""
+        prompt = load_prompt("city_normalize", city_name=city_name)
 
         result = llm.invoke(prompt)
         normalized = str(result.content).strip()
