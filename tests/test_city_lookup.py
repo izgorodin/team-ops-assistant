@@ -53,15 +53,17 @@ class TestLookupCityGeonames:
         result = _lookup_city_geonames("xyz123abc")
         assert "NOT_FOUND:" in result
 
-    def test_not_found_abbreviation_without_llm(self) -> None:
-        """Test abbreviations return NOT_FOUND without LLM (raw lookup only)."""
+    def test_ny_abbreviation_via_alternatenames(self) -> None:
+        """Test NY abbreviation is found via alternatenames (no LLM needed)."""
         result = _lookup_city_geonames("NY")
-        assert "NOT_FOUND:" in result
+        assert "FOUND:" in result
+        assert "America/New_York" in result
 
-    def test_not_found_cyrillic_without_llm(self) -> None:
-        """Test Cyrillic returns NOT_FOUND without LLM (raw lookup only)."""
+    def test_cyrillic_via_alternatenames(self) -> None:
+        """Test Cyrillic is found via alternatenames (no LLM needed)."""
         result = _lookup_city_geonames("москва")
-        assert "NOT_FOUND:" in result
+        assert "FOUND:" in result
+        assert "Europe/Moscow" in result
 
 
 class TestGeocodeCityWithLLM:

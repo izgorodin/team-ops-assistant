@@ -203,7 +203,7 @@ def _lookup_city_geonames(city_name: str) -> str:
     NOTE: Prefer geocode_city_full() which includes LLM normalization.
 
     Args:
-        city_name: City name to look up (English).
+        city_name: City name to look up (any language - searches alternatenames).
 
     Returns:
         FOUND: City → IANA timezone if found
@@ -211,10 +211,14 @@ def _lookup_city_geonames(city_name: str) -> str:
     """
     normalized = city_name.lower().strip()
 
+    # Empty or too short input
+    if len(normalized) < 2:
+        return f"NOT_FOUND: '{city_name}'"
+
     gc = _get_geonames_cache()
     cities = gc.get_cities()
 
-    # 1. Exact match (case-insensitive) - collect all and pick by population
+    # 1. Exact match on name (case-insensitive) - collect all and pick by population
     exact_matches: list[tuple[str, str, int]] = []
     for city_data in cities.values():
         if city_data["name"].lower() == normalized:
@@ -226,7 +230,22 @@ def _lookup_city_geonames(city_name: str) -> str:
         best = max(exact_matches, key=lambda x: x[2])
         return f"FOUND: {best[0]} → {best[1]}"
 
-    # 2. Prefix match for partial inputs (only if single match)
+    # 2. Search in alternatenames (Russian, local names, etc.)
+    altname_matches: list[tuple[str, str, int]] = []
+    for city_data in cities.values():
+        altnames = city_data.get("alternatenames", [])
+        for altname in altnames:
+            if altname.lower() == normalized:
+                population = city_data.get("population", 0)
+                altname_matches.append((city_data["name"], city_data["timezone"], population))
+                break  # Found in this city, move to next
+
+    if altname_matches:
+        best = max(altname_matches, key=lambda x: x[2])
+        logger.debug(f"Found '{city_name}' via alternatename → {best[0]}")
+        return f"FOUND: {best[0]} → {best[1]}"
+
+    # 3. Prefix match for partial inputs (only if single match)
     prefix_matches: list[tuple[str, str, int]] = []
     for city_data in cities.values():
         if city_data["name"].lower().startswith(normalized) and len(normalized) >= 3:
@@ -236,7 +255,7 @@ def _lookup_city_geonames(city_name: str) -> str:
     if len(prefix_matches) == 1:
         return f"FOUND: {prefix_matches[0][0]} → {prefix_matches[0][1]}"
 
-    # 3. Not found
+    # 4. Not found
     return f"NOT_FOUND: '{city_name}'"
 
 
