@@ -112,26 +112,27 @@ class TimeDetector:
             # tz_trigger is kept for LLM gating but not for is_explicit_tz determination.
             is_explicit_tz = source_tz is not None
 
-            # If TZ trigger fired but regex couldn't extract TZ, try resolution
-            needs_tz_resolution = (
-                tz_trigger.triggered
-                and source_tz is None
-                and tz_trigger.confidence >= _LLM_TZ_RESOLUTION_CONFIDENCE_THRESHOLD
-            )
-
-            if needs_tz_resolution:
-                # First try geocoding - fast path using geonamescache (always enabled)
+            # If no TZ from regex, try geocoding "по [city]" pattern (always, fast path)
+            if source_tz is None:
                 geocoded_tz = self._try_geocode_from_text(event.text)
                 if geocoded_tz:
                     source_tz = geocoded_tz
                     is_explicit_tz = True
                     logger.debug(f"Geocoded TZ from text: {geocoded_tz}")
-                elif use_llm_fallback:
-                    # LLM fallback for TZ resolution (only if enabled)
-                    resolved = await self._resolve_tz_with_llm(event.text, user_tz)
-                    if resolved is not None:
-                        source_tz = resolved["source_tz"]
-                        is_explicit_tz = not resolved["is_user_tz"]
+
+            # If TZ trigger fired but still no TZ, try LLM resolution
+            needs_llm_resolution = (
+                tz_trigger.triggered
+                and source_tz is None
+                and tz_trigger.confidence >= _LLM_TZ_RESOLUTION_CONFIDENCE_THRESHOLD
+                and use_llm_fallback
+            )
+
+            if needs_llm_resolution:
+                resolved = await self._resolve_tz_with_llm(event.text, user_tz)
+                if resolved is not None:
+                    source_tz = resolved["source_tz"]
+                    is_explicit_tz = not resolved["is_user_tz"]
 
             # If still no explicit TZ, fall back to user's timezone
             if source_tz is None:
