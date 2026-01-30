@@ -205,6 +205,9 @@ class Pipeline:
                 timezone_hint = trigger.data["timezone_hint"]
                 break
 
+        # Track if source TZ is explicit (from message) vs user default
+        is_explicit_source_tz = timezone_hint is not None
+
         # Resolve user's timezone
         source_timezone = timezone_hint
         if not source_timezone and "timezone" in self.state_managers:
@@ -241,6 +244,8 @@ class Pipeline:
             chat_id=event.chat_id,
             user_id=event.user_id,
             source_timezone=source_timezone,
+            is_explicit_source_tz=is_explicit_source_tz,
             target_timezones=target_timezones,
+            team_timezones=frozenset(config_timezones),
             reply_to_message_id=event.message_id,
         )

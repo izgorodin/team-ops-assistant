@@ -167,14 +167,22 @@ class TestFormatTimeWithTz:
     """Tests for format_time_with_tz function."""
 
     def test_basic_format(self) -> None:
-        """Basic formatting should work."""
+        """Basic formatting should include UTC offset."""
         result = format_time_with_tz(14, 30, "Europe/Berlin")
-        assert result == "14:30 CET"
+        assert "14:30 CET" in result
+        assert "UTC+1" in result
+
+    def test_format_with_source(self) -> None:
+        """Should include source label when provided."""
+        result = format_time_with_tz(14, 30, "Europe/Berlin", source="team")
+        assert "14:30 CET" in result
+        assert "UTC+1" in result
+        assert "team" in result
 
     def test_next_day_indicator(self) -> None:
         """Should add next day indicator when is_next_day=True."""
         result = format_time_with_tz(8, 0, "America/New_York", is_next_day=True)
-        assert "(+1 day)" in result
+        assert "+1 day" in result
         assert "08:00" in result
 
     def test_zero_padded_minutes(self) -> None:

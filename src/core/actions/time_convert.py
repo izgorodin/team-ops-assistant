@@ -49,6 +49,9 @@ class TimeConversionHandler:
         if not context.target_timezones:
             return []
 
+        # Determine source label for debugging
+        source_label = "explicit" if context.is_explicit_source_tz else "user"
+
         # Format the conversion message
         text = format_time_conversion(
             hour=hour,
@@ -56,6 +59,8 @@ class TimeConversionHandler:
             source_tz=source_tz,
             target_timezones=context.target_timezones,
             original_text=trigger.original_text,
+            team_tzs=set(context.team_timezones),
+            source_label=source_label,
         )
 
         return [

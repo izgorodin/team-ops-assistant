@@ -252,7 +252,13 @@ class ResolvedContext(BaseModel, frozen=True):
     source_timezone: str | None = Field(
         default=None, description="User's timezone for the time reference"
     )
+    is_explicit_source_tz: bool = Field(
+        default=False, description="True if source TZ came from message, not user default"
+    )
     target_timezones: list[str] = Field(default_factory=list, description="Timezones to convert to")
+    team_timezones: frozenset[str] = Field(
+        default_factory=frozenset, description="Team timezones from config (for labeling)"
+    )
     reply_to_message_id: str | None = None
 
 
