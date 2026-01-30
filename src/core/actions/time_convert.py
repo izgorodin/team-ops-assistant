@@ -37,8 +37,9 @@ class TimeConversionHandler:
         hour = trigger.data.get("hour", 0)
         minute = trigger.data.get("minute", 0)
 
-        # Use timezone hint from trigger if available, otherwise use context
-        source_tz = trigger.data.get("timezone_hint") or context.source_timezone
+        # Use resolved source_tz from trigger (includes LLM fallback result)
+        # Falls back to context.source_timezone if not set
+        source_tz = trigger.data.get("source_tz") or context.source_timezone
 
         # If we still don't have a source timezone, we can't convert
         if not source_tz:
