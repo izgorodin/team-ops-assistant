@@ -172,17 +172,20 @@ confidence:
 ### Setup Pre-Commit Hooks (Required)
 
 ```bash
-# Install pre-commit
-pip install pre-commit
+# Activate venv first (or use run.sh which does it automatically)
+source .venv/bin/activate
 
-# Install hooks
+# Install hooks (binds to current Python path)
 pre-commit install
+pre-commit install --hook-type pre-push
 
 # Now every commit runs: ruff + pyright + basic checks
 # Push runs: pytest
 ```
 
 Pre-commit hooks prevent bad code from being committed. They run automatically.
+
+**Note:** Hooks are bound to the Python path at install time. If you rename your venv directory, reinstall hooks.
 
 ### Running Tests
 
