@@ -125,6 +125,37 @@ class TestRelocationDetector:
         assert len(triggers) == 1
         assert triggers[0].data["city"] == "Санкт Петербург"
 
+    # Arrival patterns
+    async def test_arrived_in_en(self, detector: RelocationDetector) -> None:
+        """Test 'I arrived in Paris'."""
+        event = self._make_event("I arrived in Paris")
+        triggers = await detector.detect(event)
+        assert len(triggers) == 1
+        assert triggers[0].data["city"] == "Paris"
+        assert triggers[0].data["pattern"] == "arrived_in"
+
+    async def test_just_arrived_en(self, detector: RelocationDetector) -> None:
+        """Test 'just arrived to Berlin'."""
+        event = self._make_event("Just arrived to Berlin")
+        triggers = await detector.detect(event)
+        assert len(triggers) == 1
+        assert triggers[0].data["city"] == "Berlin"
+
+    async def test_priekhal_ru(self, detector: RelocationDetector) -> None:
+        """Test 'приехал в Москву'."""
+        event = self._make_event("Я приехал в Москву")
+        triggers = await detector.detect(event)
+        assert len(triggers) == 1
+        assert triggers[0].data["city"] == "Москву"
+        assert triggers[0].data["pattern"] == "arrived_ru"
+
+    async def test_priekhala_ru(self, detector: RelocationDetector) -> None:
+        """Test 'приехала в Питер'."""
+        event = self._make_event("Приехала в Питер")
+        triggers = await detector.detect(event)
+        assert len(triggers) == 1
+        assert triggers[0].data["city"] == "Питер"
+
     # No match cases
     async def test_no_match_regular_message(self, detector: RelocationDetector) -> None:
         """Test regular message without relocation."""

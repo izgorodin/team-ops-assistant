@@ -71,6 +71,12 @@ RELOCATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "relocated_to",
     ),
     (
+        re.compile(
+            r"(?:i(?:'ve)?\s+)?(?:just\s+)?arrived?\s+(?:in|to)\s+(\w+(?:\s+\w+)?)", re.IGNORECASE
+        ),
+        "arrived_in",
+    ),
+    (
         re.compile(r"(?:i(?:'m)?\s+)?now\s+(?:in|living\s+in)\s+(\w+(?:\s+\w+)?)", re.IGNORECASE),
         "now_in",
     ),
@@ -79,6 +85,7 @@ RELOCATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Russian - past tense
     (re.compile(r"переехал[аи]?\s+(?:в\s+)?(\w+(?:\s+\w+)?)", re.IGNORECASE), "relocated_ru"),
     (re.compile(r"перееха[лв]\s+в\s+(\w+(?:\s+\w+)?)", re.IGNORECASE), "relocated_ru_2"),
+    (re.compile(r"приехал[аи]?\s+(?:в\s+)?(\w+(?:\s+\w+)?)", re.IGNORECASE), "arrived_ru"),
     (re.compile(r"теперь\s+(?:в|живу\s+в)\s+(\w+(?:\s+\w+)?)", re.IGNORECASE), "now_in_ru"),
     # Russian - future tense
     (re.compile(r"перееду\s+(?:в\s+)?(\w+(?:\s+\w+)?)", re.IGNORECASE), "moving_ru"),
