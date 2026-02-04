@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from src.core.geo import geocode_city_str
 from src.core.models import HandlerResult, OutboundMessage, SessionStatus, TimezoneSource
 from src.core.prompts import get_ui_message
+from src.core.session_utils import MAX_SESSION_ATTEMPTS
 
 if TYPE_CHECKING:
     from src.core.models import NormalizedEvent, Session
@@ -23,9 +24,6 @@ logger = logging.getLogger(__name__)
 # Confirmation words (Russian + English)
 CONFIRM_WORDS = {"да", "yes", "ок", "ok", "верно", "правильно", "+", "угу", "ага", "yep"}
 REJECT_WORDS = {"нет", "no", "неверно", "не", "nope"}
-
-# Max attempts before session fails
-MAX_ATTEMPTS = 3
 
 
 class ConfirmRelocationHandler:
@@ -89,7 +87,7 @@ class ConfirmRelocationHandler:
                 session.updated_at = datetime.now(UTC)
 
                 # Check max attempts
-                if session.context["attempts"] >= MAX_ATTEMPTS:
+                if session.context["attempts"] >= MAX_SESSION_ATTEMPTS:
                     return await self._fail_session(session, event)
 
                 await self.storage.update_session(session)
@@ -109,7 +107,7 @@ class ConfirmRelocationHandler:
 
         # 4. City not found - ask again
         session.context["attempts"] = session.context.get("attempts", 0) + 1
-        if session.context["attempts"] >= MAX_ATTEMPTS:
+        if session.context["attempts"] >= MAX_SESSION_ATTEMPTS:
             return await self._fail_session(session, event)
 
         await self.storage.update_session(session)
@@ -159,7 +157,7 @@ class ConfirmRelocationHandler:
         session.context["attempts"] = session.context.get("attempts", 0) + 1
         session.updated_at = datetime.now(UTC)
 
-        if session.context["attempts"] >= MAX_ATTEMPTS:
+        if session.context["attempts"] >= MAX_SESSION_ATTEMPTS:
             return await self._fail_session(session, event)
 
         await self.storage.update_session(session)

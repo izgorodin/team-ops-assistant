@@ -28,7 +28,6 @@ from src.connectors.telegram.outbound import send_messages as send_telegram_mess
 from src.connectors.whatsapp.inbound import normalize_whatsapp_webhook
 from src.connectors.whatsapp.outbound import close_whatsapp_outbound
 from src.connectors.whatsapp.outbound import send_messages as send_whatsapp_messages
-from src.core.actions.relocation import RelocationHandler
 from src.core.actions.time_convert import TimeConversionHandler
 from src.core.agent_handler import AgentHandler
 from src.core.orchestrator import MessageOrchestrator
@@ -169,13 +168,12 @@ async def create_orchestrator(
     mention_detector = MentionDetector()
     tz_state_manager = TimezoneStateManager(storage)
     time_handler = TimeConversionHandler()
-    relocation_handler = RelocationHandler(storage)
 
     # Create pipeline
     pipeline = Pipeline(
         detectors=[time_detector, relocation_detector, mention_detector],
         state_managers={"timezone": tz_state_manager},
-        action_handlers={"time": time_handler, "relocation": relocation_handler},
+        action_handlers={"time": time_handler},
         storage=storage,
     )
 

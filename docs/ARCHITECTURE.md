@@ -162,7 +162,7 @@ This document describes both the current implementation (AS-IS) and the target a
 │                                                                          │
 │  CONFIRM_RELOCATION  → ConfirmRelocationHandler (rules-based, no LLM)    │
 │  AWAITING_TIMEZONE   → AgentHandler (LLM-powered conversation)           │
-│  REVERIFY_TIMEZONE   → AgentHandler (LLM-powered conversation)           │
+│  CLARIFY_GEO_INTENT  → AgentHandler (smart city intent detection)        │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -28,6 +28,7 @@ from src.core.models import (
     TimezoneSource,
 )
 from src.core.prompts import get_agent_system_prompt, get_ui_message
+from src.core.session_utils import MAX_SESSION_ATTEMPTS, extract_tool_action
 from src.core.timezone_identity import TimezoneIdentityManager
 
 if TYPE_CHECKING:
@@ -102,7 +103,7 @@ class AgentHandler:
             # Simple yes/no confirmation - delegated to rules-based handler (no LLM)
             return await self.confirm_relocation_handler.handle(session, event)
 
-        if session.goal in (SessionGoal.AWAITING_TIMEZONE, SessionGoal.REVERIFY_TIMEZONE):
+        if session.goal == SessionGoal.AWAITING_TIMEZONE:
             return await self._handle_timezone_session(session, event)
 
         if session.goal == SessionGoal.CLARIFY_GEO_INTENT:
@@ -131,7 +132,8 @@ class AgentHandler:
         """
         # Get current timezone for re-verify context
         current_tz = None
-        if session.goal == SessionGoal.REVERIFY_TIMEZONE:
+        is_reverify = session.context.get("is_reverify", False)
+        if is_reverify:
             user_state = await self.tz_manager.get_user_timezone(event.platform, event.user_id)
             current_tz = user_state.tz_iana if user_state else session.context.get("existing_tz")
 
@@ -139,7 +141,7 @@ class AgentHandler:
         # that never got a response (e.g., Telegram send failed)
         user_text = event.text
         history = session.context.get("history", [])
-        if not history and session.goal == SessionGoal.REVERIFY_TIMEZONE:
+        if not history and is_reverify:
             # Check if session was triggered by relocation (has city in trigger_data)
             trigger_data = session.context.get("trigger_data", {})
             relocation_city = trigger_data.get("city")
@@ -161,9 +163,9 @@ class AgentHandler:
                 return await self._handle_agent_error(session, event, "No response from agent")
 
             # Check ALL messages for SAVE: (including tool responses)
-            saved_tz = self._extract_saved_timezone(agent_messages)
-            if saved_tz:
-                return await self._complete_session(session, event, saved_tz)
+            action_result = extract_tool_action(agent_messages)
+            if action_result and action_result[0] == "SAVE":
+                return await self._complete_session(session, event, action_result[1])
 
             # Find the last AI message for user response
             response_text = ""
@@ -247,7 +249,7 @@ class AgentHandler:
                 return await self._handle_agent_error(session, event, "No response")
 
             # Check for actions in tool responses
-            action_result = self._extract_geo_action(agent_messages)
+            action_result = extract_tool_action(agent_messages)
 
             if action_result:
                 action_type, action_data = action_result
@@ -292,150 +294,6 @@ class AgentHandler:
         except Exception as e:
             logger.exception(f"Geo intent agent error: {e}")
             return await self._handle_agent_error(session, event, str(e))
-
-    def _extract_geo_action(self, messages: list) -> tuple[str, str] | None:
-        """Extract action from geo intent agent messages.
-
-        Looks for SAVE:, CONVERT:, or NO_ACTION patterns.
-        Also handles malformed tool calls where LLM outputs function syntax as text.
-
-        Args:
-            messages: Agent messages.
-
-        Returns:
-            Tuple of (action_type, data) or None.
-        """
-        import re
-
-        from langchain_core.messages import ToolMessage
-
-        for msg in messages:
-            content = ""
-            if isinstance(msg, ToolMessage):
-                content = str(msg.content) if msg.content else ""
-            elif hasattr(msg, "content"):
-                content = str(msg.content)
-
-            # Primary patterns from tool execution
-            if "SAVE:" in content:
-                tz = content.split("SAVE:")[1].strip().split()[0]
-                return ("SAVE", tz)
-
-            if "CONVERT:" in content:
-                conversion = content.split("CONVERT:")[1].strip()
-                return ("CONVERT", conversion)
-
-            if "NO_ACTION" in content:
-                return ("NO_ACTION", "")
-
-            # Fallback: malformed tool calls as text
-            if "save_timezone" in content:
-                tz = self._parse_malformed_tool_call(content)
-                if tz:
-                    logger.warning(f"Geo action: extracted timezone from malformed call: {tz}")
-                    return ("SAVE", tz)
-
-            if "convert_time" in content:
-                # Try to extract conversion result from malformed call
-                match = re.search(r"convert_time\s*\([^)]+\)", content)
-                if match:
-                    logger.warning("Geo action: detected malformed convert_time call")
-                    # Can't execute, but signal intent
-                    return ("CONVERT", "Time conversion requested")
-
-            if "no_action" in content.lower():
-                return ("NO_ACTION", "")
-
-        return None
-
-    def _extract_saved_timezone(self, messages: list) -> str | None:
-        """Extract saved timezone from agent messages.
-
-        Checks all messages (including tool responses) for SAVE: pattern.
-        Also handles malformed tool calls where LLM outputs function syntax as text.
-
-        Args:
-            messages: List of agent messages.
-
-        Returns:
-            IANA timezone if found, None otherwise.
-        """
-        from langchain_core.messages import ToolMessage
-
-        for msg in messages:
-            # Debug: log message types and content
-            msg_type = type(msg).__name__
-            content = ""
-
-            # Handle ToolMessage specifically
-            if isinstance(msg, ToolMessage):
-                content = str(msg.content) if msg.content else ""
-                logger.debug(f"ToolMessage: {content}")
-            elif hasattr(msg, "content"):
-                content = str(msg.content)
-            else:
-                content = str(msg)
-
-            logger.debug(
-                f"Message type={msg_type}, content preview: {content[:100] if content else 'empty'}"
-            )
-
-            # Primary pattern: SAVE:timezone from actual tool execution
-            if "SAVE:" in content:
-                tz_part = content.split("SAVE:")[1].strip()
-                if " " in tz_part:
-                    tz_part = tz_part.split()[0]
-                if "\n" in tz_part:
-                    tz_part = tz_part.split("\n")[0]
-                logger.info(f"Extracted timezone from SAVE: pattern: {tz_part}")
-                return tz_part
-
-            # Fallback: LLM output tool call as text (malformed)
-            # Pattern: save_timezone({"tz_iana": "Europe/Rome"}) or save_timezone("Europe/Rome")
-            if "save_timezone" in content:
-                tz = self._parse_malformed_tool_call(content)
-                if tz:
-                    logger.warning(f"Extracted timezone from malformed tool call: {tz}")
-                    return tz
-
-        logger.warning(f"No SAVE: found in {len(messages)} messages")
-        return None
-
-    def _parse_malformed_tool_call(self, text: str) -> str | None:
-        """Parse timezone from LLM text that contains function call syntax.
-
-        Handles cases where LLM outputs tool calls as text instead of calling them.
-        Examples:
-            - save_timezone({"tz_iana": "Europe/Rome"})
-            - save_timezone("Europe/Rome")
-            - save_timezone(tz_iana="Europe/Rome")
-
-        Args:
-            text: Text containing potential malformed tool call.
-
-        Returns:
-            IANA timezone if found, None otherwise.
-        """
-        import re
-
-        # Pattern 1: save_timezone({"tz_iana": "Europe/Rome"})
-        match = re.search(
-            r'save_timezone\s*\(\s*\{\s*["\']?tz_iana["\']?\s*:\s*["\']([^"\']+)["\']', text
-        )
-        if match:
-            return match.group(1)
-
-        # Pattern 2: save_timezone("Europe/Rome")
-        match = re.search(r'save_timezone\s*\(\s*["\']([^"\']+)["\']', text)
-        if match:
-            return match.group(1)
-
-        # Pattern 3: save_timezone(tz_iana="Europe/Rome")
-        match = re.search(r'save_timezone\s*\(\s*tz_iana\s*=\s*["\']([^"\']+)["\']', text)
-        if match:
-            return match.group(1)
-
-        return None
 
     def _build_messages(
         self, session: Session, user_text: str, current_tz: str | None = None
@@ -536,8 +394,8 @@ class AgentHandler:
         session.context["history"] = history
         session.updated_at = datetime.now(UTC)
 
-        # Check max attempts (hardcoded to 3 for now)
-        if session.context["attempts"] >= 3:
+        # Check max attempts
+        if session.context["attempts"] >= MAX_SESSION_ATTEMPTS:
             return await self._fail_session(session, event)
 
         # Update session in storage

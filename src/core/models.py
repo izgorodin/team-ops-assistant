@@ -182,8 +182,7 @@ class SessionStatus(str, Enum):
 class SessionGoal(str, Enum):
     """Goal/purpose of an agent session."""
 
-    AWAITING_TIMEZONE = "awaiting_timezone"  # First-time timezone onboarding
-    REVERIFY_TIMEZONE = "reverify_timezone"  # Re-verify after confidence decay
+    AWAITING_TIMEZONE = "awaiting_timezone"  # Timezone onboarding (new or re-verify)
     CONFIRM_RELOCATION = "confirm_relocation"  # Confirm detected relocation (simple yes/no)
     HELP_REQUEST = "help_request"  # User asked for help/info about the bot
     CLARIFY_GEO_INTENT = (

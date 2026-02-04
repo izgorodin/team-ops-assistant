@@ -25,6 +25,7 @@ from src.core.models import (
 )
 from src.core.prompts import get_ui_message
 from src.core.rate_limiter import get_rate_limit_manager
+from src.core.session_utils import SESSION_TTL_GEO_INTENT_MINUTES, SESSION_TTL_TIMEZONE_MINUTES
 from src.core.timezone_identity import generate_verify_token, get_verify_url
 from src.settings import get_settings
 
@@ -284,23 +285,21 @@ class MessageOrchestrator:
         user_state = await self.storage.get_user_tz_state(event.platform, event.user_id)
         is_reverify = is_relocation or (user_state is not None and user_state.tz_iana is not None)
 
-        # Choose goal and prompt based on scenario
+        # Choose prompt based on scenario
         existing_tz: str | None = None
         if is_reverify and user_state is not None and user_state.tz_iana is not None:
-            goal = SessionGoal.REVERIFY_TIMEZONE
             existing_tz = user_state.tz_iana
             text = get_ui_message("reverify", existing_tz=existing_tz)
         else:
-            goal = SessionGoal.AWAITING_TIMEZONE
             text = get_ui_message("onboarding")
 
-        # Create session
+        # Create session (is_reverify stored in context for agent)
         session = Session(
             session_id=str(uuid4()),
             platform=event.platform,
             chat_id=event.chat_id,
             user_id=event.user_id,
-            goal=goal,
+            goal=SessionGoal.AWAITING_TIMEZONE,
             status=SessionStatus.ACTIVE,
             context={
                 "original_text": event.text,
@@ -309,10 +308,11 @@ class MessageOrchestrator:
                 "attempts": 0,
                 "history": [],
                 "existing_tz": existing_tz,
+                "is_reverify": is_reverify,
             },
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
-            expires_at=datetime.now(UTC) + timedelta(minutes=30),
+            expires_at=datetime.now(UTC) + timedelta(minutes=SESSION_TTL_TIMEZONE_MINUTES),
         )
         await self.storage.create_session(session)
         logger.info(
@@ -394,7 +394,7 @@ class MessageOrchestrator:
             },
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
-            expires_at=datetime.now(UTC) + timedelta(minutes=30),
+            expires_at=datetime.now(UTC) + timedelta(minutes=SESSION_TTL_TIMEZONE_MINUTES),
         )
         await self.storage.create_session(session)
         logger.info(
@@ -476,7 +476,7 @@ class MessageOrchestrator:
             },
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
-            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            expires_at=datetime.now(UTC) + timedelta(minutes=SESSION_TTL_GEO_INTENT_MINUTES),
         )
         await self.storage.create_session(session)
         logger.info(
