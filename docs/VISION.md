@@ -185,7 +185,7 @@ The same patterns apply to many use cases:
 
 ### Phase 1: MVP ✅ COMPLETE
 
-- ✅ Timezone detection and conversion (ML + Regex + LLM)
+- ✅ Timezone detection and conversion (Regex + LLM fallback)
 - ✅ Web verification flow
 - ✅ Confidence scoring with decay
 - ✅ Relocation detection (triggers re-verification)
@@ -224,4 +224,4 @@ The same patterns apply to many use cases:
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Current system design
 - [CLAUDE.md](../CLAUDE.md) — AI development guidelines
-- [journal/01_scope_assumptions.md](../journal/01_scope_assumptions.md) — MVP scope decisions
+- [CHANGELOG.md](../CHANGELOG.md) — Version history

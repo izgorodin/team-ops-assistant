@@ -64,6 +64,9 @@ TIMEZONE_ABBREVIATIONS: dict[str, str] = {
     "msk": "Europe/Moscow",
     "msd": "Europe/Moscow",  # Moscow Daylight (historical)
     "мск": "Europe/Moscow",  # Russian abbreviation
+    # Georgia
+    "тби": "Asia/Tbilisi",  # Russian abbreviation for Tbilisi
+    "tbi": "Asia/Tbilisi",
     # Asia/Pacific
     "jst": "Asia/Tokyo",
     "kst": "Asia/Seoul",
@@ -213,6 +216,67 @@ PATTERNS = {
 }
 
 
+def _find_nearest_tz_hint(text: str, position: int, max_distance: int = 20) -> str | None:
+    """Find the nearest timezone hint to a given position in text.
+
+    Looks for timezone abbreviations and city names within max_distance chars
+    of the given position (both before and after).
+
+    Args:
+        text: Full message text.
+        position: Character position of the time match.
+        max_distance: Max chars to search from position.
+
+    Returns:
+        IANA timezone string if found, None otherwise.
+    """
+    text_lower = text.lower()
+
+    # Collect all timezone hints with their positions
+    tz_hints: list[tuple[int, int, str]] = []  # (start, end, tz_iana)
+
+    # Check timezone abbreviations (Мск, PST, etc.)
+    for match in PATTERNS["tz_hint"].finditer(text):
+        abbrev = match.group(1).lower()
+        tz = TIMEZONE_ABBREVIATIONS.get(abbrev)
+        if tz:
+            tz_hints.append((match.start(), match.end(), tz))
+
+    # Check city names
+    for match in PATTERNS["city_hint"].finditer(text_lower):
+        city = match.group(1).lower()
+        tz = CITY_TIMEZONES.get(city)
+        if tz:
+            tz_hints.append((match.start(), match.end(), tz))
+
+    # Check Russian "по {city}" pattern
+    for match in PATTERNS["ru_po_city"].finditer(text):
+        city = match.group(1).lower()
+        tz = CITY_TIMEZONES.get(city)
+        if tz:
+            tz_hints.append((match.start(), match.end(), tz))
+
+    if not tz_hints:
+        return None
+
+    # Find the nearest hint to the time position
+    best_hint: str | None = None
+    best_distance = float("inf")
+
+    for start, end, tz in tz_hints:
+        # Distance from time position to hint
+        # If hint is after time: distance = start - position
+        # If hint is before time: distance = position - end
+        distance = start - position if start >= position else position - end
+
+        # Only consider hints within max_distance
+        if distance <= max_distance and distance < best_distance:
+            best_distance = distance
+            best_hint = tz
+
+    return best_hint
+
+
 async def parse_times(text: str) -> list[ParsedTime]:
     """Parse time references from message text.
 
@@ -231,56 +295,13 @@ async def parse_times(text: str) -> list[ParsedTime]:
         return []
 
     results: list[ParsedTime] = []
-    text_lower = text.lower()
     conf = _get_confidence_config()
 
     # Check for tomorrow prefix (English and Russian)
     is_tomorrow = bool(PATTERNS["tomorrow"].search(text) or PATTERNS["ru_tomorrow"].search(text))
 
-    # Extract timezone/city hints
-    tz_hint: str | None = None
-
-    tz_match = PATTERNS["tz_hint"].search(text)
-    if tz_match:
-        abbrev = tz_match.group(1).lower()
-        tz_hint = TIMEZONE_ABBREVIATIONS.get(abbrev)
-
-    if not tz_hint:
-        city_match = PATTERNS["city_hint"].search(text_lower)
-        if city_match:
-            city = city_match.group(1).lower()
-            tz_hint = CITY_TIMEZONES.get(city)
-
-    # Russian "по {city}" pattern - higher priority for explicit TZ
-    if not tz_hint:
-        po_city_match = PATTERNS["ru_po_city"].search(text)
-        if po_city_match:
-            city = po_city_match.group(1).lower()
-            tz_hint = CITY_TIMEZONES.get(city)
-
-    # Russian "по московскому времени" pattern
-    if not tz_hint:
-        po_adj_match = PATTERNS["ru_po_time_adj"].search(text)
-        if po_adj_match:
-            adj = po_adj_match.group(1).lower()
-            # Map adjective forms to timezones
-            adj_to_tz = {
-                "московском": "Europe/Moscow",
-                "московскому": "Europe/Moscow",
-                "минском": "Europe/Minsk",
-                "минскому": "Europe/Minsk",
-                "киевском": "Europe/Kyiv",
-                "киевскому": "Europe/Kyiv",
-                "грузинском": "Asia/Tbilisi",
-                "грузинскому": "Asia/Tbilisi",
-                "местном": None,  # Will use user's TZ
-                "местному": None,
-            }
-            # Find matching key (adjective forms vary)
-            for key, tz in adj_to_tz.items():
-                if adj.startswith(key[:6]):  # Match prefix
-                    tz_hint = tz
-                    break
+    # Note: timezone hints are now extracted per-time using _find_nearest_tz_hint()
+    # This handles messages like "1600 Мск (1700 Тби)" correctly
 
     # Track positions already matched to avoid duplicates
     matched_positions: set[int] = set()
@@ -304,7 +325,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=minute,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["hhmm_ampm"],
                 )
@@ -325,7 +346,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=minute,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["european_hhmm"],
                 )
@@ -345,7 +366,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                 original_text=match.group(0),
                 hour=hour,
                 minute=minute,
-                timezone_hint=tz_hint,
+                timezone_hint=_find_nearest_tz_hint(text, match.end()),
                 is_tomorrow=is_tomorrow,
                 confidence=conf["military"],
             )
@@ -365,7 +386,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=minute,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["plain_hhmm"],
                 )
@@ -392,7 +413,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=0,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["h_ampm"],
                 )
@@ -422,7 +443,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                         original_text=match.group(0),
                         hour=hour,
                         minute=0,
-                        timezone_hint=tz_hint,
+                        timezone_hint=_find_nearest_tz_hint(text, match.end()),
                         is_tomorrow=is_tomorrow,
                         confidence=conf["range"],
                     )
@@ -461,7 +482,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=0,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["h_ampm"],  # Same confidence as H am/pm
                 )
@@ -483,7 +504,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                     original_text=match.group(0),
                     hour=hour,
                     minute=minute,
-                    timezone_hint=tz_hint,
+                    timezone_hint=_find_nearest_tz_hint(text, match.end()),
                     is_tomorrow=is_tomorrow,
                     confidence=conf["plain_hhmm"],
                 )
@@ -505,7 +526,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                         original_text=match.group(0),
                         hour=hour,
                         minute=0,
-                        timezone_hint=tz_hint,
+                        timezone_hint=_find_nearest_tz_hint(text, match.end()),
                         is_tomorrow=is_tomorrow,
                         confidence=conf["at_h"],  # Same confidence as "at H"
                     )
@@ -522,7 +543,7 @@ async def parse_times(text: str) -> list[ParsedTime]:
                         original_text=match.group(0),
                         hour=hour,
                         minute=0,
-                        timezone_hint=tz_hint,
+                        timezone_hint=_find_nearest_tz_hint(text, match.end()),
                         is_tomorrow=is_tomorrow,
                         confidence=conf["at_h"],
                     )
@@ -530,7 +551,9 @@ async def parse_times(text: str) -> list[ParsedTime]:
 
     # LLM extraction fallback: classifier detected time but regex found nothing
     if not results:
-        results = await _try_llm_extraction(text, tz_hint)
+        # For LLM fallback, try to find any timezone hint in text
+        fallback_tz_hint = _find_nearest_tz_hint(text, 0, max_distance=len(text))
+        results = await _try_llm_extraction(text, fallback_tz_hint)
 
     return results
 

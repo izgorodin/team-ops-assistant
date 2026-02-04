@@ -41,8 +41,8 @@ This document describes both the current implementation (AS-IS) and the target a
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
-│  │ TimeClassifier│  │  TimeParse   │  │ TzIdentity   │  │ TimeConvert │  │
-│  │  (ML+LLM)    │  │   (Regex)    │  │ (Confidence) │  │  (zoneinfo) │  │
+│  │ TimeDetector │  │  TimeParse   │  │ TzIdentity   │  │ TimeConvert │  │
+│  │  (Regex+LLM) │  │   (Regex)    │  │ (Confidence) │  │  (zoneinfo) │  │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘  │
 │                                                                          │
 │  ┌──────────────┐  ┌──────────────┐                                     │
@@ -182,14 +182,13 @@ This document describes both the current implementation (AS-IS) and the target a
 | **No Interfaces** | ~~Concrete implementations only~~ | ~~Hard to swap/mock components~~ | ✅ RESOLVED - TriggerDetector, StateManager, ActionHandler |
 | **Tight Coupling** | ~~Components know each other~~ | ~~Hard to test in isolation~~ | ✅ RESOLVED - Protocol-based DI |
 | **Partial Config** | ~~Some params in yaml, some hardcoded~~ | ~~Inconsistent configuration~~ | ✅ RESOLVED - Full config + Pydantic |
-| **ML Classifier** | ~~TF-IDF/LR adds complexity~~ | ~~Maintenance burden, marginal gain~~ | ✅ RESOLVED - removed, pure regex |
+| **Time Detection** | ~~ML classifier complexity~~ | ~~Maintenance burden~~ | ✅ RESOLVED - pure regex + LLM fallback |
 | **Scattered Geocoding** | ~~4+ geocoding paths~~ | ~~Inconsistent behavior~~ | ✅ RESOLVED - unified geo.py |
 
 **Configuration Coverage (all in `configuration.yaml`):**
 
 | Category | Examples | Config Path |
 |----------|----------|-------------|
-| ML hyperparameters | ngram_range, window_size | `classifier.*` |
 | Parsing confidence | 0.95, 0.9, 0.85, 0.7 | `time_parsing.confidence.*` |
 | TZ source confidence | verified, city_pick, inferred | `confidence.*` |
 | HTTP timeouts | telegram, discord, whatsapp | `http.timeouts.*` |
@@ -216,8 +215,8 @@ This document describes both the current implementation (AS-IS) and the target a
 │  Protocol: TriggerDetector                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
 │  │TimeDetector  │  │Relocation   │  │QuestionDetector│                  │
-│  │ ML+Regex+LLM │  │ Detector ✓  │  │   (future)   │                   │
-│  │      ✓       │  │ Regex EN/RU │  │              │                   │
+│  │ Regex+LLM ✓  │  │ Detector ✓  │  │   (future)   │                   │
+│  │              │  │ Regex EN/RU │  │              │                   │
 │  └──────────────┘  └──────────────┘  └──────────────┘                   │
 │  Output: list[DetectedTrigger]                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -337,20 +336,6 @@ time_parsing:
     range: 0.85               # "5-7pm"
     at_h: 0.7                 # "at 3"
 
-# ML classifier settings
-classifier:
-  long_text_threshold: 100    # Split text if longer
-  window_size: 5              # Context window for long texts
-  uncertain_low: 0.4          # Below = no time
-  uncertain_high: 0.6         # Above = has time
-  tfidf:
-    ngram_range: [1, 3]
-    min_df: 2
-    max_df: 0.95
-  logistic_regression:
-    max_iter: 1000
-    random_state: 42
-
 # Deduplication
 dedupe:
   ttl_seconds: 604800         # 7 days
@@ -402,7 +387,7 @@ The extensible architecture is now implemented with two trigger types:
 
 | Layer | Protocol | Implementation | Status |
 |-------|----------|----------------|--------|
-| Trigger | `TriggerDetector` | `TimeDetector` (Regex only, no ML) | ✅ Complete |
+| Trigger | `TriggerDetector` | `TimeDetector` (Regex + LLM fallback) | ✅ Complete |
 | Trigger | `TriggerDetector` | `RelocationDetector` (Regex EN/RU) | ✅ Complete |
 | Trigger | `TriggerDetector` | `MentionDetector` (Regex @bot) | ✅ Complete |
 | Geocoding | — | `geocode_city()` (geonames + LLM) | ✅ Complete |
@@ -645,3 +630,4 @@ class UserTzState(BaseModel):
 - [CLAUDE.md](../CLAUDE.md) — AI development guidelines
 - [API.md](./API.md) — API endpoint documentation
 - [RUNBOOK.md](./RUNBOOK.md) — Deployment and operations
+- [CHANGELOG.md](../CHANGELOG.md) — Version history

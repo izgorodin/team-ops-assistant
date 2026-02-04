@@ -30,7 +30,7 @@ All signals affect a single `confidence` value. When `confidence < threshold` �
     ┌───────────────────┼───────────────────┐
     │                   │                   │
     ▼                   ▼                   ▼
- Decay              ML Detector         User Action
+ Decay            Regex Detector       User Action
  (passive)          (active)            (explicit)
 
  -0.01/day         "переехал в X"       "change tz"
@@ -42,8 +42,8 @@ All signals affect a single `confidence` value. When `confidence < threshold` �
 | Signal | Effect on Confidence | Notes |
 |--------|---------------------|-------|
 | Time decay | -0.01/day | Passive, always running |
-| ML: relocation intent detected | = 0.0 (reset) | "moved to", "переехал", "now in" |
-| ML: uncertain | no change | Normal messages |
+| Regex: relocation intent detected | = 0.0 (reset) | "moved to", "переехал", "arrived in" |
+| No relocation match | no change | Normal messages |
 | User explicitly requests change | = 0.0 → session | "change my timezone" |
 | User confirms current tz | = 1.0 | After re-verification |
 | tz_hint mismatch in message | **no change** | User convenience, not relocation signal |
@@ -55,25 +55,27 @@ All signals affect a single `confidence` value. When `confidence < threshold` �
   - User in NY might say "3pm PT" to help LA colleagues
   - Do NOT reduce confidence for this
 
-### ML Detector for Relocation Intent
+### Regex Detector for Relocation Intent
 
-Simple classifier (similar to time detection):
+Rule-based detection using regex patterns:
 - Input: message text
-- Output: probability of relocation intent
-- Training data: messages with relocation phrases
+- Output: boolean match + extracted city
+- Patterns cover EN/RU relocation phrases
 
 ```python
+# Examples from src/core/triggers/relocation.py
 RELOCATION_PATTERNS = [
     r"переехал[аи]?\s+(в\s+)?(\w+)",
     r"moved?\s+to\s+(\w+)",
+    r"arrived\s+in\s+(\w+)",
     r"теперь\s+(в|живу\s+в)\s+(\w+)",
     r"now\s+(in|living\s+in)\s+(\w+)",
     r"relocated\s+to\s+(\w+)",
-    r"перееха[лв]\s+в\s+(\w+)",
+    r"долетел[аи]?\s+(в|до)\s+(\w+)",
 ]
 ```
 
-**Note**: Initial implementation is rule-based. ML model can be added later with more training data.
+**Decision**: Regex-only approach chosen over ML. See "Upgrade Path" for rationale.
 
 ### Re-verification Flow
 
@@ -114,9 +116,14 @@ confidence:
 - Trigger re-verification
 - **Implemented in PR #13** (`src/core/triggers/relocation.py`)
 
-### Phase 3: ML/LLM Enhancement (Future)
+### Phase 3: ML Enhancement (Decided Against)
 
-See "Known Limitations" section below for upgrade path.
+We evaluated ML classifiers but decided to stay with regex-only:
+
+- ML added complexity with marginal accuracy gain
+- Regex patterns are transparent and easy to extend
+- "Arrived" patterns added for better coverage
+- See "Upgrade Path" for detailed rationale.
 
 ## Known Limitations (MVP)
 
@@ -133,32 +140,24 @@ Current regex-based detection has significant limitations:
 - **\w+ limitation**: Hyphenated cities like "Нью-Йорк" captured as "Нью"
 - **Context-blind**: Can't distinguish "I moved" vs "he moved"
 
-### Upgrade Path (Priority Order)
+### Upgrade Path (Current Decision: Regex-Only)
 
-1. **Expand regex patterns** (cheapest)
-   - Add more languages as needed
-   - Tune patterns based on false positive feedback
-   - Works until false positive rate becomes unacceptable
+1. **Expand regex patterns** ✅ CURRENT APPROACH
+   - EN/RU patterns with past/present/future tense
+   - "Arrived" patterns added for travel completion
+   - Tune based on false positive feedback
+   - Transparent, easy to debug and extend
 
-2. **Two-layer: Regex + LLM confirmation** (recommended next step)
+2. **Two-layer: Regex + LLM confirmation** (available if needed)
+   - Regex catches candidates, LLM confirms/rejects
+   - Currently NOT needed - regex accuracy is sufficient
+   - Can add if false positive rate becomes problematic
 
-   ```text
-   Message → Regex (high recall) → LLM (high precision)
-   ```
-
-   - Regex acts as cheap positive detector (catches candidates)
-   - LLM confirms/rejects (reduces false positives)
-   - Only calls LLM when regex matches → low cost
-
-3. **ML classifier** (like time detection)
-   - Train on production data
-   - Replace regex entirely
-   - Requires labeled dataset
-
-4. **Always-on LLM monitoring** (expensive)
-   - Every message through LLM
-   - Best quality but highest cost
-   - Only if budget allows
+3. **ML classifier** ❌ DECIDED AGAINST
+   - Evaluated but rejected (2026-02-04)
+   - Added complexity with marginal accuracy gain over regex
+   - Required labeled dataset maintenance
+   - Regex + smart patterns proved sufficient
 
 ## Consequences
 

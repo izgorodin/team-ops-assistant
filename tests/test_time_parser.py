@@ -551,3 +551,22 @@ class TestRussianPatterns:
         """Russian text without time should return empty."""
         result = await parse_times(text)
         assert result == [], f"Should NOT parse time from: {text}"
+
+    async def test_parse_multiple_times_with_different_tz_hints(self) -> None:
+        """Multiple times with different timezone hints should each get correct hint.
+
+        Regression test for bug where global tz_hint was applied to all times.
+        "1600 Мск (1700 Тби)" should parse as:
+        - 16:00 Europe/Moscow
+        - 17:00 Asia/Tbilisi
+        """
+        result = await parse_times("Я могу в 1600 Мск (1700 Тби) освободиться")
+        assert len(result) == 2, f"Expected 2 times, got {len(result)}"
+
+        # First time: 16:00 Moscow
+        assert result[0].hour == 16
+        assert result[0].timezone_hint == "Europe/Moscow"
+
+        # Second time: 17:00 Tbilisi
+        assert result[1].hour == 17
+        assert result[1].timezone_hint == "Asia/Tbilisi"
