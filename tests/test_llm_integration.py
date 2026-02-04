@@ -17,8 +17,9 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
-from src.core.agent_tools import AGENT_TOOLS
+from src.core.agent_tools import AGENT_TOOLS, GEO_INTENT_TOOLS
 from src.core.llm_fallback import extract_times_with_llm
+from src.core.session_utils import extract_tool_action
 from src.settings import get_settings
 
 if TYPE_CHECKING:
@@ -41,16 +42,17 @@ class TestAgentToolCalling:
 
     @pytest.fixture
     def agent(self) -> CompiledStateGraph[Any]:
-        """Create agent with real LLM."""
+        """Create agent with real LLM using config settings."""
         from pydantic import SecretStr
 
         settings = get_settings()
+        agent_config = settings.config.llm.agent
         llm = ChatOpenAI(
             base_url=settings.config.llm.base_url,
             api_key=SecretStr(settings.nvidia_api_key),
             model=settings.config.llm.model,
-            temperature=0.3,
-            timeout=25.0,
+            temperature=agent_config.temperature,
+            timeout=agent_config.timeout,
         )
         return create_react_agent(llm, AGENT_TOOLS)
 
@@ -142,6 +144,133 @@ class TestAgentToolCalling:
 
 @pytest.mark.integration
 @_skip_if_no_api_key
+class TestGeoIntentToolCalling:
+    """Test geo intent agent's ability to call tools correctly.
+
+    This tests the specific issue where LLM outputs tool calls as text
+    instead of properly calling the tools.
+    """
+
+    @pytest.fixture
+    def geo_agent(self) -> CompiledStateGraph[Any]:
+        """Create geo intent agent with real LLM."""
+        from pydantic import SecretStr
+
+        settings = get_settings()
+        agent_config = settings.config.llm.agent
+        llm = ChatOpenAI(
+            base_url=settings.config.llm.base_url,
+            api_key=SecretStr(settings.nvidia_api_key),
+            model=settings.config.llm.model,
+            temperature=agent_config.temperature,
+            timeout=agent_config.timeout,
+        )
+        return create_react_agent(llm, GEO_INTENT_TOOLS)
+
+    @pytest.mark.asyncio
+    async def test_save_timezone_proper_tool_call(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should CALL save_timezone, not output it as text."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You have tools. User is relocating to Rome. "
+                            "Call save_timezone with Europe/Rome. DO NOT output function as text!"
+                        ),
+                    },
+                    {"role": "user", "content": "I moved to Rome"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+
+        # Extract action - should find SAVE: from proper tool execution
+        action = extract_tool_action(messages)
+        assert action is not None, "No action extracted from agent messages"
+        assert action[0] == "SAVE", f"Expected SAVE action, got {action[0]}"
+        assert "Europe/Rome" in action[1], f"Expected Europe/Rome, got {action[1]}"
+
+    @pytest.mark.asyncio
+    async def test_convert_time_proper_tool_call(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should CALL convert_time, not output it as text."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User wants to know time in Bangkok. Their timezone is Europe/Rome. "
+                            "Call convert_time tool. DO NOT output function as text!"
+                        ),
+                    },
+                    {"role": "user", "content": "What's 12:00 in Bangkok?"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+
+        # Extract action - should find CONVERT: from proper tool execution
+        action = extract_tool_action(messages)
+        assert action is not None, "No action extracted from agent messages"
+        assert action[0] == "CONVERT", f"Expected CONVERT action, got {action[0]}"
+        # Should contain actual conversion result, not placeholder
+        assert "Time conversion requested" not in action[1], (
+            "Got placeholder instead of real conversion"
+        )
+
+    @pytest.mark.asyncio
+    async def test_no_action_proper_tool_call(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should CALL no_action for false positives."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User mentioned Paris but is just commenting, not asking about time or relocating. "
+                            "Call no_action tool. DO NOT output function as text!"
+                        ),
+                    },
+                    {"role": "user", "content": "Paris is a beautiful city"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+
+        # Extract action - should find NO_ACTION
+        action = extract_tool_action(messages)
+        assert action is not None, "No action extracted from agent messages"
+        assert action[0] == "NO_ACTION", f"Expected NO_ACTION, got {action[0]}"
+
+    @pytest.mark.asyncio
+    async def test_russian_relocation_tool_call(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should handle Russian input and call save_timezone."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User says they arrived in Moscow. This is relocation. "
+                            "Call save_timezone with Europe/Moscow. Respond in Russian."
+                        ),
+                    },
+                    {"role": "user", "content": "Я приехал в Москву"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+
+        action = extract_tool_action(messages)
+        assert action is not None, "No action extracted from agent messages"
+        assert action[0] == "SAVE", f"Expected SAVE action, got {action[0]}"
+        assert "Europe/Moscow" in action[1], f"Expected Europe/Moscow, got {action[1]}"
+
+
+@pytest.mark.integration
+@_skip_if_no_api_key
 class TestLLMFallbackTimeExtraction:
     """Test LLM fallback for time extraction when regex fails."""
 
@@ -212,3 +341,10 @@ class TestModelConfiguration:
         """Verify NVIDIA NIM API is used."""
         settings = get_settings()
         assert "nvidia" in settings.config.llm.base_url.lower()
+
+    def test_agent_temperature_is_low(self) -> None:
+        """Verify agent temperature is low for deterministic tool calling."""
+        settings = get_settings()
+        assert settings.config.llm.agent.temperature <= 0.2, (
+            f"Agent temperature {settings.config.llm.agent.temperature} is too high for reliable tool calling"
+        )
