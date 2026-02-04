@@ -248,8 +248,18 @@ class AgentHandler:
             if not agent_messages:
                 return await self._handle_agent_error(session, event, "No response")
 
+            # Debug: log all messages from agent
+            logger.debug(f"Geo intent agent returned {len(agent_messages)} messages")
+            for i, msg in enumerate(agent_messages):
+                msg_type = type(msg).__name__
+                content = (
+                    getattr(msg, "content", "")[:200] if hasattr(msg, "content") else str(msg)[:200]
+                )
+                logger.debug(f"  [{i}] {msg_type}: {content}")
+
             # Check for actions in tool responses
             action_result = extract_tool_action(agent_messages)
+            logger.debug(f"Extracted action_result: {action_result}")
 
             if action_result:
                 action_type, action_data = action_result
@@ -278,13 +288,22 @@ class AgentHandler:
             response_text = ""
             for msg in reversed(agent_messages):
                 if isinstance(msg, AIMessage) and msg.content:
-                    response_text = _sanitize_response(str(msg.content))
+                    raw_content = str(msg.content)
+                    response_text = _sanitize_response(raw_content)
+                    logger.debug(f"Found AIMessage content (raw): {raw_content[:200]}")
+                    logger.debug(
+                        f"After sanitization: {response_text[:200] if response_text else '(empty)'}"
+                    )
                     break
 
             if response_text:
                 return await self._continue_session(session, event, response_text)
 
             # No response - close session
+            logger.warning(
+                f"Geo intent session {session.session_id}: no action and no response text, "
+                f"closing silently. User text was: {event.text}"
+            )
             await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
             return HandlerResult(should_respond=False)
 

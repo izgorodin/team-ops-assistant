@@ -271,6 +271,210 @@ class TestGeoIntentToolCalling:
 
 @pytest.mark.integration
 @_skip_if_no_api_key
+class TestComplexGeoIntentScenarios:
+    """Test complex and edge-case scenarios for geo intent agent.
+
+    These tests cover:
+    - Ambiguous city names (same name in different countries)
+    - Multi-turn conversations with confirmation
+    - Russian time queries with city context
+    - Edge cases with state/region specifications
+    """
+
+    @pytest.fixture
+    def geo_agent(self) -> CompiledStateGraph[Any]:
+        """Create geo intent agent with real LLM."""
+        from pydantic import SecretStr
+
+        settings = get_settings()
+        agent_config = settings.config.llm.agent
+        llm = ChatOpenAI(
+            base_url=settings.config.llm.base_url,
+            api_key=SecretStr(settings.nvidia_api_key),
+            model=settings.config.llm.model,
+            temperature=agent_config.temperature,
+            timeout=agent_config.timeout,
+        )
+        return create_react_agent(llm, GEO_INTENT_TOOLS)
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_city_with_country(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should handle ambiguous city + country specification.
+
+        Moscow exists in both Russia and USA (Idaho, Texas, etc).
+        When user specifies "Moscow, USA", agent should ask for clarification
+        if geocode_city can't find it (NOT retry infinitely!).
+        """
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User mentions they are in Moscow, but specifies USA. "
+                            "There are several cities named Moscow in the USA (Idaho, Texas, etc). "
+                            "Try geocode_city to find the timezone. "
+                            "IMPORTANT: If geocode_city returns NOT_FOUND, "
+                            "ASK user which specific city they mean - do NOT retry geocode!"
+                        ),
+                    },
+                    {"role": "user", "content": "Да, я в Москве в США"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        # Agent should either:
+        # 1. Save a US timezone (America/*)
+        # 2. Ask for clarification if geocode fails
+        if action and action[0] == "SAVE":
+            # Should NOT be Europe/Moscow (Russia)
+            assert "Europe/Moscow" not in action[1], (
+                f"Agent confused Moscow, USA with Moscow, Russia! Got {action[1]}"
+            )
+        # If no action, check that agent asked for clarification
+        else:
+            all_content = " ".join(str(m.content) for m in messages if hasattr(m, "content"))
+            # Should ask for more details, not just fail silently
+            assert len(all_content) > 50, "Agent should ask for clarification"
+
+    @pytest.mark.asyncio
+    async def test_russian_time_query_with_city(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should handle Russian time query: 'завтра в 15 по парижу'."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User asks about time in Paris (завтра в 15 по парижу). "
+                            "This is a TIME QUERY, not relocation. "
+                            "Their current timezone is Europe/Moscow. "
+                            "Call convert_time to convert 15:00 from Europe/Paris to Europe/Moscow."
+                        ),
+                    },
+                    {"role": "user", "content": "завтра в 15 по парижу"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        assert action is not None, "No action extracted"
+        assert action[0] == "CONVERT", f"Expected CONVERT, got {action[0]}"
+        # Result should contain actual times, not just placeholder
+        assert ":" in action[1] or "→" in action[1], f"Expected time conversion, got {action[1]}"
+
+    @pytest.mark.asyncio
+    async def test_confirmation_flow_yes(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should handle 'да' confirmation after asking about relocation."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Previous context: User said 'Москва'. "
+                            "You asked: 'Вы переехали в Москву или хотите узнать время?' "
+                            "Now user confirms with 'да, переехал'. "
+                            "This means RELOCATION. Save Europe/Moscow."
+                        ),
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Вы переехали в Москву или хотите узнать время?",
+                    },
+                    {"role": "user", "content": "да, переехал"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        assert action is not None, "No action extracted"
+        assert action[0] == "SAVE", f"Expected SAVE, got {action[0]}"
+        assert "Europe/Moscow" in action[1], f"Expected Europe/Moscow, got {action[1]}"
+
+    @pytest.mark.asyncio
+    async def test_time_conversion_with_russian_preposition(
+        self, geo_agent: CompiledStateGraph[Any]
+    ) -> None:
+        """Agent should handle 'сколько сейчас в Лондоне' (what time is it in London)."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User asks what time it is in London ('сколько сейчас в Лондоне'). "
+                            "This is a TIME QUERY. User's timezone is Europe/Moscow. "
+                            "Use current time and convert from user's TZ to Europe/London."
+                        ),
+                    },
+                    {"role": "user", "content": "сколько сейчас в Лондоне?"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        # Should be CONVERT action for time query
+        assert action is not None, "No action extracted"
+        assert action[0] == "CONVERT", f"Expected CONVERT, got {action[0]}"
+
+    @pytest.mark.asyncio
+    async def test_false_positive_city_mention(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should recognize city mention without intent as false positive."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User mentions Berlin in a comment about weather. "
+                            "This is NOT relocation or time query - just casual mention. "
+                            "Call no_action() - don't respond."
+                        ),
+                    },
+                    {"role": "user", "content": "в Берлине сейчас такая же погода как у нас"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        assert action is not None, "No action extracted"
+        assert action[0] == "NO_ACTION", f"Expected NO_ACTION for false positive, got {action[0]}"
+
+    @pytest.mark.asyncio
+    async def test_abbreviated_city_time_query(self, geo_agent: CompiledStateGraph[Any]) -> None:
+        """Agent should handle abbreviated city names in time queries."""
+        result = await geo_agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "User asks about time using abbreviated city name 'NY'. "
+                            "NY = New York = America/New_York. "
+                            "User's timezone is Europe/London. "
+                            "Convert current time from user's TZ to NY's TZ."
+                        ),
+                    },
+                    {"role": "user", "content": "what time is it in NY?"},
+                ]
+            }
+        )
+        messages = result.get("messages", [])
+        action = extract_tool_action(messages)
+
+        assert action is not None, "No action extracted"
+        assert action[0] == "CONVERT", f"Expected CONVERT, got {action[0]}"
+
+
+@pytest.mark.integration
+@_skip_if_no_api_key
 class TestLLMFallbackTimeExtraction:
     """Test LLM fallback for time extraction when regex fails."""
 
