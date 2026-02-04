@@ -1,80 +1,16 @@
 """Tools for the LangChain timezone agent.
 
 These tools are used by the agent to resolve user timezone from various inputs.
+Delegates to geo.py for geocoding.
 """
 
 from __future__ import annotations
 
-import logging
-
-from geonamescache import GeonamesCache
 from langchain_core.tools import tool
 
-from src.core.prompts import load_prompt
+from src.core.geo import geocode_city_str
 from src.core.time_parse import TIMEZONE_ABBREVIATIONS
 from src.settings import get_settings
-
-logger = logging.getLogger(__name__)
-
-# Singleton geonamescache instance (lazy init)
-_gc: GeonamesCache | None = None
-
-
-def _get_geonames_cache() -> GeonamesCache:
-    """Get singleton GeonamesCache instance."""
-    global _gc
-    if _gc is None:
-        _gc = GeonamesCache()
-    return _gc
-
-
-def _normalize_city_with_llm(city_name: str, is_retry: bool = False) -> str | None:
-    """Use LLM to normalize location to a city name.
-
-    Handles:
-    - Abbreviations (NY, MSK)
-    - Non-Latin scripts (Москва, дубай)
-    - Islands → their capitals (Madeira → Funchal)
-    - States/regions → their largest cities (Kentucky → Louisville)
-
-    Args:
-        city_name: Location name in any language/format.
-        is_retry: If True, this is a retry after geonames lookup failed.
-
-    Returns:
-        Normalized city name, or None if normalization failed.
-    """
-    from langchain_openai import ChatOpenAI
-
-    settings = get_settings()
-
-    # Only skip LLM for simple ASCII on first try
-    # On retry (after geonames failed), always try LLM to resolve regions/islands
-    if not is_retry and city_name.isascii() and len(city_name) > 3 and " " not in city_name:
-        return None
-
-    try:
-        llm = ChatOpenAI(
-            base_url=settings.config.llm.base_url,
-            api_key=settings.nvidia_api_key,  # type: ignore[arg-type]
-            model=settings.config.llm.model,
-            temperature=0,
-            timeout=15.0,  # NVIDIA API needs more time
-        ).bind(max_tokens=50)
-
-        prompt = load_prompt("city_normalize", city_name=city_name)
-
-        result = llm.invoke(prompt)
-        normalized = str(result.content).strip()
-
-        if normalized and normalized != "UNKNOWN" and normalized.lower() != city_name.lower():
-            logger.debug(f"LLM normalized '{city_name}' → '{normalized}'")
-            return normalized
-
-    except Exception as e:
-        logger.warning(f"LLM city normalization failed: {e}")
-
-    return None
 
 
 @tool
@@ -130,7 +66,8 @@ def geocode_city(city_name: str) -> str:
     """Look up any city worldwide to find its timezone.
 
     Uses geonamescache with 190k+ cities. Supports any language input -
-    will automatically normalize non-English names using LLM.
+    will automatically normalize non-English names (including Russian
+    dative case like "Москве" → "Moscow").
 
     Args:
         city_name: Name of the city to look up (any language)
@@ -139,7 +76,7 @@ def geocode_city(city_name: str) -> str:
         FOUND: city → IANA timezone if found
         NOT_FOUND: message if city cannot be found
     """
-    result = geocode_city_full(city_name)
+    result = geocode_city_str(city_name, use_llm=True)
     if result.startswith("NOT_FOUND:"):
         # Provide helpful message for agent
         return (
@@ -147,107 +84,6 @@ def geocode_city(city_name: str) -> str:
             "Try a more specific city name (e.g., Moscow, London, Tokyo)."
         )
     return result
-
-
-def geocode_city_full(city_name: str) -> str:
-    """Full geocode lookup with LLM normalization.
-
-    This is the main entry point for geocoding - it tries geonames first,
-    then uses LLM to normalize. LLM handles:
-    - Non-English names (Москва → Moscow)
-    - Islands (Madeira → Funchal)
-    - States/regions (Kentucky → Louisville)
-
-    Args:
-        city_name: Location name in any language.
-
-    Returns:
-        FOUND: City → IANA timezone if found
-        NOT_FOUND: message if city cannot be found
-    """
-    # 1. Try direct lookup first
-    result = _lookup_city_geonames(city_name)
-    if result.startswith("FOUND:"):
-        return result
-
-    # 2. If not found, try LLM normalization (first pass - language normalization)
-    normalized = _normalize_city_with_llm(city_name)
-    if normalized:
-        result = _lookup_city_geonames(normalized)
-        if result.startswith("FOUND:"):
-            return result
-
-    # 3. Still not found - try LLM with is_retry=True (handles islands/regions → cities)
-    normalized_retry = _normalize_city_with_llm(city_name, is_retry=True)
-    if normalized_retry and normalized_retry != normalized:
-        result = _lookup_city_geonames(normalized_retry)
-        if result.startswith("FOUND:"):
-            return result
-
-    # 4. Not found even after all normalization attempts
-    return f"NOT_FOUND: '{city_name}'"
-
-
-def _lookup_city_geonames(city_name: str) -> str:
-    """Lookup city timezone using geonamescache (190k+ cities).
-
-    NOTE: Prefer geocode_city_full() which includes LLM normalization.
-
-    Args:
-        city_name: City name to look up (any language - searches alternatenames).
-
-    Returns:
-        FOUND: City → IANA timezone if found
-        NOT_FOUND: message if city cannot be found
-    """
-    normalized = city_name.lower().strip()
-
-    # Empty or too short input
-    if len(normalized) < 2:
-        return f"NOT_FOUND: '{city_name}'"
-
-    gc = _get_geonames_cache()
-    cities = gc.get_cities()
-
-    # 1. Exact match on name (case-insensitive) - collect all and pick by population
-    exact_matches: list[tuple[str, str, int]] = []
-    for city_data in cities.values():
-        if city_data["name"].lower() == normalized:
-            population = city_data.get("population", 0)
-            exact_matches.append((city_data["name"], city_data["timezone"], population))
-
-    if exact_matches:
-        # Pick the city with highest population (London UK > London Ontario)
-        best = max(exact_matches, key=lambda x: x[2])
-        return f"FOUND: {best[0]} → {best[1]}"
-
-    # 2. Search in alternatenames (Russian, local names, etc.)
-    altname_matches: list[tuple[str, str, int]] = []
-    for city_data in cities.values():
-        altnames = city_data.get("alternatenames", [])
-        for altname in altnames:
-            if altname.lower() == normalized:
-                population = city_data.get("population", 0)
-                altname_matches.append((city_data["name"], city_data["timezone"], population))
-                break  # Found in this city, move to next
-
-    if altname_matches:
-        best = max(altname_matches, key=lambda x: x[2])
-        logger.debug(f"Found '{city_name}' via alternatename → {best[0]}")
-        return f"FOUND: {best[0]} → {best[1]}"
-
-    # 3. Prefix match for partial inputs (only if single match)
-    prefix_matches: list[tuple[str, str, int]] = []
-    for city_data in cities.values():
-        if city_data["name"].lower().startswith(normalized) and len(normalized) >= 3:
-            population = city_data.get("population", 0)
-            prefix_matches.append((city_data["name"], city_data["timezone"], population))
-
-    if len(prefix_matches) == 1:
-        return f"FOUND: {prefix_matches[0][0]} → {prefix_matches[0][1]}"
-
-    # 4. Not found
-    return f"NOT_FOUND: '{city_name}'"
 
 
 @tool
@@ -270,6 +106,74 @@ def save_timezone(tz_iana: str) -> str:
     return f"SAVE:{tz_iana}"
 
 
+@tool
+def convert_time(time_str: str, source_tz: str, target_tz: str) -> str:
+    """Convert time from one timezone to another.
+
+    Use this when user wants to know what time it is in a city,
+    or convert a meeting time between timezones.
+
+    Args:
+        time_str: Time string like "15:00", "3pm", "завтра в 12"
+        source_tz: Source IANA timezone (e.g., 'Europe/Moscow')
+        target_tz: Target IANA timezone (e.g., 'America/New_York')
+
+    Returns:
+        CONVERT: source_time source_tz → target_time target_tz
+    """
+    from datetime import datetime
+
+    import pytz
+
+    try:
+        source = pytz.timezone(source_tz)
+        target = pytz.timezone(target_tz)
+
+        # Parse simple time formats
+        now = datetime.now(source)
+        hour, minute = 0, 0
+
+        # Try to parse time
+        time_lower = time_str.lower().strip()
+        if ":" in time_str:
+            parts = time_str.replace("am", "").replace("pm", "").strip().split(":")
+            hour = int(parts[0])
+            minute = int(parts[1]) if len(parts) > 1 else 0
+            if "pm" in time_lower and hour < 12:
+                hour += 12
+        elif time_str.isdigit():
+            hour = int(time_str)
+        else:
+            # Try to extract number
+            import re
+
+            match = re.search(r"(\d{1,2})", time_str)
+            if match:
+                hour = int(match.group(1))
+
+        # Create source time
+        source_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        target_dt = source_dt.astimezone(target)
+
+        return f"CONVERT: {source_dt.strftime('%H:%M')} {source_tz} → {target_dt.strftime('%H:%M')} {target_tz}"
+
+    except Exception as e:
+        return f"ERROR: Could not convert time - {e}"
+
+
+@tool
+def no_action() -> str:
+    """Indicate that no response is needed (false positive detection).
+
+    Use this when the city was mentioned but user doesn't want
+    time conversion or to report relocation.
+
+    Returns:
+        NO_ACTION confirmation
+    """
+    return "NO_ACTION: City mention was not actionable"
+
+
 # List of all tools for the agent
 AGENT_TOOLS = [
     lookup_configured_city,
@@ -277,3 +181,17 @@ AGENT_TOOLS = [
     geocode_city,
     save_timezone,
 ]
+
+# Extended tools for geo intent agent (includes time conversion)
+GEO_INTENT_TOOLS = [
+    geocode_city,
+    save_timezone,
+    convert_time,
+    no_action,
+]
+
+
+# Backwards compatibility - these are now in geo.py
+def geocode_city_full(city_name: str) -> str:
+    """Deprecated: Use geo.geocode_city_str() instead."""
+    return geocode_city_str(city_name, use_llm=True)

@@ -76,7 +76,7 @@ class TestGeocodeCity:
     def test_abbreviations(self, abbrev: str, expected_tz: str) -> None:
         """Test city abbreviations are expanded correctly via LLM."""
         with patch(
-            "src.core.agent_tools._normalize_city_with_llm",
+            "src.core.geo._normalize_with_llm",
             side_effect=mock_normalize,
         ):
             result = geocode_city.invoke({"city_name": abbrev})
@@ -98,7 +98,7 @@ class TestGeocodeCity:
     def test_russian_cities_cyrillic(self, city: str, expected_tz: str) -> None:
         """Test Russian cities in Cyrillic are mapped correctly via LLM."""
         with patch(
-            "src.core.agent_tools._normalize_city_with_llm",
+            "src.core.geo._normalize_with_llm",
             side_effect=mock_normalize,
         ):
             result = geocode_city.invoke({"city_name": city})
@@ -121,7 +121,7 @@ class TestGeocodeCity:
     def test_invalid_returns_not_found(self, invalid_input: str) -> None:
         """Test invalid inputs return NOT_FOUND."""
         with patch(
-            "src.core.agent_tools._normalize_city_with_llm",
+            "src.core.geo._normalize_with_llm",
             return_value=None,
         ):
             result = geocode_city.invoke({"city_name": invalid_input})
@@ -243,7 +243,7 @@ class TestEdgeCases:
         states = ["Texas", "California", "Florida"]
         for state in states:
             with patch(
-                "src.core.agent_tools._normalize_city_with_llm",
+                "src.core.geo._normalize_with_llm",
                 return_value=None,
             ):
                 result = geocode_city.invoke({"city_name": state})
@@ -260,7 +260,7 @@ class TestEdgeCases:
         """Country names may or may not be found depending on capitals."""
         # Some countries share names with their capitals
         with patch(
-            "src.core.agent_tools._normalize_city_with_llm",
+            "src.core.geo._normalize_with_llm",
             return_value=None,
         ):
             # "Germany" shouldn't match any city (unlike "France" which matches "Franceville")

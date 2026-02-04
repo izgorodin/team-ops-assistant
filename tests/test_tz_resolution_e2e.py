@@ -1,8 +1,8 @@
 """E2E tests for Timezone Resolution Pipeline.
 
 Tests the full flow from message input to timezone resolution:
-1. TzContextTrigger (ML classifier) - detects need for TZ resolution
-2. TimeDetector.detect() - parses times and resolves TZ
+1. Time parsing with regex (parse_times)
+2. TimeDetector.detect() - parses times and resolves TZ via geonames
 3. LLM fallback - handles complex cases
 
 All LLM calls are mocked to ensure deterministic testing.
@@ -21,7 +21,6 @@ from src.core.llm_fallback import resolve_timezone_context
 from src.core.models import NormalizedEvent, Platform
 from src.core.time_parse import parse_times
 from src.core.triggers.time import TimeDetector
-from src.core.tz_context_trigger import TzContextTrigger, detect_tz_context
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -85,14 +84,6 @@ def _mock_llm_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 @pytest.fixture
-def trained_tz_classifier() -> TzContextTrigger:
-    """Get a trained TzContextTrigger classifier."""
-    from src.core.tz_context_trigger import get_classifier
-
-    return get_classifier()
-
-
-@pytest.fixture
 def time_detector() -> TimeDetector:
     """Create TimeDetector instance."""
     return TimeDetector()
@@ -112,102 +103,7 @@ def make_event(text: str, user_id: str = "user123", chat_id: str = "chat456") ->
 
 
 # ============================================================================
-# Layer 1: TzContextTrigger ML Classifier Tests
-# ============================================================================
-
-
-class TestTzContextTriggerClassifier:
-    """Tests for ML-based TZ context trigger detection."""
-
-    def test_explicit_tz_russian_msk(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects explicit Moscow timezone in Russian."""
-        result = trained_tz_classifier.predict("встреча в 16:30 Мск")
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-        # Confidence can vary, main thing is it triggers correctly
-        assert result.confidence > 0.5
-
-    def test_explicit_tz_russian_city(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects 'по городу' pattern."""
-        result = trained_tz_classifier.predict("созвон в 14 по Тбилиси")
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-        assert result.confidence > 0.5
-
-    def test_explicit_tz_english_pst(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects explicit PST timezone in English."""
-        result = trained_tz_classifier.predict("meeting at 3pm PST")
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-    def test_clarification_question_russian(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects timezone clarification question in Russian."""
-        result = trained_tz_classifier.predict("это по москве?")
-        assert result.triggered is True
-        assert result.trigger_type == "clarification_question"
-
-    def test_clarification_question_english(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects timezone clarification question in English."""
-        result = trained_tz_classifier.predict("what timezone is that?")
-        assert result.triggered is True
-        assert result.trigger_type == "clarification_question"
-
-    def test_no_trigger_simple_time(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """No trigger for simple time without TZ context."""
-        result = trained_tz_classifier.predict("встреча в 15")
-        assert result.triggered is False
-        assert result.trigger_type == "none"
-
-    def test_no_trigger_no_time(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """No trigger for message without time."""
-        result = trained_tz_classifier.predict("привет, как дела?")
-        assert result.triggered is False
-
-    def test_utc_offset_pattern(self, trained_tz_classifier: TzContextTrigger) -> None:
-        """Detects UTC offset patterns."""
-        result = trained_tz_classifier.predict("meeting at 14:00 UTC+3")
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-
-class TestDetectTzContextFunction:
-    """Tests for detect_tz_context() convenience function with fast-path."""
-
-    def test_fast_path_msk_abbreviation(self) -> None:
-        """Fast regex path for Мск abbreviation."""
-        result = detect_tz_context("давай в 10 Мск", use_fast_path=True)
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-        assert result.confidence >= 0.90
-
-    def test_fast_path_po_city(self) -> None:
-        """Fast regex path for 'по + city' pattern."""
-        result = detect_tz_context("в 14 по Тбилиси", use_fast_path=True)
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-    def test_fast_path_utc_offset(self) -> None:
-        """Fast regex path for UTC offset."""
-        result = detect_tz_context("sync at 09:00 UTC-5", use_fast_path=True)
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-    def test_fast_path_clarification(self) -> None:
-        """Fast regex path for clarification questions."""
-        result = detect_tz_context("это по московскому времени?", use_fast_path=True)
-        assert result.triggered is True
-        assert result.trigger_type == "clarification_question"
-
-    def test_ml_path_fallback(self) -> None:
-        """ML path used when fast path doesn't match."""
-        # This phrase has TZ context but not covered by fast regex
-        result = detect_tz_context("let's meet at 3pm EST tomorrow", use_fast_path=True)
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-
-# ============================================================================
-# Layer 2: Time Parsing with TZ Hint Extraction
+# Time Parsing with TZ Hint Extraction
 # ============================================================================
 
 
@@ -258,7 +154,7 @@ class TestTimeParsingWithTzHint:
 
 
 # ============================================================================
-# Layer 3: LLM Fallback for TZ Resolution (Mocked)
+# LLM Fallback for TZ Resolution (Mocked)
 # ============================================================================
 
 
@@ -424,7 +320,7 @@ class TestLLMTzResolution:
 
 
 # ============================================================================
-# Layer 4: TimeDetector Full Integration (E2E)
+# TimeDetector Full Integration (E2E)
 # ============================================================================
 
 
@@ -612,29 +508,6 @@ class TestEdgeCases:
         # Mentioned TZ takes precedence
         assert triggers[0].data["source_tz"] == "Europe/Moscow"
         assert triggers[0].data["is_explicit_tz"] is True
-
-    def test_tz_trigger_with_lowercase_msk(self) -> None:
-        """Lowercase msk should trigger."""
-        result = detect_tz_context("в 10 msk")
-        assert result.triggered is True
-        assert result.trigger_type == "explicit_tz"
-
-    def test_tz_trigger_with_mixed_case(self) -> None:
-        """Mixed case MSk should trigger."""
-        result = detect_tz_context("в 10 MSk")
-        assert result.triggered is True
-
-    def test_no_false_positive_on_city_name_alone(self) -> None:
-        """Just city name without time shouldn't trigger TZ resolution."""
-        # City mention without time - this is location context, not TZ context
-        # The TZ trigger should NOT fire because there's no time to resolve
-        result = detect_tz_context("я в Москве")
-        # This is a location mention, not a timezone mention
-        # Expected: triggered=False (no time to resolve)
-        # Note: if ML triggers, it's a false positive we should fix in training data
-        assert result.trigger_type in ("none", "explicit_tz"), (
-            f"Unexpected trigger type: {result.trigger_type}"
-        )
 
 
 # ============================================================================

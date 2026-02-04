@@ -213,7 +213,8 @@ class TunnelConfig(BaseModel):
 class TriggersConfig(BaseModel):
     """Trigger detection configuration."""
 
-    relocation_confidence: float = 0.9  # Confidence for relocation detection
+    relocation_confidence: float = 0.9  # Confidence for explicit relocation phrases
+    city_detection_confidence: float = 0.7  # Confidence for city name detection fallback
 
 
 class LoggingConfig(BaseModel):

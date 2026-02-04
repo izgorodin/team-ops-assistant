@@ -61,16 +61,22 @@ class Pipeline:
     async def process(self, event: NormalizedEvent) -> PipelineResult:
         """Process a normalized event through the pipeline.
 
+        Pipeline is responsible for:
+        1. Detecting triggers from all registered detectors
+        2. Resolving context (timezone, target timezones)
+        3. Routing triggers to action handlers
+        4. Returning triggers + context + messages for orchestrator
+
+        Orchestrator decides what to do with unhandled triggers (create sessions, etc.)
+
         Args:
             event: The normalized event to process.
 
         Returns:
-            PipelineResult containing response messages and statistics.
+            PipelineResult containing triggers, context, messages, and errors.
         """
         messages: list[OutboundMessage] = []
         errors: list[str] = []
-        triggers_detected = 0
-        triggers_handled = 0
 
         # Step 1: Detect triggers from all detectors
         all_triggers: list[DetectedTrigger] = []
@@ -82,97 +88,24 @@ class Pipeline:
                 logger.error(f"Detector {detector.__class__.__name__} failed: {e}")
                 errors.append(f"Detection error: {e}")
 
-        triggers_detected = len(all_triggers)
-
         if not all_triggers:
             return PipelineResult(
+                triggers=[],
+                context=None,
                 messages=[],
-                triggers_detected=0,
-                triggers_handled=0,
                 errors=errors,
             )
 
-        # Step 1.5: Check for mention triggers (help request - highest priority)
-        # These are handled immediately without needing timezone context
-        mention_triggers = [t for t in all_triggers if t.trigger_type == "mention"]
-        if mention_triggers:
-            mention_trigger = mention_triggers[0]
-            logger.info(
-                f"Mention detected for user {event.user_id}: '{mention_trigger.original_text}'"
-            )
-            return PipelineResult(
-                messages=[],
-                triggers_detected=triggers_detected,
-                triggers_handled=1,
-                errors=errors,
-                needs_state_collection=True,
-                state_collection_trigger=mention_trigger,
-            )
-
-        # Step 1.6: Check for relocation triggers (second priority)
-        # Relocation triggers must be handled BEFORE context resolution
-        # because they reset confidence and require re-verification
-        relocation_triggers = [t for t in all_triggers if t.trigger_type == "relocation"]
-        if relocation_triggers:
-            relocation_trigger = relocation_triggers[0]
-            handler = self.action_handlers.get("relocation")
-            if handler:
-                try:
-                    # Handler resets confidence to 0.0
-                    context = ResolvedContext(
-                        platform=event.platform,
-                        chat_id=event.chat_id,
-                        user_id=event.user_id,
-                        source_timezone=None,
-                        target_timezones=[],
-                    )
-                    await handler.handle(relocation_trigger, context)
-                except Exception as e:
-                    logger.error(f"Relocation handler failed: {e}")
-                    errors.append(f"Relocation handler error: {e}")
-
-            logger.info(
-                f"Relocation detected for user {event.user_id}: "
-                f"'{relocation_trigger.original_text}' → re-verification needed"
-            )
-            return PipelineResult(
-                messages=[],
-                triggers_detected=triggers_detected,
-                triggers_handled=1,
-                errors=errors,
-                needs_state_collection=True,
-                state_collection_trigger=relocation_trigger,
-            )
-
-        # Step 2: Resolve state (timezone for now)
+        # Step 2: Resolve context (timezone, target timezones)
         context = await self._resolve_context(event, all_triggers)
 
-        # Step 2.5: Check if state collection is needed
-        # If we have time triggers but no source timezone, we need to collect it
-        if context.source_timezone is None and all_triggers:
-            # Get the best trigger (highest confidence) for state collection
-            best_trigger = max(all_triggers, key=lambda t: t.confidence)
-            logger.info(
-                f"State collection needed for user {event.user_id}: "
-                f"no source timezone for trigger '{best_trigger.original_text}'"
-            )
-            return PipelineResult(
-                messages=[],
-                triggers_detected=triggers_detected,
-                triggers_handled=0,
-                errors=errors,
-                needs_state_collection=True,
-                state_collection_trigger=best_trigger,
-            )
-
-        # Step 3: Handle each trigger
+        # Step 3: Handle each trigger via registered action handlers
         for trigger in all_triggers:
             handler = self.action_handlers.get(trigger.trigger_type)
             if handler:
                 try:
                     trigger_messages = await handler.handle(trigger, context)
                     messages.extend(trigger_messages)
-                    triggers_handled += 1
                 except Exception as e:
                     logger.error(f"Handler for {trigger.trigger_type} failed: {e}")
                     errors.append(f"Handler error: {e}")
@@ -180,9 +113,9 @@ class Pipeline:
                 logger.debug(f"No handler registered for trigger type: {trigger.trigger_type}")
 
         return PipelineResult(
+            triggers=all_triggers,
+            context=context,
             messages=messages,
-            triggers_detected=triggers_detected,
-            triggers_handled=triggers_handled,
             errors=errors,
         )
 

@@ -183,8 +183,10 @@ tunnel:
 
 # Trigger detection settings
 triggers:
-  # Confidence score for relocation detection
+  # Confidence score for explicit relocation phrases (regex)
   relocation_confidence: 0.9
+  # Confidence score for city name detection fallback (geonames)
+  city_detection_confidence: 0.7
 
 # Logging
 logging:

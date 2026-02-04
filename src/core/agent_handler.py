@@ -16,7 +16,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from openai import APITimeoutError
 
-from src.core.agent_tools import AGENT_TOOLS
+from src.core.agent_tools import AGENT_TOOLS, GEO_INTENT_TOOLS
+from src.core.handlers import ConfirmRelocationHandler
 from src.core.models import (
     HandlerResult,
     NormalizedEvent,
@@ -71,6 +72,7 @@ class AgentHandler:
         self.storage = storage
         self.settings = settings
         self.tz_manager = TimezoneIdentityManager(storage)
+        self.confirm_relocation_handler = ConfirmRelocationHandler(storage)
 
         # Initialize LLM (using OpenAI-compatible API with NVIDIA NIM)
         # Timeout must be under Telegram's 30s webhook limit
@@ -97,98 +99,20 @@ class AgentHandler:
             HandlerResult with response messages.
         """
         if session.goal == SessionGoal.CONFIRM_RELOCATION:
-            # Simple yes/no confirmation - no LLM needed!
-            return await self._handle_confirm_relocation(session, event)
+            # Simple yes/no confirmation - delegated to rules-based handler (no LLM)
+            return await self.confirm_relocation_handler.handle(session, event)
 
         if session.goal in (SessionGoal.AWAITING_TIMEZONE, SessionGoal.REVERIFY_TIMEZONE):
             return await self._handle_timezone_session(session, event)
+
+        if session.goal == SessionGoal.CLARIFY_GEO_INTENT:
+            # City detected but intent unclear - smart agent decides
+            return await self._handle_geo_intent_session(session, event)
 
         # Unknown session goal - close it
         logger.warning(f"Unknown session goal: {session.goal}")
         await self.storage.close_session(session.session_id, SessionStatus.FAILED)
         return HandlerResult(should_respond=False)
-
-    async def _handle_confirm_relocation(
-        self, session: Session, event: NormalizedEvent
-    ) -> HandlerResult:
-        """Handle relocation confirmation - simple yes/no, no LLM needed.
-
-        User confirms pre-resolved timezone or provides different city.
-
-        Args:
-            session: Session with resolved_city and resolved_tz in context.
-            event: User's response ("да", "yes", or city name).
-
-        Returns:
-            HandlerResult with confirmation or retry prompt.
-        """
-        from src.core.agent_tools import geocode_city_full
-
-        user_text = event.text.strip().lower()
-        resolved_tz = session.context.get("resolved_tz")
-
-        # Check for confirmation (да, yes, ок, ok, верно, правильно, +)
-        confirm_words = {"да", "yes", "ок", "ok", "верно", "правильно", "+", "угу", "ага", "yep"}
-        if user_text in confirm_words or user_text.startswith("да"):
-            if resolved_tz:
-                return await self._complete_session(session, event, resolved_tz)
-            # No resolved_tz - shouldn't happen, but handle gracefully
-            logger.warning(f"CONFIRM_RELOCATION session without resolved_tz: {session.session_id}")
-            await self.storage.close_session(session.session_id, SessionStatus.FAILED)
-            return HandlerResult(should_respond=False)
-
-        # Check for rejection (нет, no) - ask for correct city
-        reject_words = {"нет", "no", "неверно", "не", "nope"}
-        if user_text in reject_words:
-            text = get_ui_message("ask_city")
-            return await self._continue_session(session, event, text)
-
-        # User provided a city name - try to geocode it (with LLM normalization for Cyrillic)
-        result = geocode_city_full(event.text)
-        if result.startswith("FOUND:"):
-            try:
-                parts = result.replace("FOUND:", "").strip().split("→")
-                new_city = parts[0].strip()
-                new_tz = parts[1].strip()
-
-                # Update session with new resolved timezone and ask again
-                session.context["resolved_city"] = new_city
-                session.context["resolved_tz"] = new_tz
-                session.context["attempts"] = session.context.get("attempts", 0) + 1
-                session.updated_at = datetime.now(UTC)
-
-                # Check max attempts
-                if session.context["attempts"] >= 3:
-                    return await self._fail_session(session, event)
-
-                await self.storage.update_session(session)
-
-                text = get_ui_message("confirm_relocation", city_name=new_city, tz_iana=new_tz)
-                message = OutboundMessage(
-                    platform=event.platform,
-                    chat_id=event.chat_id,
-                    text=text,
-                    parse_mode="html",
-                )
-                return HandlerResult(should_respond=True, messages=[message])
-
-            except (IndexError, ValueError) as e:
-                logger.warning(f"Failed to parse geocode result: {result} - {e}")
-
-        # City not found - ask again
-        session.context["attempts"] = session.context.get("attempts", 0) + 1
-        if session.context["attempts"] >= 3:
-            return await self._fail_session(session, event)
-
-        await self.storage.update_session(session)
-        text = get_ui_message("city_not_found", city_name=event.text)
-        message = OutboundMessage(
-            platform=event.platform,
-            chat_id=event.chat_id,
-            text=text,
-            parse_mode="plain",
-        )
-        return HandlerResult(should_respond=True, messages=[message])
 
     async def _handle_timezone_session(
         self, session: Session, event: NormalizedEvent
@@ -263,10 +187,172 @@ class AgentHandler:
             logger.exception(f"Agent error: {e}")
             return await self._handle_agent_error(session, event, str(e))
 
+    async def _handle_geo_intent_session(
+        self, session: Session, event: NormalizedEvent
+    ) -> HandlerResult:
+        """Handle geo intent clarification session.
+
+        Agent has full context (all triggers, city, time) and decides:
+        - TIME_QUERY → convert time
+        - RELOCATION → save timezone
+        - FALSE_POSITIVE → no action
+        - UNCLEAR → ask user
+
+        Args:
+            session: Active geo intent session with rich context.
+            event: User's message.
+
+        Returns:
+            HandlerResult with agent's action.
+        """
+        from src.core.prompts import load_prompt
+
+        # Extract context from session
+        ctx = session.context
+        city = ctx.get("city", "")
+        timezone = ctx.get("timezone", "")
+        time_detected = ctx.get("time_detected")
+        user_tz = ctx.get("user_tz")
+
+        # Build system prompt with full context
+        system_content = load_prompt(
+            "agent_geo_intent",
+            text=event.text,
+            city=city,
+            timezone=timezone,
+            time_detected=time_detected,
+            user_tz=user_tz,
+        )
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_content)]
+
+        # Add conversation history
+        history = ctx.get("history", [])
+        for entry in history:
+            if entry["role"] == "user":
+                messages.append(HumanMessage(content=entry["content"]))
+            elif entry["role"] == "assistant":
+                messages.append(AIMessage(content=entry["content"]))
+
+        # Add current message
+        messages.append(HumanMessage(content=event.text))
+
+        try:
+            # Create agent with geo intent tools
+            geo_agent = create_react_agent(self.llm, GEO_INTENT_TOOLS)
+            result = await geo_agent.ainvoke({"messages": messages})
+
+            agent_messages = result.get("messages", [])
+            if not agent_messages:
+                return await self._handle_agent_error(session, event, "No response")
+
+            # Check for actions in tool responses
+            action_result = self._extract_geo_action(agent_messages)
+
+            if action_result:
+                action_type, action_data = action_result
+
+                if action_type == "SAVE":
+                    # Relocation - save timezone and complete
+                    return await self._complete_session(session, event, action_data)
+
+                elif action_type == "CONVERT":
+                    # Time conversion - respond and close
+                    await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
+                    message = OutboundMessage(
+                        platform=event.platform,
+                        chat_id=event.chat_id,
+                        text=f"🕐 {action_data}",
+                        parse_mode="plain",
+                    )
+                    return HandlerResult(should_respond=True, messages=[message])
+
+                elif action_type == "NO_ACTION":
+                    # False positive - close silently
+                    await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
+                    return HandlerResult(should_respond=False)
+
+            # Agent is asking for clarification
+            response_text = ""
+            for msg in reversed(agent_messages):
+                if isinstance(msg, AIMessage) and msg.content:
+                    response_text = _sanitize_response(str(msg.content))
+                    break
+
+            if response_text:
+                return await self._continue_session(session, event, response_text)
+
+            # No response - close session
+            await self.storage.close_session(session.session_id, SessionStatus.COMPLETED)
+            return HandlerResult(should_respond=False)
+
+        except (TimeoutError, APITimeoutError) as e:
+            logger.error(f"Geo intent agent timeout: {e}")
+            return await self._handle_agent_timeout(session, event)
+        except Exception as e:
+            logger.exception(f"Geo intent agent error: {e}")
+            return await self._handle_agent_error(session, event, str(e))
+
+    def _extract_geo_action(self, messages: list) -> tuple[str, str] | None:
+        """Extract action from geo intent agent messages.
+
+        Looks for SAVE:, CONVERT:, or NO_ACTION patterns.
+        Also handles malformed tool calls where LLM outputs function syntax as text.
+
+        Args:
+            messages: Agent messages.
+
+        Returns:
+            Tuple of (action_type, data) or None.
+        """
+        import re
+
+        from langchain_core.messages import ToolMessage
+
+        for msg in messages:
+            content = ""
+            if isinstance(msg, ToolMessage):
+                content = str(msg.content) if msg.content else ""
+            elif hasattr(msg, "content"):
+                content = str(msg.content)
+
+            # Primary patterns from tool execution
+            if "SAVE:" in content:
+                tz = content.split("SAVE:")[1].strip().split()[0]
+                return ("SAVE", tz)
+
+            if "CONVERT:" in content:
+                conversion = content.split("CONVERT:")[1].strip()
+                return ("CONVERT", conversion)
+
+            if "NO_ACTION" in content:
+                return ("NO_ACTION", "")
+
+            # Fallback: malformed tool calls as text
+            if "save_timezone" in content:
+                tz = self._parse_malformed_tool_call(content)
+                if tz:
+                    logger.warning(f"Geo action: extracted timezone from malformed call: {tz}")
+                    return ("SAVE", tz)
+
+            if "convert_time" in content:
+                # Try to extract conversion result from malformed call
+                match = re.search(r"convert_time\s*\([^)]+\)", content)
+                if match:
+                    logger.warning("Geo action: detected malformed convert_time call")
+                    # Can't execute, but signal intent
+                    return ("CONVERT", "Time conversion requested")
+
+            if "no_action" in content.lower():
+                return ("NO_ACTION", "")
+
+        return None
+
     def _extract_saved_timezone(self, messages: list) -> str | None:
         """Extract saved timezone from agent messages.
 
         Checks all messages (including tool responses) for SAVE: pattern.
+        Also handles malformed tool calls where LLM outputs function syntax as text.
 
         Args:
             messages: List of agent messages.
@@ -294,18 +380,61 @@ class AgentHandler:
                 f"Message type={msg_type}, content preview: {content[:100] if content else 'empty'}"
             )
 
+            # Primary pattern: SAVE:timezone from actual tool execution
             if "SAVE:" in content:
-                # Extract timezone after SAVE:
                 tz_part = content.split("SAVE:")[1].strip()
-                # Clean up any extra text
                 if " " in tz_part:
                     tz_part = tz_part.split()[0]
                 if "\n" in tz_part:
                     tz_part = tz_part.split("\n")[0]
-                logger.info(f"Extracted timezone from messages: {tz_part}")
+                logger.info(f"Extracted timezone from SAVE: pattern: {tz_part}")
                 return tz_part
 
+            # Fallback: LLM output tool call as text (malformed)
+            # Pattern: save_timezone({"tz_iana": "Europe/Rome"}) or save_timezone("Europe/Rome")
+            if "save_timezone" in content:
+                tz = self._parse_malformed_tool_call(content)
+                if tz:
+                    logger.warning(f"Extracted timezone from malformed tool call: {tz}")
+                    return tz
+
         logger.warning(f"No SAVE: found in {len(messages)} messages")
+        return None
+
+    def _parse_malformed_tool_call(self, text: str) -> str | None:
+        """Parse timezone from LLM text that contains function call syntax.
+
+        Handles cases where LLM outputs tool calls as text instead of calling them.
+        Examples:
+            - save_timezone({"tz_iana": "Europe/Rome"})
+            - save_timezone("Europe/Rome")
+            - save_timezone(tz_iana="Europe/Rome")
+
+        Args:
+            text: Text containing potential malformed tool call.
+
+        Returns:
+            IANA timezone if found, None otherwise.
+        """
+        import re
+
+        # Pattern 1: save_timezone({"tz_iana": "Europe/Rome"})
+        match = re.search(
+            r'save_timezone\s*\(\s*\{\s*["\']?tz_iana["\']?\s*:\s*["\']([^"\']+)["\']', text
+        )
+        if match:
+            return match.group(1)
+
+        # Pattern 2: save_timezone("Europe/Rome")
+        match = re.search(r'save_timezone\s*\(\s*["\']([^"\']+)["\']', text)
+        if match:
+            return match.group(1)
+
+        # Pattern 3: save_timezone(tz_iana="Europe/Rome")
+        match = re.search(r'save_timezone\s*\(\s*tz_iana\s*=\s*["\']([^"\']+)["\']', text)
+        if match:
+            return match.group(1)
+
         return None
 
     def _build_messages(
@@ -527,7 +656,7 @@ class AgentHandler:
         Returns:
             IANA timezone if we can find the city, None otherwise.
         """
-        from src.core.agent_tools import _lookup_city_geonames
+        from src.core.geo import geocode_city_str
 
         # Try to find city in user text - simple heuristic
         # Remove common prefixes like "переехал в", "moved to", "я в", "I'm in"
@@ -549,7 +678,7 @@ class AgentHandler:
                 continue
 
             # Try direct geonames lookup (no LLM, just the local database)
-            result = _lookup_city_geonames(candidate)
+            result = geocode_city_str(candidate, use_llm=False)
             if result.startswith("FOUND:"):
                 # Extract timezone: "FOUND: City → Timezone"
                 try:

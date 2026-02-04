@@ -71,14 +71,15 @@ This document describes both the current implementation (AS-IS) and the target a
 |-----------|------|----------------|
 | **App** | `src/app.py` | Quart entry, webhook routes, lifecycle |
 | **Settings** | `src/settings.py` | Configuration loading from env + yaml |
-| **Pipeline** | `src/core/pipeline.py` | Orchestrates triggers → state → actions |
-| **Orchestrator** | `src/core/orchestrator.py` | Session management, state collection |
-| **TimeDetector** | `src/core/triggers/time.py` | ML + Regex time detection |
+| **Pipeline** | `src/core/pipeline.py` | Trigger detection only (no session logic) |
+| **Orchestrator** | `src/core/orchestrator.py` | Single decision point for all triggers |
+| **TimeDetector** | `src/core/triggers/time.py` | Regex time detection (no ML) |
 | **RelocationDetector** | `src/core/triggers/relocation.py` | Regex relocation phrases (EN/RU) |
+| **Geocoding** | `src/core/geo.py` | Unified city→timezone lookup |
 | **TimezoneStateManager** | `src/core/state/timezone.py` | User TZ with confidence decay |
 | **TimeConversionHandler** | `src/core/actions/time_convert.py` | Multi-timezone conversion |
-| **RelocationHandler** | `src/core/actions/relocation.py` | Reset confidence on relocation |
-| **AgentHandler** | `src/core/agent_handler.py` | LLM agent for city resolution |
+| **ConfirmRelocationHandler** | `src/core/handlers/confirm_relocation.py` | Rules-based relocation confirmation |
+| **AgentHandler** | `src/core/agent_handler.py` | LLM agent for timezone sessions |
 | **LLMFallback** | `src/core/llm_fallback.py` | NVIDIA NIM API for complex cases |
 | **Prompts** | `src/core/prompts.py` | Jinja2 template loading from `prompts/` |
 | **TzIdentity** | `src/core/timezone_identity.py` | Confidence decay, token generation |
@@ -102,41 +103,77 @@ This document describes both the current implementation (AS-IS) and the target a
 4. Outbound Adapter → Platform API
 ```
 
-### 1.4 Time Detection Pipeline
+### 1.4 Time Detection Pipeline (98% Rules-Based)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Layer 1: ML Classifier (TF-IDF + Logistic Regression)                  │
-│  ───────────────────────────────────────────────────────                │
-│  • Input: raw message text                                              │
-│  • Output: probability [0.0, 1.0]                                       │
-│  • Thresholds: uncertain=[0.4, 0.6], positive>0.6                       │
-│  • Speed: <1ms local                                                    │
-│  • Filters: ~75% of messages (no time → stop)                           │
-│                                                                         │
-│  if probability ∈ [0.4, 0.6]:                                           │
-│      → LLM detection fallback                                           │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               ▼ has_time=true
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Layer 2: Regex Extraction                                              │
-│  ─────────────────────────────                                          │
+│  Layer 1: Regex Extraction (Primary)                                    │
+│  ─────────────────────────────────────                                  │
 │  • Patterns: HH:MM, H am/pm, "at H", ranges, tomorrow                   │
-│  • Timezone hints: PST, EST, GMT, city names                            │
+│  • Timezone hints: PST, EST, GMT, "по [city]"                           │
 │  • Speed: <0.1ms                                                        │
-│  • Handles: ~80% of positive cases                                      │
+│  • Handles: ~98% of time mentions                                       │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               ▼ needs city lookup
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 2: Geocoding (geonames + LLM normalization)                      │
+│  ──────────────────────────────────────────────────                     │
+│  • Geonames: 150k+ cities with alternatenames (Cyrillic supported)      │
+│  • Russian dative case normalization (бобруйску → бобруйск)             │
+│  • LLM fallback: Cyrillic→English when geonames fails                   │
+│  • Speed: <10ms (geonames), ~500ms (LLM fallback)                       │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                ▼ regex_failed
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Layer 3: LLM Extraction (NVIDIA NIM / Qwen3-70B)                       │
-│  ─────────────────────────────────────────────                          │
+│  Layer 3: LLM Extraction (Fallback only, ~2%)                           │
+│  ────────────────────────────────────────────                           │
 │  • Handles: "half past seven", "в полдень", word-based                  │
 │  • Speed: 200-500ms                                                     │
-│  • Reaches: ~5% of messages                                             │
+│  • Reaches: ~2% of messages                                             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.5 Current Limitations
+### 1.5 Session Workflow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Message Arrives                                   │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Orchestrator.route()                                 │
+│                                                                          │
+│  1. Check active session → if exists, continue it                        │
+│  2. Pipeline.process() → detect triggers (NO session logic)              │
+│  3. _decide_action() → single decision point for all triggers            │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Action Types                                         │
+│                                                                          │
+│  send_help            → MentionHandler (static help message)             │
+│  create_relocation_session → Geocode city → CONFIRM_RELOCATION session   │
+│  create_timezone_session   → AWAITING_TIMEZONE or REVERIFY session       │
+│  None                 → Time conversion successful, no action needed     │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Session Handlers                                     │
+│                                                                          │
+│  CONFIRM_RELOCATION  → ConfirmRelocationHandler (rules-based, no LLM)    │
+│  AWAITING_TIMEZONE   → AgentHandler (LLM-powered conversation)           │
+│  REVERIFY_TIMEZONE   → AgentHandler (LLM-powered conversation)           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Design Principles:**
+
+- **Pipeline = detection only** - no session logic, just triggers + context
+- **Orchestrator = single decision point** - `_decide_action()` owns all routing
+- **Rules-first sessions** - ConfirmRelocationHandler needs no LLM
+- **LLM only for complex sessions** - multi-turn timezone verification
+
+### 1.6 Current Limitations (Resolved)
 
 | Area | Problem | Impact | Status |
 |------|---------|--------|--------|
@@ -145,6 +182,8 @@ This document describes both the current implementation (AS-IS) and the target a
 | **No Interfaces** | ~~Concrete implementations only~~ | ~~Hard to swap/mock components~~ | ✅ RESOLVED - TriggerDetector, StateManager, ActionHandler |
 | **Tight Coupling** | ~~Components know each other~~ | ~~Hard to test in isolation~~ | ✅ RESOLVED - Protocol-based DI |
 | **Partial Config** | ~~Some params in yaml, some hardcoded~~ | ~~Inconsistent configuration~~ | ✅ RESOLVED - Full config + Pydantic |
+| **ML Classifier** | ~~TF-IDF/LR adds complexity~~ | ~~Maintenance burden, marginal gain~~ | ✅ RESOLVED - removed, pure regex |
+| **Scattered Geocoding** | ~~4+ geocoding paths~~ | ~~Inconsistent behavior~~ | ✅ RESOLVED - unified geo.py |
 
 **Configuration Coverage (all in `configuration.yaml`):**
 
@@ -363,11 +402,22 @@ The extensible architecture is now implemented with two trigger types:
 
 | Layer | Protocol | Implementation | Status |
 |-------|----------|----------------|--------|
-| Trigger | `TriggerDetector` | `TimeDetector` (ML + Regex + LLM) | ✅ Complete |
-| Trigger | `TriggerDetector` | `RelocationDetector` (Regex EN/RU) | ✅ Complete (MVP) |
+| Trigger | `TriggerDetector` | `TimeDetector` (Regex only, no ML) | ✅ Complete |
+| Trigger | `TriggerDetector` | `RelocationDetector` (Regex EN/RU) | ✅ Complete |
+| Trigger | `TriggerDetector` | `MentionDetector` (Regex @bot) | ✅ Complete |
+| Geocoding | — | `geocode_city()` (geonames + LLM) | ✅ Complete |
 | State | `StateManager[str]` | `TimezoneStateManager` (confidence + decay) | ✅ Complete |
 | Action | `ActionHandler` | `TimeConversionHandler` | ✅ Complete |
-| Action | `ActionHandler` | `RelocationHandler` (reset confidence) | ✅ Complete |
+| Session | — | `ConfirmRelocationHandler` (rules-based) | ✅ Complete |
+| Session | — | `AgentHandler` (LLM conversation) | ✅ Complete |
+
+**LLM Usage (minimal):**
+
+| Component | When LLM is Used | Frequency |
+|-----------|------------------|-----------|
+| `geo.py` | City normalization (Cyrillic→English) | ~5% of geocoding |
+| `llm_fallback.py` | Time extraction fallback | ~2% of messages |
+| `AgentHandler` | Timezone verification sessions | Only when needed |
 
 **State Lifecycle (ADR-003):**
 

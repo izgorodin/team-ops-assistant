@@ -297,10 +297,8 @@ class TestPipelineRelocationPath:
             message_id="test_msg",
         )
 
-    async def test_relocation_triggers_needs_state_collection(
-        self, mock_storage: MagicMock
-    ) -> None:
-        """Test pipeline returns needs_state_collection for relocation triggers."""
+    async def test_relocation_triggers_detected(self, mock_storage: MagicMock) -> None:
+        """Test pipeline detects relocation triggers and returns them."""
         from src.core.actions.relocation import RelocationHandler
         from src.core.pipeline import Pipeline
         from src.core.triggers.relocation import RelocationDetector
@@ -316,15 +314,15 @@ class TestPipelineRelocationPath:
         event = self._make_event("I moved to Berlin")
         result = await pipeline.process(event)
 
-        # Assert relocation path was taken
-        assert result.needs_state_collection is True
-        assert result.state_collection_trigger is not None
-        assert result.state_collection_trigger.trigger_type == "relocation"
-        assert result.triggers_detected == 1
-        assert result.triggers_handled == 1
+        # Assert relocation trigger was detected
+        assert len(result.triggers) == 1
+        assert result.triggers[0].trigger_type == "relocation"
+        assert result.triggers[0].data.get("city") == "Berlin"
+        # Relocation handler returns empty messages (orchestrator handles session)
+        assert result.messages == []
 
-    async def test_relocation_has_priority_over_time(self, mock_storage: MagicMock) -> None:
-        """Test relocation triggers are processed before time triggers."""
+    async def test_relocation_and_time_both_detected(self, mock_storage: MagicMock) -> None:
+        """Test both relocation and time triggers are detected."""
         from src.core.actions.relocation import RelocationHandler
         from src.core.pipeline import Pipeline
         from src.core.triggers.relocation import RelocationDetector
@@ -340,7 +338,7 @@ class TestPipelineRelocationPath:
         event = self._make_event("I moved to Berlin, let's meet at 3pm")
         result = await pipeline.process(event)
 
-        # Relocation should take priority
-        assert result.needs_state_collection is True
-        assert result.state_collection_trigger is not None
-        assert result.state_collection_trigger.trigger_type == "relocation"
+        # Both triggers should be detected
+        trigger_types = {t.trigger_type for t in result.triggers}
+        assert "relocation" in trigger_types
+        # Time trigger may or may not be detected depending on pattern

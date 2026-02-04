@@ -136,9 +136,16 @@ When creating convenience functions that wrap Pydantic models:
 - `UserTzState`: User's timezone with confidence score
 - Confidence threshold: 0.7 (below = prompt verification)
 
-**Pipeline Flow:**
-1. Webhook → Normalize → Dedupe check
-2. Parse time references (rules-first, LLM fallback)
-3. Resolve user timezone (verified > chat default > prompt)
-4. Convert to team timezones
-5. Send formatted response
+**Message Flow (98% rules-based):**
+
+1. Webhook → Normalize → Dedupe/throttle/rate-limit
+2. Check active session → AgentHandler (if exists)
+3. Pipeline: detect triggers (regex) → resolve context → action handlers
+4. Orchestrator `_decide_action()`: single decision point for all triggers
+5. Session handlers: ConfirmRelocationHandler (rules) or AgentHandler (LLM)
+
+**LLM Used Only For:**
+
+- City normalization (Cyrillic→English) when geonames fails (~5%)
+- Time extraction fallback (~2%)
+- Multi-turn timezone verification sessions
